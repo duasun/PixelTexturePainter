@@ -176,5 +176,3 @@ HSeparator/styles/separator = SubResource("separator")
 HSeparator/constants/separation = 12
 WorkspacePane/base_type = &"PanelContainer"
 WorkspacePane/styles/panel = SubResource("workspace_pane")
-
-\n

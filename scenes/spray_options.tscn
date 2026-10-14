@@ -81,5 +81,3 @@ size_flags_horizontal = 1
 clip_text = true
 text = "Preview: next burst"
 theme_override_font_sizes/font_size = 11
-
-\n

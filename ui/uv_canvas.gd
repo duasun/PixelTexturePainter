@@ -196,6 +196,3 @@ func _draw_cursor_at(origin: Vector2, pixel: Vector2, mirrored := false) -> void
 		points.append(offset + point * zoom)
 	draw_multiline(points, Color(0.0, 0.0, 0.0, 0.95), 3.0)
 	draw_multiline(points, Color("dcfffa"), 1.0)
-
-
-\n

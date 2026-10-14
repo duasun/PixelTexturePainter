@@ -1721,5 +1721,3 @@ func _save_preferences() -> void:
 		_preferences.set_setting("uv",field,%UV.get_node(field).value)
 	var error := _preferences.save_settings()
 	if error != OK: _status("Could not save painter settings: " + error_string(error))
-
-\n
