@@ -40,6 +40,14 @@ func run() -> void:
 	check(scene.get_node("%Inspector").global_position.y < scene.model_view.global_position.y and scene.get_node("%Inspector").get_global_rect().end.y > scene.get_node("%PalettePanel").global_position.y, "Inspector spans the height beside the paint workspace")
 	check(scene.get_node("%MapSelector").global_position.y > scene.model_view.display.global_position.y and scene.get_node("%MapSelector").get_global_rect().end.x <= scene.model_view.get_global_rect().end.x, "Map selector sits in the model view's lower right corner")
 	check(scene.get_node("%ToolOptions/Size/Center/Display").get_theme_font_size("font_size") == 12, "Tool setting controls use compact 12px font")
+	var palette_rect: Rect2 = scene.get_node("%PalettePanel").get_global_rect()
+	var model_rect: Rect2 = scene.model_view.get_global_rect()
+	scene.set_process(false)
+	scene.get_node("%JobBar").show()
+	await process_frame
+	check(scene.get_node("%PalettePanel").get_global_rect().is_equal_approx(palette_rect) and scene.model_view.get_global_rect().is_equal_approx(model_rect), "Job progress appears without moving palette swatches or model view")
+	scene.get_node("%JobBar").hide()
+	scene.set_process(true)
 	var tool: String = scene.painter.tool
 	var revision: int = scene.document.revision
 	var uv := Vector2(0.2,0.2)

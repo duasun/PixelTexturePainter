@@ -258,26 +258,9 @@ horizontal_scroll_mode = 0
 layout_mode = 2
 size_flags_horizontal = 3
 unique_name_in_owner = true
-[node name="JobBar" type="HBoxContainer" parent="Margin/Layout"]
-layout_mode = 2
-unique_name_in_owner = true
-visible = false
-[node name="JobText" type="Label" parent="Margin/Layout/JobBar"]
-layout_mode = 2
-text = "Working…"
-unique_name_in_owner = true
-custom_minimum_size = Vector2(240,0)
-[node name="JobProgress" type="ProgressBar" parent="Margin/Layout/JobBar"]
-layout_mode = 2
-unique_name_in_owner = true
-size_flags_horizontal = 3
-show_percentage = true
-[node name="CancelJob" type="Button" parent="Margin/Layout/JobBar"]
-layout_mode = 2
-text = "Cancel"
-unique_name_in_owner = true
 [node name="StatusBar" type="HBoxContainer" parent="Margin/Layout"]
 layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
 [node name="Status" type="Label" parent="Margin/Layout/StatusBar"]
 clip_text = true
 layout_mode = 2
@@ -285,6 +268,25 @@ text = "Ready"
 unique_name_in_owner = true
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 12
+[node name="JobBar" type="HBoxContainer" parent="Margin/Layout/StatusBar"]
+layout_mode = 2
+unique_name_in_owner = true
+visible = false
+[node name="JobText" type="Label" parent="Margin/Layout/StatusBar/JobBar"]
+layout_mode = 2
+text = "Working…"
+unique_name_in_owner = true
+clip_text = true
+custom_minimum_size = Vector2(200,0)
+[node name="JobProgress" type="ProgressBar" parent="Margin/Layout/StatusBar/JobBar"]
+layout_mode = 2
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160,0)
+show_percentage = true
+[node name="CancelJob" type="Button" parent="Margin/Layout/StatusBar/JobBar"]
+layout_mode = 2
+text = "Cancel"
+unique_name_in_owner = true
 [node name="Performance" type="Label" parent="Margin/Layout/StatusBar"]
 layout_mode = 2
 text = ""
