@@ -8,3 +8,6 @@ test_output/
 *.rtpaint
 *.import
 build/
+# Generated builds; keep the source images in PICS trackable.
+/.export/*
+!/.export/PICS/
