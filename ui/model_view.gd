@@ -15,6 +15,8 @@ var distance := 5.5
 var target := Vector3.ZERO
 var _orbit := false
 var _pan := false
+var _navigation_keys: Dictionary = {}
+var _navigation_fast := false
 var _painting := false
 var _gesture_candidate := false
 var interpolate_strokes := true
@@ -48,6 +50,51 @@ func _ready() -> void:
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL if on else Camera3D.PROJECTION_PERSPECTIVE
 		_update_camera())
 	display.mouse_exited.connect(func(): hovered.emit({}))
+	_update_camera()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_orbit = false
+		_navigation_keys.clear()
+		_navigation_fast = false
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+		_orbit = false
+		_navigation_keys.clear()
+		return
+	if not event is InputEventKey or event.echo: return
+	var key: int = event.physical_keycode if event.physical_keycode != KEY_NONE else event.keycode
+	if key == KEY_SHIFT:
+		_navigation_fast = event.pressed
+		if _orbit: get_viewport().set_input_as_handled()
+		return
+	if not key in [KEY_W, KEY_A, KEY_S, KEY_D, KEY_Q, KEY_E]: return
+	if not event.pressed:
+		_navigation_keys.erase(key)
+		if _orbit: get_viewport().set_input_as_handled()
+		return
+	if not _orbit or event.ctrl_pressed or event.alt_pressed or event.meta_pressed: return
+	_navigation_keys[key] = true
+	_navigation_fast = _navigation_fast or event.shift_pressed
+	get_viewport().set_input_as_handled()
+
+func _process(delta: float) -> void:
+	if not _orbit or _navigation_keys.is_empty(): return
+	var move := camera.basis.x * (int(_navigation_keys.has(KEY_D)) - int(_navigation_keys.has(KEY_A)))
+	move -= camera.basis.z * (int(_navigation_keys.has(KEY_W)) - int(_navigation_keys.has(KEY_S)))
+	move += Vector3.UP * (int(_navigation_keys.has(KEY_E)) - int(_navigation_keys.has(KEY_Q)))
+	if move.length_squared() < 0.0001: return
+	var model_extent := geometry.bounds.size.length() if geometry != null else 1.0
+	var speed := maxf(0.0005, maxf(distance * 0.45, model_extent * 0.003))
+	var step := move.normalized() * speed * (3.0 if _navigation_fast else 1.0) * minf(delta, 0.05)
+	if step.dot(-camera.basis.z) > 0.0:
+		var hit := _hit(display.size * 0.5)
+		if not hit.is_empty():
+			var clearance := maxf(camera.near * 4.0, model_extent * 0.0001)
+			var allowed := maxf(0.0, (hit.position - camera.position).dot(-camera.basis.z) - clearance)
+			step += camera.basis.z * maxf(0.0, step.dot(-camera.basis.z) - allowed)
+	target += step
 	_update_camera()
 
 func set_background_color(value: Color) -> void:
@@ -174,6 +221,8 @@ func _input_display(event: InputEvent) -> void:
 		hovered.emit(_hit(event.position))
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			_orbit = event.pressed
+			if event.pressed: display.grab_focus()
+			else: _navigation_keys.clear()
 		elif event.button_index == MOUSE_BUTTON_MIDDLE:
 			_pan = event.pressed
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:

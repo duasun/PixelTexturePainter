@@ -53,6 +53,99 @@ func run() -> void:
 		model_view._input_display(model_wheel)
 		check(model_view.distance > closest_distance, "Wheel down moves away from the surface")
 		model_view.frame_model()
+	var tool_before_navigation: String = scene.painter.tool
+	var orbit_press := InputEventMouseButton.new()
+	orbit_press.button_index = MOUSE_BUTTON_RIGHT
+	orbit_press.pressed = true
+	orbit_press.position = zoom_point
+	model_view._input_display(orbit_press)
+	check(model_view._orbit and model_view.display.has_focus(), "Right mouse hold activates 3D navigation focus")
+	var navigate := InputEventKey.new()
+	navigate.keycode = KEY_A
+	navigate.physical_keycode = KEY_A
+	navigate.pressed = true
+	var target_before_navigation: Vector3 = model_view.target
+	Input.parse_input_event(navigate)
+	await process_frame
+	model_view._process(0.05)
+	check(model_view.target != target_before_navigation and scene.painter.tool == tool_before_navigation, "RMB+A moves camera left without switching to Spray")
+	var release_a: InputEventKey = navigate.duplicate()
+	release_a.pressed = false
+	Input.parse_input_event(release_a)
+	await process_frame
+	var down_key := InputEventKey.new()
+	down_key.keycode = KEY_Q
+	down_key.physical_keycode = KEY_Q
+	down_key.pressed = true
+	model_view._input(down_key)
+	var height_before: float = model_view.target.y
+	model_view._process(0.05)
+	check(model_view.target.y < height_before, "RMB+Q moves down in world space")
+	down_key.pressed = false
+	model_view._input(down_key)
+	var up_key := InputEventKey.new()
+	up_key.keycode = KEY_E
+	up_key.physical_keycode = KEY_E
+	up_key.pressed = true
+	model_view._input(up_key)
+	height_before = model_view.target.y
+	model_view._process(0.05)
+	check(model_view.target.y > height_before, "RMB+E moves up in world space without selecting Eraser")
+	up_key.pressed = false
+	model_view._input(up_key)
+	var forward_key := InputEventKey.new()
+	forward_key.keycode = KEY_W
+	forward_key.physical_keycode = KEY_W
+	forward_key.pressed = true
+	model_view._input(forward_key)
+	var forward_start: Vector3 = model_view.target
+	var forward_direction: Vector3 = -model_view.camera.basis.z
+	model_view._process(0.02)
+	check((model_view.target - forward_start).dot(forward_direction) > 0.0, "RMB+W moves camera forward")
+	forward_key.pressed = false
+	model_view._input(forward_key)
+	var backward_key := InputEventKey.new()
+	backward_key.keycode = KEY_S
+	backward_key.physical_keycode = KEY_S
+	backward_key.pressed = true
+	model_view._input(backward_key)
+	var backward_start: Vector3 = model_view.target
+	model_view._process(0.02)
+	check((model_view.target - backward_start).dot(forward_direction) < 0.0, "RMB+S moves camera backward without selecting faces")
+	backward_key.pressed = false
+	model_view._input(backward_key)
+	var right_key := InputEventKey.new()
+	right_key.keycode = KEY_D
+	right_key.physical_keycode = KEY_D
+	right_key.pressed = true
+	model_view._input(right_key)
+	var origin: Vector3 = model_view.target
+	model_view._process(0.02)
+	var normal_step: float = model_view.target.distance_to(origin)
+	model_view.target = origin
+	model_view._update_camera()
+	var fast_key := InputEventKey.new()
+	fast_key.keycode = KEY_SHIFT
+	fast_key.physical_keycode = KEY_SHIFT
+	fast_key.pressed = true
+	model_view._input(fast_key)
+	model_view._process(0.02)
+	check(normal_step > 0.0 and model_view.target.distance_to(origin) > normal_step * 2.9, "Shift makes RMB+WASD navigation three times faster")
+	fast_key.pressed = false
+	model_view._input(fast_key)
+	orbit_press.pressed = false
+	model_view._input_display(orbit_press)
+	var stopped_at: Vector3 = model_view.target
+	model_view._process(0.05)
+	check(model_view.target == stopped_at and model_view._navigation_keys.is_empty(), "Releasing RMB stops camera movement immediately")
+	Input.parse_input_event(navigate.duplicate())
+	await process_frame
+	check(scene.painter.tool == "spray", "A still selects Spray when RMB is not held")
+	Input.parse_input_event(release_a.duplicate())
+	await process_frame
+	scene.get_node("%ToolBar").select(tool_before_navigation)
+	model_view.frame_model()
+	await process_frame
 	var bar = scene.get_node("%MenuBar")
 	var undo_button: Button = scene.model_view.get_node("Header/Undo")
 	var redo_button: Button = scene.model_view.get_node("Header/Redo")

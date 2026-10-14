@@ -89,6 +89,7 @@ layout_mode = 2
 size_flags_vertical = 3
 stretch = true
 mouse_default_cursor_shape = 3
+focus_mode = 2
 [node name="Viewport" type="SubViewport" parent="Display"]
 handle_input_locally = false
 size = Vector2i(500,600)
@@ -143,5 +144,5 @@ color = Color(0.15, 0.15, 0.15, 1)
 edit_alpha = false
 [node name="Navigation" type="Label" parent="."]
 layout_mode = 2
-text = "RMB orbit · MMB pan · wheel zoom to surface"
+text = "RMB orbit + WASD move · Q/E down/up · Shift faster · MMB pan · wheel zoom"
 theme_override_font_sizes/font_size = 11
