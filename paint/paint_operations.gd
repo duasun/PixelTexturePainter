@@ -280,7 +280,7 @@ static func _unfold(model: ModelGeometry, faces: PackedInt32Array, root: int, si
 		developed[f] = points
 	return developed
 
-static func edge_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, width: int, color: Color) -> Dictionary:
+static func edge_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, width: int, color: Color, scatter_reach := 0, noise_amount := 0.0, side_falloff := 0.7) -> Dictionary:
 	var layer := PaintLayer.new()
 	layer.title = "Edge highlights"
 	layer.mask_enabled = true
@@ -306,12 +306,60 @@ static func edge_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, 
 				var p := Vector2i(a.lerp(b, s / float(steps)))
 				for y in range(maxi(0, p.y - width), mini(doc.height, p.y + width + 1)):
 					UVRaster.span(layer.tiles, y, maxi(0, p.x - width), mini(doc.width - 1, p.x + width), color)
+			if scatter_reach > 0 and noise_amount > 0.0:
+				var third := model.uvs[face * 3 + (c + 2) % 3] * Vector2(doc.width, doc.height)
+				_edge_scatter(layer.tiles,a,b,third,Vector2i(doc.width,doc.height),width,scatter_reach,noise_amount,side_falloff,color,face,c)
 	return {"layer": layer}
+
+static func _edge_scatter(tiles: Dictionary, a: Vector2, b: Vector2, third: Vector2, size: Vector2i, width: int, reach: int, amount: float, falloff: float, color: Color, face: int, corner: int) -> void:
+	var edge := b-a
+	var length_squared := edge.length_squared()
+	if length_squared < 0.0001: return
+	var outer := float(width+reach)
+	var inner_squared := float(width*width)
+	var outer_squared := outer*outer
+	var y0 := clampi(floori(minf(a.y,b.y)-outer),0,size.y-1)
+	var y1 := clampi(ceili(maxf(a.y,b.y)+outer),0,size.y-1)
+	for y in range(y0,y1+1):
+		var left := minf(a.x,b.x)
+		var right := maxf(a.x,b.x)
+		if absf(edge.y) > 0.0001:
+			var first := clampf((y+0.5-outer-a.y)/edge.y,0.0,1.0)
+			var last := clampf((y+0.5+outer-a.y)/edge.y,0.0,1.0)
+			left = minf(a.x+edge.x*first,a.x+edge.x*last)
+			right = maxf(a.x+edge.x*first,a.x+edge.x*last)
+		var x0 := clampi(floori(left-outer),0,size.x-1)
+		var x1 := clampi(ceili(right+outer),0,size.x-1)
+		for x in range(x0,x1+1):
+			var point := Vector2(x+0.5,y+0.5)
+			var along := clampf((point-a).dot(edge)/length_squared,0.0,1.0)
+			var distance_squared := point.distance_squared_to(a+edge*along)
+			if distance_squared <= inner_squared or distance_squared >= outer_squared: continue
+			var noise := ((x*73856093) ^ (y*19349663) ^ (face*83492791) ^ (corner*1640531513)) & 0x7fffffff
+			noise = ((noise ^ (noise >> 16))*2246822519) & 0x7fffffff
+			noise = ((noise ^ (noise >> 13))*3266489917) & 0x7fffffff
+			noise = noise ^ (noise >> 16)
+			if float(noise & 65535)/65535.0 > amount: continue
+			if not _triangle_contains(point,a,b,third): continue
+			var distance_ratio := clampf((sqrt(distance_squared)-float(width))/float(reach),0.0,1.0)
+			var remaining := 1.0-distance_ratio
+			var faded := lerpf(1.0,remaining*remaining,falloff)
+			var grain := 0.6+0.4*float((noise >> 16) & 32767)/32767.0
+			var alpha := color.a*faded*grain
+			var key := Vector2i(x >> 6,y >> 6)
+			if not tiles.has(key):
+				var blank := Image.create(64,64,false,Image.FORMAT_RGBA8)
+				blank.fill(Color.TRANSPARENT)
+				tiles[key] = blank
+			var tile: Image = tiles[key]
+			var local := Vector2i(x & 63,y & 63)
+			if tile.get_pixelv(local).a < alpha:
+				tile.set_pixelv(local,Color(color.r,color.g,color.b,alpha))
 
 static func geometry_mask(progress: BackgroundJob.JobProgress, doc: PaintDocument, kind: String, parameters: Dictionary) -> Dictionary:
 	var generated: Dictionary
 	if kind == "edges":
-		generated = edge_layer(progress,doc,int(parameters.width),Color.WHITE)
+		generated = edge_layer(progress,doc,int(parameters.width),Color.WHITE,int(parameters.get("scatter_reach",0)),float(parameters.get("noise_amount",0.0)),float(parameters.get("side_falloff",0.7)))
 	else:
 		generated = cavity_ao(progress,doc,float(parameters.strength),int(parameters.radius),float(parameters.depth),int(parameters.falloff))
 	if not generated.has("layer"): return generated

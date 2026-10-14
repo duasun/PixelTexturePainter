@@ -107,12 +107,44 @@ alignment = 0
 layout_mode = 2
 text = "Geometry edges → new paint layer"
 
+[node name="EdgeWidthLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Solid radius from edge"
 [node name="EdgeWidth" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 2.0
 minimum = 1.0
 maximum = 32.0
 suffix = " px"
+[node name="EdgeScatterLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Extra scatter reach"
+[node name="EdgeScatter" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 4.0
+minimum = 0.0
+maximum = 32.0
+suffix = " px"
+[node name="EdgeNoiseLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Noise amount"
+[node name="EdgeNoise" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 35.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+tooltip_text = "How many nearby pixels receive random flecks; 0% keeps a clean edge"
+[node name="EdgeFalloffLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Side falloff"
+[node name="EdgeFalloff" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 70.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+tooltip_text = "How quickly scattered flecks fade away from the solid edge"
 [node name="Edges" type="Button" parent="."]
 theme_type_variation = &"AccentButton"
 layout_mode = 2

@@ -593,6 +593,25 @@ func run() -> void:
 	check(scene.document.layers.size() == ao_layer_count, "AO bake undoes as one layer action")
 	# Inspector sections start collapsed, and geometry adjustments show a temporary preview.
 	var effects = scene.get_node("%Effects")
+	effects.get_node("EdgeSection").button_pressed = true
+	check(effects.get_node("EdgeScatter").visible and effects.get_node("EdgeNoise").visible and effects.get_node("EdgeFalloff").visible,"Geometry Edges exposes scatter, noise and falloff controls")
+	var edge_preview_revision: int = scene.document.revision
+	effects.get_node("EdgeNoise").set_value(75)
+	effects.get_node("EdgeNoise").value_committed.emit(75)
+	await ready_document(scene)
+	check(scene._geometry_preview_layer != null and scene.document.revision == edge_preview_revision and scene._geometry_preview_signature[2] == 75.0,"Noise slider release previews edges without writing history")
+	effects.get_node("EdgeScatter").set_value(8)
+	effects.get_node("EdgeScatter").value_committed.emit(8)
+	await ready_document(scene)
+	check(scene._geometry_preview_layer != null and scene._geometry_preview_signature[1] == 8,"Scatter reach refreshes the edge preview")
+	effects.get_node("EdgeFalloff").set_value(85)
+	effects.get_node("EdgeFalloff").value_committed.emit(85)
+	await ready_document(scene)
+	check(scene._geometry_preview_layer != null and scene._geometry_preview_signature[3] == 85.0,"Side falloff refreshes the edge preview")
+	effects.get_node("Edges").pressed.emit()
+	check(scene._geometry_preview_layer == null and scene.document.revision > edge_preview_revision and scene.document.layers.size() == ao_layer_count+1,"Generate commits the visible scattered edge preview once")
+	scene._action("Undo")
+	check(scene.document.layers.size() == ao_layer_count,"Undo removes the scattered edge layer")
 	check(not effects.get_node("AOSection").button_pressed and not effects.get_node("AOStrength").visible,"Effects start collapsed")
 	effects.get_node("AOSection").button_pressed = true
 	check(effects.get_node("AOStrength").visible and effects.open_sections().AOSection,"An effect section expands with saved state")

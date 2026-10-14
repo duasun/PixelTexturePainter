@@ -7,7 +7,7 @@ const SECTIONS := {
 	"SectionStepsLabel": ["StepsLabel","Steps","DitherLabel","Dither"],
 	"SectionBrightnessLabel": ["BrightnessLabel","Brightness","ContrastLabel","Contrast","SaturationLabel","Saturation"],
 	"SectionNoiseLabel": ["NoiseLabel","Noise","Palette","Reset"],
-	"EdgeSection": ["EdgeLabel","EdgeWidth","Edges","EdgeMaskInvert","EdgeMask"],
+	"EdgeSection": ["EdgeLabel","EdgeWidthLabel","EdgeWidth","EdgeScatterLabel","EdgeScatter","EdgeNoiseLabel","EdgeNoise","EdgeFalloffLabel","EdgeFalloff","Edges","EdgeMaskInvert","EdgeMask"],
 	"AOSection": ["AOInfo","AOStrengthLabel","AOStrength","AORadiusLabel","AORadius","AODepthLabel","AODepth","AOFalloffLabel","AOFalloff","AOGenerate","AOMaskInvert","AOMask"],
 	"NormalSection": ["NormalInfo","NormalStrengthLabel","NormalStrength","NormalGenerate"],
 	"BlurSection": ["BlurInfo","BlurRadiusLabel","BlurRadius","BlurPreview","BlurApply","BlurCancel"]}

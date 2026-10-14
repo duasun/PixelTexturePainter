@@ -131,11 +131,11 @@ func _ready() -> void:
 	%Effects.get_node("BlurPreview").pressed.connect(_preview_layer_blur)
 	%Effects.get_node("BlurApply").pressed.connect(func(): _blur_apply_when_ready = true; _preview_layer_blur())
 	%Effects.get_node("BlurCancel").pressed.connect(_cancel_blur_preview)
-	for field in ["EdgeWidth","AOStrength","AORadius","AODepth"]:
+	for field in ["EdgeWidth","EdgeScatter","EdgeNoise","EdgeFalloff","AOStrength","AORadius","AODepth"]:
 		%Effects.get_node(field).value_changed.connect(func(_value: float): _geometry_requested_kind = ""; _cancel_geometry_preview())
-		%Effects.get_node(field).value_committed.connect(func(_value: float): _preview_geometry_effect("edges" if field == "EdgeWidth" else "ao"))
+		%Effects.get_node(field).value_committed.connect(func(_value: float): _preview_geometry_effect("edges" if field.begins_with("Edge") else "ao"))
 	%Effects.get_node("AOFalloff").item_selected.connect(func(_index: int): _preview_geometry_effect("ao"))
-	for field in ["EdgeWidth", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
+	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
 		%Effects.get_node(field).value_changed.connect(func(_value: float): _queue_preferences_save())
 	%Effects.get_node("AOFalloff").item_selected.connect(func(_index: int): _queue_preferences_save())
 	for field in ["Angle", "Padding", "MoveStep", "Scale"]:
@@ -907,7 +907,8 @@ func _edges() -> void:
 		if document.layers.size() >= 32:
 			_message("This project supports up to 32 layers across all maps.")
 			return
-		jobs.start("edges", PaintOperations.edge_layer.bind(document, int(%Effects.get_node("EdgeWidth").value), painter.color))
+		jobs.start("edges", PaintOperations.edge_layer.bind(document, int(%Effects.get_node("EdgeWidth").value), painter.color,
+			int(%Effects.get_node("EdgeScatter").value),float(%Effects.get_node("EdgeNoise").value)/100.0,float(%Effects.get_node("EdgeFalloff").value)/100.0))
 
 func _ambient_occlusion() -> void:
 	if document == null or document.geometry == null or jobs.busy() or painter.active:
@@ -936,6 +937,9 @@ func _generate_geometry_mask(kind: String) -> void:
 	_cancel_geometry_preview()
 	_cancel_blur_preview()
 	var parameters := {"width":int(%Effects.get_node("EdgeWidth").value),
+		"scatter_reach":int(%Effects.get_node("EdgeScatter").value),
+		"noise_amount":float(%Effects.get_node("EdgeNoise").value)/100.0,
+		"side_falloff":float(%Effects.get_node("EdgeFalloff").value)/100.0,
 		"strength":float(%Effects.get_node("AOStrength").value)/100.0,
 		"radius":int(%Effects.get_node("AORadius").value),
 		"depth":float(%Effects.get_node("AODepth").value)/100.0,
@@ -944,7 +948,7 @@ func _generate_geometry_mask(kind: String) -> void:
 	jobs.start("geometry_mask",PaintOperations.geometry_mask.bind(document.read_copy(),kind,parameters))
 
 func _geometry_signature(kind: String) -> Array:
-	if kind == "edges": return [int(%Effects.get_node("EdgeWidth").value),painter.color.to_rgba32()]
+	if kind == "edges": return [int(%Effects.get_node("EdgeWidth").value),int(%Effects.get_node("EdgeScatter").value),float(%Effects.get_node("EdgeNoise").value),float(%Effects.get_node("EdgeFalloff").value),painter.color.to_rgba32()]
 	return [float(%Effects.get_node("AOStrength").value),int(%Effects.get_node("AORadius").value),float(%Effects.get_node("AODepth").value),int(%Effects.get_node("AOFalloff").selected)]
 
 func _cancel_geometry_preview(clear_request := true) -> void:
@@ -974,7 +978,8 @@ func _preview_geometry_effect(kind: String) -> void:
 	_geometry_job_signature = _geometry_requested_signature.duplicate()
 	var snapshot := document.read_copy()
 	if kind == "edges":
-		jobs.start("edges_preview",PaintOperations.edge_layer.bind(snapshot,int(%Effects.get_node("EdgeWidth").value),painter.color))
+		jobs.start("edges_preview",PaintOperations.edge_layer.bind(snapshot,int(%Effects.get_node("EdgeWidth").value),painter.color,
+			int(%Effects.get_node("EdgeScatter").value),float(%Effects.get_node("EdgeNoise").value)/100.0,float(%Effects.get_node("EdgeFalloff").value)/100.0))
 	else:
 		jobs.start("ao_preview",PaintOperations.cavity_ao.bind(snapshot,float(%Effects.get_node("AOStrength").value)/100.0,int(%Effects.get_node("AORadius").value),float(%Effects.get_node("AODepth").value)/100.0,int(%Effects.get_node("AOFalloff").selected)))
 
@@ -1752,7 +1757,7 @@ func _restore_preferences() -> void:
 	painter.spray_distance = %SprayOptions.get_node("Distance").value/100.0
 	var last_tool := str(_preferences.get_setting("brush","tool","brush"))
 	%ToolBar.select(last_tool if last_tool in %ToolBar.TOOLS else "brush")
-	for field in ["EdgeWidth", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
+	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
 		var control: NumberField = %Effects.get_node(field)
 		control.set_value(float(_preferences.get_setting("inspector",field,control.value)),false)
 	%Effects.get_node("AOFalloff").select(clampi(int(_preferences.get_setting("inspector","AOFalloff",1)),0,2))
@@ -1810,7 +1815,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("spray","spacing",painter.spray_spacing)
 	_preferences.set_setting("spray","rate",painter.spray_rate)
 	_preferences.set_setting("spray","distance",%SprayOptions.get_node("Distance").value)
-	for field in ["EdgeWidth", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
+	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
 		_preferences.set_setting("inspector",field,%Effects.get_node(field).value)
 	_preferences.set_setting("inspector","AOFalloff",%Effects.get_node("AOFalloff").selected)
 	_preferences.set_setting("inspector","expanded_effects",%Effects.open_sections())
