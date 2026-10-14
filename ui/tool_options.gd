@@ -28,19 +28,31 @@ func set_symmetry_axes(axes: int) -> void:
 	$SymZ.set_pressed_no_signal(bool(axes & 4))
 
 func set_tool(tool: String) -> void:
+	var paints := tool in ["brush", "eraser", "clone", "smudge", "blur", "stencil", "spray", "line", "rect", "ellipse"]
+	var has_size := paints or tool == "gradient"
+	var has_opacity := paints and tool != "spray"
+	var has_falloff := tool in ["brush", "eraser", "clone", "smudge", "blur", "line", "rect", "ellipse"]
+	var has_shape := has_falloff
+	var has_dither := has_falloff or tool in ["spray", "gradient"]
+	var has_mirror := paints
+	var has_symmetry := tool in ["brush", "eraser", "stencil", "spray", "smudge", "blur"]
 	$Size.maximum = 64 if tool in ["smudge","blur"] else 256
 	$Size.set_value(minf($Size.value,$Size.maximum))
-	$Opacity.visible = tool != "spray"
-	$OpacityLabel.visible = tool != "spray"
-	$Falloff.visible = tool in ["brush", "eraser", "clone", "smudge", "blur", "line", "rect", "ellipse"]
-	$FalloffLabel.visible = $Falloff.visible
 	$Active.text = tool.capitalize().to_upper()
+	$Size.visible = has_size
+	$SizeLabel.visible = has_size
+	$Opacity.visible = has_opacity
+	$OpacityLabel.visible = has_opacity
+	$Falloff.visible = has_falloff
+	$FalloffLabel.visible = has_falloff
 	$Length.visible = tool == "gradient"
 	$LengthLabel.visible = tool == "gradient"
 	$Tolerance.visible = tool == "fill"
 	$ToleranceLabel.visible = tool == "fill"
 	$Contiguous.visible = tool == "fill"
-	$Shape.disabled = tool in ["spray", "stencil"]
+	$Shape.visible = has_shape
+	$Dither.visible = has_dither
+	$Mirror.visible = has_mirror
+	$SymmetryLabel.visible = has_symmetry
 	$Shape.set_pressed_no_signal(true if tool == "spray" else false if tool == "stencil" else _brush_shape == 1)
-	for axis in ["SymX","SymY","SymZ"]: get_node(axis).disabled = tool not in ["brush","eraser","stencil","spray","smudge","blur"]
-	$SymmetryLabel.modulate.a = 1.0 if tool in ["brush","eraser","stencil","spray","smudge","blur"] else 0.45
+	for axis in ["SymX","SymY","SymZ"]: get_node(axis).visible = has_symmetry

@@ -276,7 +276,25 @@ func run() -> void:
 	scene.get_node("%ToolBar").select("spray")
 	check(scene.painter.tool == "spray" and scene.get_node("%SprayOptions").visible, "Spray tool reveals its scene-based controls")
 	await process_frame
-	check(scene.get_node("%SprayOptions/Distance").global_position.y > scene.get_node("%SprayOptions/Opacity").global_position.y and scene.get_node("%SprayOptions/Distance").get_global_rect().end.x < scene.get_node("%Inspector").global_position.x, "Spray controls occupy two fully visible rows")
+	var settings_bar: Control = scene.get_node("Margin/Layout/MainSplit/LeftColumn/SettingsBar")
+	check(settings_bar.size.y <= 32.0 and scene.get_node("%SprayOptions/Distance").get_global_rect().end.x <= scene.get_node("%Inspector").global_position.x, "Spray controls share one visible row with Size, Dither, Mirror and symmetry")
+	var all_tools_fit := true
+	var workspaces_stay_put := true
+	var palette_before_settings: Rect2 = scene.get_node("%PalettePanel").get_global_rect()
+	var model_before_settings: Rect2 = scene.model_view.get_global_rect()
+	for setting_tool in ["brush", "eraser", "clone", "smudge", "blur", "fill", "gradient", "line", "rect", "ellipse", "stencil", "texture", "select", "picker", "spray"]:
+		scene.get_node("%ToolBar").select(setting_tool)
+		await process_frame
+		if settings_bar.size.y != 30.0 or settings_bar.get_global_rect().end.x > scene.get_node("%Inspector").global_position.x:
+			all_tools_fit = false
+		if not scene.get_node("%PalettePanel").get_global_rect().is_equal_approx(palette_before_settings) or not scene.model_view.get_global_rect().is_equal_approx(model_before_settings):
+			workspaces_stay_put = false
+	check(all_tools_fit, "Every tool keeps its visible settings in one row without covering the inspector")
+	check(workspaces_stay_put, "Switching tools keeps model view and palette in fixed positions")
+	scene.get_node("%ToolBar").select("fill")
+	check(scene.get_node("%ToolOptions/Tolerance").visible and scene.get_node("%ToolOptions/Contiguous").visible and not scene.get_node("%ToolOptions/Size").visible, "Fill shows only settings it actually uses")
+	scene.get_node("%ToolBar").select("spray")
+	check(scene.get_node("%SprayOptions/Opacity/Center/Display").tooltip_text.contains("Maximum opacity") and scene.get_node("%SprayOptions/Distance").visible, "Compact Spray fields retain descriptive tooltips and all controls")
 	gesture.ctrl_pressed = false
 	gesture.alt_pressed = true
 	gesture.pressed = true

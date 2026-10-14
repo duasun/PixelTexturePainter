@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=3]
 [ext_resource type="Script" path="res://ui/tool_options.gd" id="script"]
-[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="num"]
+[ext_resource type="PackedScene" path="res://scenes/compact_number_field.tscn" id="num"]
 [ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="small_theme"]
 [ext_resource type="Texture2D" path="res://assets/tools/round.svg" id="round_icon"]
 [ext_resource type="Texture2D" path="res://assets/tools/dither.svg" id="dither_icon"]
@@ -8,11 +8,11 @@
 [node name="ToolOptions" type="HBoxContainer"]
 script = ExtResource("script")
 theme = ExtResource("small_theme")
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 [node name="Active" type="Label" parent="."]
 layout_mode = 2
 text = "BRUSH"
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(72, 0)
 theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
 [node name="SizeLabel" type="Label" parent="."]
 layout_mode = 2
@@ -69,7 +69,7 @@ tooltip_text = "Mirror strokes across the center of the UV texture"
 focus_mode = 0
 [node name="SymmetryLabel" type="Label" parent="."]
 layout_mode = 2
-text = "3D Sym"
+text = "Sym"
 tooltip_text = "Mirror 3D brush strokes across the model center"
 [node name="SymX" type="Button" parent="."]
 layout_mode = 2
@@ -109,9 +109,6 @@ text = "Contiguous"
 button_pressed = true
 visible = false
 tooltip_text = "Fill only neighboring matching pixels; turn off to replace all matching pixels in the target area"
-[node name="Spacer" type="Control" parent="."]
-layout_mode = 2
-size_flags_horizontal = 3
 [node name="LengthLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Length"

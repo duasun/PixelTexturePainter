@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="base"]
+[node name="NumberField" instance=ExtResource("base")]
+custom_minimum_size = Vector2(52, 30)
+[node name="Minus" parent="." index="0"]
+visible = false
+[node name="Center" parent="." index="1"]
+custom_minimum_size = Vector2(48, 28)
+[node name="Plus" parent="." index="2"]
+visible = false

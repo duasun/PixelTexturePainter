@@ -86,10 +86,14 @@ theme_override_constants/separation = 12
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
-[node name="ToolOptions" parent="Margin/Layout/MainSplit/LeftColumn" instance=ExtResource("options")]
+[node name="SettingsBar" type="HBoxContainer" parent="Margin/Layout/MainSplit/LeftColumn"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 30)
+theme_override_constants/separation = 8
+[node name="ToolOptions" parent="Margin/Layout/MainSplit/LeftColumn/SettingsBar" instance=ExtResource("options")]
 layout_mode = 2
 unique_name_in_owner = true
-[node name="SprayOptions" parent="Margin/Layout/MainSplit/LeftColumn" instance=ExtResource("spray")]
+[node name="SprayOptions" parent="Margin/Layout/MainSplit/LeftColumn/SettingsBar" instance=ExtResource("spray")]
 layout_mode = 2
 unique_name_in_owner = true
 [node name="MainDock" type="VSplitContainer" parent="Margin/Layout/MainSplit/LeftColumn"]

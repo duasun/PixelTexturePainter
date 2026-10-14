@@ -34,7 +34,7 @@ func set_value(number: float, emit := true) -> void:
 
 func _refresh() -> void:
 	display.text = (str(roundi(value)) if step >= 1.0 else String.num(value, 2)) + suffix
-	display.tooltip_text = "Click to type · drag left/right · Shift for fine adjustment · wheel to step"
+	display.tooltip_text = (tooltip_text + "\n" if not tooltip_text.is_empty() else "") + "Click to type · drag left/right · Shift for fine adjustment · wheel to step"
 
 func _on_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:

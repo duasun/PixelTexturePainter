@@ -24,7 +24,7 @@ UI je u `.tscn` scenama. Font je instalirana **Verdana**, preko SystemFont resur
 
 Gore su **File / Edit / View / Help** meniji i naziv projekta. Novi/otvori/snimi/import/undo/export/exit su u menijima sa postojećim prečicama. **Help → About** otvara opis programa, koji se dopunjava u sceni `main_window.tscn`. Obe boje (1 i 2) ostaju označene u donjoj paleti. **Undo** i **Redo** su stalno vidljive ikonice levo od **Frame** iznad modela; omogućene su kada istorija ima odgovarajuću radnju. **Frame, Wires, Ortho, Light** uz model, kao i **Round, Dither, Mirror UV** uz podešavanja četkice, prikazani su ikonicama sa tooltipovima. Narandžasta boja dugmeta pokazuje uključeno stanje. Bočna traka se pri prvom pokretanju otvara u Compact režimu sa dve kolone.
 
-Ispod menija je razmak, zatim podešavanje alata sitnijim fontom neposredno iznad prikaza. Spray podešavanja su u dva reda da sva polja ostanu vidljiva bez pomeranja inspektora. Dodatni red sa natpisom „BRUSH … X/Y …” je uklonjen. Veličinu četkice biraš u **Size**; njen obris i žuti marker na modelu/UV prikazu pokazuju ciljani texel. Obris odgovara kvadratnoj ili diskretnoj kružnoj četkici i prilagođava se zumu. **Soft edge** od 0% (oštar pixel brush) do 100% (mek rub) umanjuje jačinu ka ivici četkice. Radi i za Eraser, Clone, Smudge, Blur i oblike; meki potezi su korisni za Metallic, Roughness i druge mape. Mek rub računa se jednom za otisak poteza, a ne ponovo za svaki dodir. Selekcija, maska i prozirnost mogu dodatno smanjiti efekat unutar obrisa.
+Ispod menija je razmak, zatim podešavanja izabranog alata u jednom redu neposredno iznad prikaza, uključujući sva Spray polja. Prikazuju se samo podešavanja koja taj alat koristi. Veličinu četkice biraš u **Size**; njen obris i žuti marker na modelu/UV prikazu pokazuju ciljani texel. Obris odgovara kvadratnoj ili diskretnoj kružnoj četkici i prilagođava se zumu. **Soft edge** od 0% (oštar pixel brush) do 100% (mek rub) umanjuje jačinu ka ivici četkice. Radi i za Eraser, Clone, Smudge, Blur i oblike; meki potezi su korisni za Metallic, Roughness i druge mape. Mek rub računa se jednom za otisak poteza, a ne ponovo za svaki dodir. Selekcija, maska i prozirnost mogu dodatno smanjiti efekat unutar obrisa.
 
 ## Alati i prečice
 
@@ -54,7 +54,7 @@ Ispod menija je razmak, zatim podešavanje alata sitnijim fontom neposredno izna
 | Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / redo |
 | Ctrl+E | Export PNG |
 
-Prečice sa povlačenjem rade u 3D i UV prikazu. Pomeraj od najmanje 4 px razdvaja povlačenje od kratkog klika; Alt+klik i dalje uzima boju, a Ctrl+klik zadržava radnje kao što su clone izvor i oduzimanje selekcije. Podešavanje samo menja vrednost, bez poteza boje ili Undo stavke. U 3D prikazu drži desni klik i koristi **WASD** za kretanje, **E/Q** za gore/dole i **Shift** za brže kretanje. Dok držiš desni klik, pokret miša okreće kameru; srednji klik je pomera, a točkić sporije zumira ka površini ispod kursora i dopušta veoma blizak pregled bez prolaska kroz tu površinu. Prečice alata, uključujući A i E, rade čim pustiš desni klik. U UV prikazu srednji/desni klik pomera sliku. Numerička polja podržavaju unos klikom, horizontalno povlačenje, Shift za finije korake, točkić i dugmad +/−.
+Prečice sa povlačenjem rade u 3D i UV prikazu. Pomeraj od najmanje 4 px razdvaja povlačenje od kratkog klika; Alt+klik i dalje uzima boju, a Ctrl+klik zadržava radnje kao što su clone izvor i oduzimanje selekcije. Podešavanje samo menja vrednost, bez poteza boje ili Undo stavke. U 3D prikazu drži desni klik i koristi **WASD** za kretanje, **E/Q** za gore/dole i **Shift** za brže kretanje. Dok držiš desni klik, pokret miša okreće kameru; srednji klik je pomera, a točkić sporije zumira ka površini ispod kursora i dopušta veoma blizak pregled bez prolaska kroz tu površinu. Prečice alata, uključujući A i E, rade čim pustiš desni klik. U UV prikazu srednji/desni klik pomera sliku. Numerička polja podržavaju unos klikom, horizontalno povlačenje, Shift za finije korake i točkić; šira polja van trake imaju i dugmad +/−.
 
 Linija, pravougaonik, elipsa i gradijent prikazuju svetli pregled dok držiš levi klik i vučeš. Pregled se istovremeno vidi na modelu i u UV prikazu, a potez ulazi u aktivni sloj tek kada pustiš miš. Potez i dalje poštuje izbor površina, masku i Undo.
 
@@ -79,6 +79,8 @@ Bez selekcije **F** popunjava oblast vidljive boje povezanu preko horizontalnih/
 Izaberi površine, otvori **Pattern**, učitaj sliku i podesi **Direction**, **Scale** i **Offset**. Klikni **Create pattern fill layer**, ili alatom P klikni površinu modela. Bez ručne selekcije klik bira pogođeno UV ostrvo. Dobijaš zaseban sloj: kasnije ga izaberi, promeni rotaciju, skalu ili pomeraj i pregled se ponovo proračunava; ručno slikanje po istom sloju ostaje iznad uzorka. Izvorna slika, izabrane površine i transformacija čuvaju se u projektu. Tekstura se ponavlja u prostoru UV atlasa; ovo nije triplanar projekcija.
 
 ### Spray
+
+Skraćeni natpisi u traci su **Op** (Opacity), **Dots** (Density), **Step** (Spacing) i **Dist** (Distance); potpuni opisi su u tooltipovima.
 
 - **Size** određuje prečnik na udaljenosti 100%; stvarni otisak vidi se kao obris na modelu i UV prikazu.
 - **Density** je broj pokušaja nanošenja piksela po naletu; čestice mogu pasti na isti piksel.
