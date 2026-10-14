@@ -9,6 +9,7 @@ func _ready() -> void:
 	$Shape.toggled.connect(func(on: bool): _brush_shape = 1 if on else 0; setting_changed.emit("shape", _brush_shape))
 	$Dither.toggled.connect(func(v: bool): setting_changed.emit("dither", v))
 	$Mirror.toggled.connect(func(v: bool): setting_changed.emit("mirror", v))
+	$EdgeWrap.toggled.connect(func(v: bool): setting_changed.emit("edge_wrap", v))
 	for axis in ["SymX","SymY","SymZ"]:
 		get_node(axis).toggled.connect(func(_on: bool): setting_changed.emit("symmetry_axes",symmetry_axes()))
 	$Tolerance.value_changed.connect(func(v: float): setting_changed.emit("fill_tolerance",v/100.0))
@@ -53,6 +54,7 @@ func set_tool(tool: String) -> void:
 	$Shape.visible = has_shape
 	$Dither.visible = has_dither
 	$Mirror.visible = has_mirror
+	$EdgeWrap.visible = has_size
 	$SymmetryLabel.visible = has_symmetry
 	$Shape.set_pressed_no_signal(true if tool == "spray" else false if tool == "stencil" else _brush_shape == 1)
 	for axis in ["SymX","SymY","SymZ"]: get_node(axis).visible = has_symmetry

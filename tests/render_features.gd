@@ -110,6 +110,24 @@ func run() -> void:
 				var b := cpu.get_pixel(x,y)
 				if absf(a.r-b.r) > 0.005 or absf(a.g-b.g) > 0.005 or absf(a.b-b.b) > 0.005: mismatches += 1
 		check(mismatches == 0, "GPU %d-color palette matches CPU; mismatched pixels: %d" % [count,mismatches])
+	doc.effects.palette = false
+	doc.effects.noise = 0.65
+	doc.effects.noise_density = 0.35
+	doc.effects.noise_grain = 3
+	doc.effects.noise_mode = 3
+	doc.effects.noise_seed = 42
+	tiles.apply_to(material)
+	for frame in 3: await process_frame
+	await RenderingServer.frame_post_draw
+	gpu = viewport.get_texture().get_image()
+	cpu = ProjectIO.apply_effects(source,Vector2i.ZERO,doc)
+	mismatches = 0
+	for y in 64:
+		for x in 64:
+			var a := gpu.get_pixel(x,y)
+			var b := cpu.get_pixel(x,y)
+			if absf(a.r-b.r) > 0.005 or absf(a.g-b.g) > 0.005 or absf(a.b-b.b) > 0.005: mismatches += 1
+	check(mismatches == 0,"GPU Pixel Noise matches PNG export across grain cells; mismatched pixels: %d" % mismatches)
 	# Exercise native export on the real background worker with the renderer running.
 	var path := ProjectSettings.globalize_path("res://test_output/background_export.glb")
 	scene._file_action = "export_model"

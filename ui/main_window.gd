@@ -462,6 +462,8 @@ func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: 
 		return
 	var face := int(hit.get("face", -1))
 	var island := document.geometry.islands[face] if face >= 0 else -1
+	painter.edge_wrap_camera_position = model_view.camera.position
+	painter.edge_wrap_visible_only = from_model
 	if phase == "begin":
 		painter.begin(hit.uv, island, face)
 	else:
@@ -611,6 +613,8 @@ func _rebuild_selection() -> void:
 		return {"selection": UVRaster.selection(document.geometry, selected_faces, Vector2i(document.width, document.height))})
 
 func _show_selection() -> void:
+	painter.edge_wrap_faces.clear()
+	for face in selected_faces: painter.edge_wrap_faces[face] = true
 	model_view.show_selection(selected_faces)
 	uv_canvas.selected_faces = selected_faces
 	uv_canvas.queue_redraw()
@@ -1439,7 +1443,7 @@ func _job_completed(kind: String, value: Variant) -> void:
 			_status("Edge highlights added as an editable layer")
 		"ao":
 			if result.layer.tiles.is_empty():
-				_status("No inward corners were found on this model.")
+				_status("No nearby geometry occludes the sampled surfaces at this reach.")
 				return
 			var before := document.layers.duplicate()
 			var previous := document.active_layer
@@ -1449,7 +1453,7 @@ func _job_completed(kind: String, value: Variant) -> void:
 			tiles.mark(document.all_keys(), false)
 			_apply_materials()
 			_refresh_metadata()
-			_status("Cavity AO baked on an editable Albedo layer · %d inner corners" % int(result.corners))
+			_status("Ambient occlusion baked on an editable Albedo layer · %d shaded samples" % int(result.samples))
 		"normal":
 			if result.layer.tiles.is_empty():
 				_status("Height map is flat; no Normal pixels were generated.")
@@ -1698,6 +1702,8 @@ func _restore_preferences() -> void:
 	%ToolOptions.get_node("Dither").set_pressed_no_signal(painter.dither)
 	painter.mirror = bool(_preferences.get_setting("brush","mirror",false))
 	%ToolOptions.get_node("Mirror").set_pressed_no_signal(painter.mirror)
+	painter.edge_wrap = bool(_preferences.get_setting("brush","edge_wrap",false))
+	%ToolOptions.get_node("EdgeWrap").set_pressed_no_signal(painter.edge_wrap)
 	symmetry_axes = clampi(int(_preferences.get_setting("brush","symmetry_axes",0)),0,7)
 	%ToolOptions.set_symmetry_axes(symmetry_axes)
 	fill_tolerance = clampf(float(_preferences.get_setting("fill","tolerance",0.0)),0.0,1.0)
@@ -1777,6 +1783,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("brush","shape",painter.shape)
 	_preferences.set_setting("brush","dither",painter.dither)
 	_preferences.set_setting("brush","mirror",painter.mirror)
+	_preferences.set_setting("brush","edge_wrap",painter.edge_wrap)
 	_preferences.set_setting("brush","symmetry_axes",symmetry_axes)
 	_preferences.set_setting("fill","tolerance",fill_tolerance)
 	_preferences.set_setting("fill","contiguous",fill_contiguous)

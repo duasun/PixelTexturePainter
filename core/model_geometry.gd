@@ -100,6 +100,70 @@ func island_tile_mask(island: int, tile: Vector2i, resolution: Vector2i) -> Imag
 		UVRaster.triangle(masks, triangle, Vector2i(64, 64), Color.WHITE)
 	return masks.get(Vector2i.ZERO)
 
+func surface_at_uv(uv: Vector2, island: int, preferred_face: int = -1) -> Dictionary:
+	if island < 0 or uv_buckets.is_empty():
+		return {}
+	var cell := Vector3i(island, clampi(floori(uv.x * 16.0), 0, 15), clampi(floori(uv.y * 16.0), 0, 15))
+	var candidates: Array = uv_buckets.get(cell, [])
+	if preferred_face >= 0 and candidates.has(preferred_face):
+		var preferred := _surface_on_face(preferred_face, uv)
+		if not preferred.is_empty(): return preferred
+	for face in candidates:
+		var found := _surface_on_face(face, uv)
+		if not found.is_empty(): return found
+	return {}
+
+func _surface_on_face(face: int, uv: Vector2) -> Dictionary:
+	var at := face * 3
+	var a := uvs[at]
+	var ab := uvs[at + 1] - a
+	var ac := uvs[at + 2] - a
+	var det := ab.cross(ac)
+	if absf(det) < 0.00000001: return {}
+	var offset := uv - a
+	var u := offset.cross(ac) / det
+	var v := ab.cross(offset) / det
+	if u < -0.0001 or v < -0.0001 or u + v > 1.0001: return {}
+	return {"face": face, "position": positions[at] * (1.0 - u - v) + positions[at + 1] * u + positions[at + 2] * v}
+
+func face_world_per_pixel(face: int, resolution: Vector2i) -> float:
+	var at := face * 3
+	var world_area := (positions[at + 1] - positions[at]).cross(positions[at + 2] - positions[at]).length()
+	var uv_area := ((uvs[at + 1] - uvs[at]) * Vector2(resolution)).cross((uvs[at + 2] - uvs[at]) * Vector2(resolution))
+	return sqrt(world_area / maxf(absf(uv_area), 0.000001))
+
+## Map the portion of a UV dab that crosses a shared 3D edge onto the
+## neighboring chart. The projected center stays outside that chart by the
+## source point's edge distance, so only the overlapping portion is painted.
+func edge_wrap_targets(face: int, point: Vector3, diameter: int, resolution: Vector2i, allowed_faces: Dictionary, camera_position: Vector3 = Vector3.ZERO, visible_only := false) -> Array[Dictionary]:
+	var targets: Array[Dictionary] = []
+	if face < 0 or face >= face_count() or not allowed_faces.is_empty() and not allowed_faces.has(face): return targets
+	var radius_world := float(diameter) * 0.5 * face_world_per_pixel(face, resolution)
+	for neighbor in neighbors[face]:
+		if islands[neighbor] == islands[face] or not allowed_faces.is_empty() and not allowed_faces.has(neighbor): continue
+		if visible_only and face_normals[neighbor].dot(camera_position - point) < -bounds.size.length() * 0.00001: continue
+		var pairs: Array[Vector2i] = []
+		for a in 3:
+			for b in 3:
+				if positions[face * 3 + a].is_equal_approx(positions[neighbor * 3 + b]): pairs.append(Vector2i(a, b))
+		if pairs.size() != 2: continue
+		var p0 := positions[face * 3 + pairs[0].x]
+		var p1 := positions[face * 3 + pairs[1].x]
+		var edge := p1 - p0
+		var fraction := clampf((point - p0).dot(edge) / maxf(edge.length_squared(), 0.00000001), 0.0, 1.0)
+		var distance := point.distance_to(p0 + edge * fraction)
+		if distance > radius_world: continue
+		var uv0 := uvs[neighbor * 3 + pairs[0].y] * Vector2(resolution)
+		var uv1 := uvs[neighbor * 3 + pairs[1].y] * Vector2(resolution)
+		var third := uvs[neighbor * 3 + 3 - pairs[0].y - pairs[1].y] * Vector2(resolution)
+		var uv_edge := uv1 - uv0
+		if uv_edge.length_squared() < 0.000001: continue
+		var inward := Vector2(-uv_edge.y, uv_edge.x).normalized()
+		if inward.dot(third - uv0) < 0.0: inward = -inward
+		var center := uv0.lerp(uv1, fraction) - inward * (distance / maxf(face_world_per_pixel(neighbor, resolution), 0.00000001))
+		targets.append({"uv": center / Vector2(resolution), "island": islands[neighbor], "face": neighbor})
+	return targets
+
 func _vertex_key(v: Vector3, q: float) -> String:
 	return "%d,%d,%d" % [roundi(v.x / q), roundi(v.y / q), roundi(v.z / q)]
 
@@ -133,6 +197,46 @@ func ray_hit(origin: Vector3, direction: Vector3) -> Dictionary:
 	var best := {"distance": INF}
 	_trace(bvh, origin, direction, best)
 	return best if best.has("face") else {}
+
+## A bounded, two-sided ray query for texture baking. The paint picker above
+## intentionally ignores back faces; ambient occlusion must see both sides of
+## open geometry and must not allocate a hit dictionary for every sample.
+func occlusion_distance(origin: Vector3, direction: Vector3, limit: float, ignore_face: int = -1) -> float:
+	if bvh.is_empty() or limit <= 0.0:
+		return INF
+	return _trace_occlusion(bvh, origin, direction, limit, ignore_face)
+
+func _trace_occlusion(node: Dictionary, origin: Vector3, direction: Vector3, limit: float, ignore_face: int) -> float:
+	var box: AABB = node.box
+	if not box.intersects_segment(origin, origin + direction * limit):
+		return INF
+	var best := INF
+	if node.has("faces"):
+		for f in node.faces:
+			if f == ignore_face:
+				continue
+			var i: int = f * 3
+			var e1 := positions[i + 1] - positions[i]
+			var e2 := positions[i + 2] - positions[i]
+			var p := direction.cross(e2)
+			var det := e1.dot(p)
+			if absf(det) < 0.00000001:
+				continue
+			var t := origin - positions[i]
+			var u := t.dot(p) / det
+			if u < -0.00001 or u > 1.00001:
+				continue
+			var q := t.cross(e1)
+			var v := direction.dot(q) / det
+			if v < -0.00001 or u + v > 1.00001:
+				continue
+			var distance := e2.dot(q) / det
+			if distance > 0.0 and distance <= limit:
+				best = minf(best, distance)
+	else:
+		best = minf(best, _trace_occlusion(node.left, origin, direction, limit, ignore_face))
+		best = minf(best, _trace_occlusion(node.right, origin, direction, minf(limit, best), ignore_face))
+	return best
 
 func mirrored_hit(hit: Dictionary, axes: int) -> Dictionary:
 	if hit.is_empty() or axes == 0: return {}

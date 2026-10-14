@@ -597,6 +597,21 @@ func run() -> void:
 	check(scene.document.layers.size() == ao_layer_count, "AO bake undoes as one layer action")
 	# Inspector sections start collapsed, and geometry adjustments show a temporary preview.
 	var effects = scene.get_node("%Effects")
+	effects.get_node("SectionNoiseLabel").button_pressed = true
+	check(effects.get_node("NoiseDensity").visible and effects.get_node("NoiseGrain").visible and effects.get_node("NoiseMode").visible and effects.get_node("NoiseSeedRow").visible,"Pixel Noise exposes coverage, grain, tone and pattern seed")
+	effects.get_node("Noise").set_value(40)
+	effects.get_node("NoiseDensity").set_value(25)
+	effects.get_node("NoiseGrain").set_value(4)
+	effects.get_node("NoiseMode").select(2)
+	effects.get_node("NoiseMode").item_selected.emit(2)
+	effects.get_node("NoiseSeedRow/NoiseSeed").set_value(17)
+	check(is_equal_approx(scene.document.effects.noise,0.4) and is_equal_approx(scene.document.effects.noise_density,0.25) and scene.document.effects.noise_grain == 4 and scene.document.effects.noise_mode == 2 and scene.document.effects.noise_seed == 17,"Pixel Noise controls update the saved effects")
+	check(scene.model_view.display_material.get_shader_parameter("fx_noise_grain") == 4 and scene.model_view.display_material.get_shader_parameter("fx_noise_mode") == 2,"3D preview receives Pixel Noise settings")
+	effects.get_node("Reset").pressed.emit()
+	scene._select_tool("brush")
+	scene.get_node("%ToolOptions/EdgeWrap").button_pressed = true
+	check(scene.painter.edge_wrap and scene.get_node("%ToolOptions/EdgeWrap").visible,"Wrap toggle is available on painting tools")
+	scene.get_node("%ToolOptions/EdgeWrap").button_pressed = false
 	effects.get_node("EdgeSection").button_pressed = true
 	check(effects.get_node("EdgeScatter").visible and effects.get_node("EdgeNoise").visible and effects.get_node("EdgeFalloff").visible,"Geometry Edges exposes scatter, noise and falloff controls")
 	var edge_preview_revision: int = scene.document.revision

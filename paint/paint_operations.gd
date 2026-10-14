@@ -290,6 +290,7 @@ static func edge_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, 
 		faces.append(f)
 	layer.masks = UVRaster.selection(model, faces, Vector2i(doc.width, doc.height))
 	var entries := model.edges.values()
+	var island_masks: Dictionary = {}
 	for i in entries.size():
 		if progress.report(float(i) / entries.size(), "Detecting geometry edges…"):
 			return {"cancelled": true}
@@ -307,17 +308,20 @@ static func edge_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, 
 				for y in range(maxi(0, p.y - width), mini(doc.height, p.y + width + 1)):
 					UVRaster.span(layer.tiles, y, maxi(0, p.x - width), mini(doc.width - 1, p.x + width), color)
 			if scatter_reach > 0 and noise_amount > 0.0:
-				var third := model.uvs[face * 3 + (c + 2) % 3] * Vector2(doc.width, doc.height)
-				_edge_scatter(layer.tiles,a,b,third,Vector2i(doc.width,doc.height),width,scatter_reach,noise_amount,side_falloff,color,face,c)
+				_edge_scatter(layer.tiles,model,model.islands[face],island_masks,a,b,Vector2i(doc.width,doc.height),width,scatter_reach,noise_amount,side_falloff,color)
 	return {"layer": layer}
 
-static func _edge_scatter(tiles: Dictionary, a: Vector2, b: Vector2, third: Vector2, size: Vector2i, width: int, reach: int, amount: float, falloff: float, color: Color, face: int, corner: int) -> void:
+static func _edge_scatter(tiles: Dictionary, model: ModelGeometry, island: int, mask_cache: Dictionary, a: Vector2, b: Vector2, size: Vector2i, width: int, reach: int, amount: float, falloff: float, color: Color) -> void:
 	var edge := b-a
 	var length_squared := edge.length_squared()
 	if length_squared < 0.0001: return
 	var outer := float(width+reach)
 	var inner_squared := float(width*width)
 	var outer_squared := outer*outer
+	var last_mask_key := Vector3i(-1,-1,-1)
+	var mask_data := PackedByteArray()
+	var last_tile_key := Vector2i(-1,-1)
+	var paint_tile: Image = null
 	var y0 := clampi(floori(minf(a.y,b.y)-outer),0,size.y-1)
 	var y1 := clampi(ceili(maxf(a.y,b.y)+outer),0,size.y-1)
 	for y in range(y0,y1+1):
@@ -331,75 +335,179 @@ static func _edge_scatter(tiles: Dictionary, a: Vector2, b: Vector2, third: Vect
 		var x0 := clampi(floori(left-outer),0,size.x-1)
 		var x1 := clampi(ceili(right+outer),0,size.x-1)
 		for x in range(x0,x1+1):
-			var point := Vector2(x+0.5,y+0.5)
-			var along := clampf((point-a).dot(edge)/length_squared,0.0,1.0)
-			var distance_squared := point.distance_squared_to(a+edge*along)
+			var px := x+0.5-a.x
+			var py := y+0.5-a.y
+			var along := clampf((px*edge.x+py*edge.y)/length_squared,0.0,1.0)
+			var dx := px-edge.x*along
+			var dy := py-edge.y*along
+			var distance_squared := dx*dx+dy*dy
 			if distance_squared <= inner_squared or distance_squared >= outer_squared: continue
-			var noise := ((x*73856093) ^ (y*19349663) ^ (face*83492791) ^ (corner*1640531513)) & 0x7fffffff
+			var noise := ((x*73856093) ^ (y*19349663)) & 0x7fffffff
 			noise = ((noise ^ (noise >> 16))*2246822519) & 0x7fffffff
 			noise = ((noise ^ (noise >> 13))*3266489917) & 0x7fffffff
 			noise = noise ^ (noise >> 16)
 			if float(noise & 65535)/65535.0 > amount: continue
-			if not _triangle_contains(point,a,b,third): continue
+			var key := Vector2i(x >> 6,y >> 6)
+			var mask_key := Vector3i(island,key.x,key.y)
+			if mask_key != last_mask_key:
+				last_mask_key = mask_key
+				if not mask_cache.has(mask_key):
+					if mask_cache.size() >= 1024: mask_cache.clear()
+					var island_mask := model.island_tile_mask(island,key,size)
+					mask_cache[mask_key] = PackedByteArray() if island_mask == null else island_mask.get_data()
+				mask_data = mask_cache[mask_key]
+			if mask_data.is_empty() or mask_data[((y & 63)*64+(x & 63))*4+3] == 0: continue
 			var distance_ratio := clampf((sqrt(distance_squared)-float(width))/float(reach),0.0,1.0)
 			var remaining := 1.0-distance_ratio
 			var faded := lerpf(1.0,remaining*remaining,falloff)
 			var grain := 0.6+0.4*float((noise >> 16) & 32767)/32767.0
 			var alpha := color.a*faded*grain
-			var key := Vector2i(x >> 6,y >> 6)
-			if not tiles.has(key):
-				var blank := Image.create(64,64,false,Image.FORMAT_RGBA8)
-				blank.fill(Color.TRANSPARENT)
-				tiles[key] = blank
-			var tile: Image = tiles[key]
+			if key != last_tile_key:
+				last_tile_key = key
+				if not tiles.has(key):
+					var blank := Image.create(64,64,false,Image.FORMAT_RGBA8)
+					blank.fill(Color.TRANSPARENT)
+					tiles[key] = blank
+				paint_tile = tiles[key]
 			var local := Vector2i(x & 63,y & 63)
-			if tile.get_pixelv(local).a < alpha:
-				tile.set_pixelv(local,Color(color.r,color.g,color.b,alpha))
+			if paint_tile.get_pixelv(local).a < alpha:
+				paint_tile.set_pixelv(local,Color(color.r,color.g,color.b,alpha))
 
-## Fast geometry-based cavity AO. Rasterize only a narrow strip beside concave
-## shared edges, so a 4K atlas never needs a full-image Python/GDScript sweep.
+## Sample actual nearby geometry with hemisphere rays, then interpolate the
+## result in UV space. Sampling is bounded per triangle even for 4K atlases.
 static func cavity_ao(progress: BackgroundJob.JobProgress, doc: PaintDocument, strength: float, radius: int, depth_focus: float, falloff: int) -> Dictionary:
 	var layer := PaintLayer.new()
 	layer.title = "Cavity AO"
 	layer.channel = "albedo"
 	if strength <= 0.0 or doc.geometry == null or not doc.geometry.has_uv:
-		return {"layer": layer, "corners": 0}
+		return {"layer": layer, "samples": 0}
 	var model := doc.geometry
-	var entries := model.edges.values()
-	var corners := 0
-	var size := Vector2(doc.width, doc.height)
-	for index in entries.size():
-		if progress.report(float(index) / maxi(1, entries.size()), "Baking cavity AO…"):
+	var output_size := Vector2i(doc.width, doc.height)
+	var factor := minf(1.0, 1024.0 / float(maxi(doc.width, doc.height)))
+	var size := Vector2i(maxi(1,roundi(doc.width * factor)),maxi(1,roundi(doc.height * factor)))
+	var work_radius := maxi(1,roundi(radius * factor))
+	var samples := 0
+	for face in model.face_count():
+		if progress.report(float(face) / maxi(1, model.face_count()), "Baking ambient occlusion…"):
 			return {"cancelled": true}
-		var edge: Array = entries[index]
-		if edge.size() != 2:
+		var at := face * 3
+		var a: Vector2 = model.uvs[at] * Vector2(size)
+		var b: Vector2 = model.uvs[at + 1] * Vector2(size)
+		var c: Vector2 = model.uvs[at + 2] * Vector2(size)
+		var ab := b - a
+		var ac := c - a
+		var determinant := ab.cross(ac)
+		if absf(determinant) < 0.0001:
 			continue
-		var a: Vector2i = edge[0]
-		var b: Vector2i = edge[1]
-		var normal_a: Vector3 = model.face_normals[a.x]
-		var normal_b: Vector3 = model.face_normals[b.x]
-		var dot: float = clampf(normal_a.dot(normal_b), -1.0, 1.0)
-		if dot > cos(deg_to_rad(8.0)):
+		var p0: Vector3 = model.positions[at]
+		var p1: Vector3 = model.positions[at + 1]
+		var p2: Vector3 = model.positions[at + 2]
+		var world_area := (p1 - p0).cross(p2 - p0).length()
+		if world_area < 0.00000001:
 			continue
-		var start_a: Vector3 = model.positions[a.x * 3 + a.y]
-		var third_b: Vector3 = model.positions[b.x * 3 + (b.y + 2) % 3]
-		var world_scale: float = maxf(model.bounds.size.length(), 0.0001)
-		if (third_b - start_a).dot(normal_a) <= world_scale * 0.000001:
+		var world_per_pixel := sqrt(world_area / absf(determinant))
+		var reach := maxf(world_per_pixel * float(work_radius), model.bounds.size.length() * 0.00001)
+		var normal: Vector3 = model.face_normals[face]
+		var tangent := normal.cross(Vector3.UP if absf(normal.y) < 0.9 else Vector3.RIGHT).normalized()
+		var bitangent := normal.cross(tangent)
+		var shortest_edge := minf((p1 - p0).length(), minf((p2 - p0).length(), (p2 - p1).length()))
+		var sample_inset := clampf(world_per_pixel * 2.0 / maxf(shortest_edge, 0.000001), 0.0, 0.1)
+		var center := (p0 + p1 + p2) / 3.0
+		var divisions := clampi(ceili(maxf(ab.length(), maxf(ac.length(), (c - b).length())) / maxf(4.0, float(work_radius) * 0.75)), 3, 20)
+		var stride := divisions + 1
+		var values := PackedFloat32Array()
+		values.resize(stride * stride)
+		var has_shadow := false
+		for i in stride:
+			for j in stride - i:
+				var u := float(i) / float(divisions)
+				var v := float(j) / float(divisions)
+				var point := (p0 + (p1 - p0) * u + (p2 - p0) * v).lerp(center, sample_inset)
+				var value := _ao_sample(model, face, point, normal, tangent, bitangent, reach, depth_focus, falloff, i * stride + j)
+				values[i * stride + j] = value * clampf(strength, 0.0, 1.0)
+				if value > 0.0:
+					has_shadow = true
+				samples += 1
+		if not has_shadow:
 			continue
-		var angle: float = acos(dot)
-		var depth: float = pow(clampf(angle / (PI * 0.5), 0.0, 1.0), lerpf(0.0, 2.0, clampf(depth_focus, 0.0, 1.0)))
-		var opacity: float = clampf(strength * depth, 0.0, 1.0)
-		if opacity <= 0.0:
+		var x0 := clampi(floori(minf(a.x, minf(b.x, c.x))), 0, size.x - 1)
+		var x1 := clampi(ceili(maxf(a.x, maxf(b.x, c.x))), 0, size.x - 1)
+		var y0 := clampi(floori(minf(a.y, minf(b.y, c.y))), 0, size.y - 1)
+		var y1 := clampi(ceili(maxf(a.y, maxf(b.y, c.y))), 0, size.y - 1)
+		for y in range(y0, y1 + 1):
+			for x in range(x0, x1 + 1):
+				var offset := Vector2(x + 0.5, y + 0.5) - a
+				var u := offset.cross(ac) / determinant
+				var v := ab.cross(offset) / determinant
+				if u < 0.0 or v < 0.0 or u + v > 1.0:
+					continue
+				var alpha := _ao_interpolate(values, divisions, u, v)
+				if alpha < 1.0 / 255.0:
+					continue
+				var key := Vector2i(x >> 6, y >> 6)
+				if not layer.tiles.has(key):
+					var tile := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+					tile.fill(Color(0,0,0,0))
+					layer.tiles[key] = tile
+				var image: Image = layer.tiles[key]
+				var local := Vector2i(x & 63, y & 63)
+				if image.get_pixelv(local).a < alpha:
+					image.set_pixelv(local, Color(0, 0, 0, alpha))
+	if size != output_size and not layer.tiles.is_empty():
+		if progress.report(0.98, "Scaling ambient occlusion to texture size…"):
+			return {"cancelled": true}
+		_ao_upscale(layer, size, output_size)
+	return {"layer": layer, "samples": samples}
+
+static func _ao_upscale(layer: PaintLayer, work_size: Vector2i, output_size: Vector2i) -> void:
+	var atlas := Image.create(work_size.x, work_size.y, false, Image.FORMAT_RGBA8)
+	atlas.fill(Color(0,0,0,0))
+	for key in layer.tiles:
+		var origin: Vector2i = key * 64
+		var part := Vector2i(mini(64,work_size.x-origin.x),mini(64,work_size.y-origin.y))
+		atlas.blit_rect(layer.tiles[key],Rect2i(Vector2i.ZERO,part),origin)
+	atlas.resize(output_size.x,output_size.y,Image.INTERPOLATE_BILINEAR)
+	layer.tiles.clear()
+	for y in range(0,output_size.y,64):
+		for x in range(0,output_size.x,64):
+			var key := Vector2i(x >> 6,y >> 6)
+			var part := Vector2i(mini(64,output_size.x-x),mini(64,output_size.y-y))
+			var tile := Image.create(64,64,false,Image.FORMAT_RGBA8)
+			tile.fill(Color(0,0,0,0))
+			tile.blit_rect(atlas,Rect2i(Vector2i(x,y),part),Vector2i.ZERO)
+			if tile.get_used_rect().has_area(): layer.tiles[key] = tile
+
+static func _ao_sample(model: ModelGeometry, face: int, point: Vector3, normal: Vector3, tangent: Vector3, bitangent: Vector3, reach: float, focus: float, falloff: int, seed: int) -> float:
+	const RAYS := 16
+	var origin := point + normal * maxf(reach * 0.005, model.bounds.size.length() * 0.000001)
+	var rotation := fposmod(float((seed * 73 + face * 193) % 997) / 997.0, 1.0)
+	var blocked := 0.0
+	for k in RAYS:
+		var r := sqrt((float(k) + 0.5) / float(RAYS))
+		var angle := TAU * fposmod(float(k) * 0.61803398875 + rotation, 1.0)
+		var direction := tangent * (cos(angle) * r) + bitangent * (sin(angle) * r) + normal * sqrt(1.0 - r * r)
+		var distance := model.occlusion_distance(origin, direction, reach, face)
+		if distance == INF:
 			continue
-		corners += 1
-		for item in edge:
-			var face: int = item.x
-			var corner: int = item.y
-			var first: Vector2 = model.uvs[face * 3 + corner] * size
-			var second: Vector2 = model.uvs[face * 3 + (corner + 1) % 3] * size
-			var third: Vector2 = model.uvs[face * 3 + (corner + 2) % 3] * size
-			_ao_edge_strip(layer.tiles, first, second, third, Vector2i(doc.width, doc.height), radius, opacity, falloff)
-	return {"layer": layer, "corners": corners}
+		var weight := clampf(1.0 - distance / reach, 0.0, 1.0)
+		match falloff:
+			1: weight = weight * weight * (3.0 - 2.0 * weight)
+			2: weight *= weight
+		weight = pow(weight, lerpf(0.7, 2.0, clampf(focus, 0.0, 1.0)))
+		blocked += weight
+	return blocked / float(RAYS)
+
+static func _ao_interpolate(values: PackedFloat32Array, divisions: int, u: float, v: float) -> float:
+	var fx := clampf(u * divisions, 0.0, float(divisions) - 0.00001)
+	var fy := clampf(v * divisions, 0.0, float(divisions) - 0.00001)
+	var i := floori(fx)
+	var j := floori(fy)
+	var dx := fx - i
+	var dy := fy - j
+	var stride := divisions + 1
+	if dx + dy <= 1.0 or i + j >= divisions - 1:
+		return values[i * stride + j] * (1.0 - dx - dy) + values[(i + 1) * stride + j] * dx + values[i * stride + j + 1] * dy
+	return values[(i + 1) * stride + j + 1] * (dx + dy - 1.0) + values[(i + 1) * stride + j] * (1.0 - dy) + values[i * stride + j + 1] * (1.0 - dx)
 
 ## Central height differences produce OpenGL (+Y) tangent-space normals.
 ## Only painted Height tiles and their one-tile border are scanned, including at 4K.
@@ -540,39 +648,6 @@ static func _blur_tile(layer: PaintLayer, key: Vector2i, radius: int) -> Image:
 			output[dst+2] = clampi(roundi(float(blue[d]-blue[b]-blue[c]+blue[a])*255.0/sum_a),0,255)
 			output[dst+3] = clampi(roundi(float(sum_a)/area),0,255)
 	return Image.create_from_data(64,64,false,Image.FORMAT_RGBA8,output)
-
-static func _ao_edge_strip(tiles: Dictionary, a: Vector2, b: Vector2, c: Vector2, size: Vector2i, radius: int, opacity: float, falloff: int) -> void:
-	var edge: Vector2 = b - a
-	var length: float = edge.length()
-	if length < 0.001:
-		return
-	var inward := Vector2(-edge.y, edge.x) / length
-	if inward.dot(c - a) < 0.0:
-		inward = -inward
-	var steps := maxi(1, ceili(length * 1.5))
-	for step in steps + 1:
-		var base: Vector2 = a.lerp(b, float(step) / steps)
-		for distance in radius:
-			var point: Vector2 = base + inward * distance
-			var pixel := Vector2i(floori(point.x), floori(point.y))
-			if pixel.x < 0 or pixel.y < 0 or pixel.x >= size.x or pixel.y >= size.y:
-				continue
-			if not _triangle_contains(Vector2(pixel) + Vector2.ONE * 0.5, a, b, c):
-				continue
-			var t := 1.0 - float(distance) / maxi(1, radius)
-			match falloff:
-				1: t = t * t * (3.0 - 2.0 * t)
-				2: t = t * t
-			var alpha := opacity * t
-			var key := Vector2i(pixel.x >> 6, pixel.y >> 6)
-			if not tiles.has(key):
-				var image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-				image.fill(Color.TRANSPARENT)
-				tiles[key] = image
-			var tile: Image = tiles[key]
-			var local := Vector2i(pixel.x % 64, pixel.y % 64)
-			if tile.get_pixelv(local).a < alpha:
-				tile.set_pixelv(local, Color(0, 0, 0, alpha))
 
 static func _triangle_contains(point: Vector2, a: Vector2, b: Vector2, c: Vector2) -> bool:
 	var first := (b - a).cross(point - a)

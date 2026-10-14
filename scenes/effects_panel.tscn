@@ -49,12 +49,12 @@ suffix = "%"
 layout_mode = 2
 [node name="SectionNoiseLabel" type="Button" parent="."]
 layout_mode = 2
-text = "▶ TEXTURE FINISH"
+text = "▶ PIXEL NOISE"
 toggle_mode = true
 alignment = 0
 [node name="NoiseLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Pixel noise"
+text = "Amount"
 
 [node name="Noise" parent="." instance=ExtResource("num")]
 layout_mode = 2
@@ -62,9 +62,67 @@ value = 0.0
 minimum = 0.0
 maximum = 100.0
 suffix = "%"
+[node name="NoiseDensityLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Coverage"
+[node name="NoiseDensity" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+tooltip_text = "Percentage of grain cells that receive noise"
+[node name="NoiseGrainLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Grain size"
+[node name="NoiseGrain" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 1.0
+minimum = 1.0
+maximum = 16.0
+suffix = " px"
+tooltip_text = "Size of each square noise grain in texture pixels"
+[node name="NoiseModeLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Tone"
+[node name="NoiseMode" type="OptionButton" parent="."]
+layout_mode = 2
+item_count = 4
+selected = 0
+popup/item_0/text = "Balanced light/dark"
+popup/item_0/id = 0
+popup/item_1/text = "Dark specks"
+popup/item_1/id = 1
+popup/item_2/text = "Light specks"
+popup/item_2/id = 2
+popup/item_3/text = "Color specks"
+popup/item_3/id = 3
+[node name="NoiseSeedLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Pattern seed"
+[node name="NoiseSeedRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+[node name="NoiseSeed" parent="NoiseSeedRow" instance=ExtResource("num")]
+layout_mode = 2
+size_flags_horizontal = 3
+value = 0.0
+minimum = 0.0
+maximum = 9999.0
+[node name="NoiseReseed" type="Button" parent="NoiseSeedRow"]
+layout_mode = 2
+text = "↻"
+tooltip_text = "Generate a new noise pattern"
+[node name="SepPaletteLabel" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="SectionPaletteLabel" type="Button" parent="."]
+layout_mode = 2
+text = "▶ PALETTE & RESET"
+toggle_mode = true
+alignment = 0
 [node name="Palette" type="CheckButton" parent="."]
 layout_mode = 2
 text = "Limit to palette"
+tooltip_text = "Nearest-palette colors can hide subtle noise; increase Amount to make it visible"
 [node name="Reset" type="Button" parent="."]
 layout_mode = 2
 text = "Reset effects"
@@ -131,7 +189,7 @@ toggle_mode = true
 alignment = 0
 [node name="AOInfo" type="Label" parent="."]
 layout_mode = 2
-text = "Darken inward corners on a new Albedo layer"
+text = "Bake nearby geometry shadows on a new Albedo layer"
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 11
 [node name="AOStrengthLabel" type="Label" parent="."]
@@ -145,7 +203,7 @@ maximum = 100.0
 suffix = "%"
 [node name="AORadiusLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Reach from corner"
+text = "Ray reach"
 [node name="AORadius" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 7.0
@@ -154,7 +212,7 @@ maximum = 64.0
 suffix = " px"
 [node name="AODepthLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Depth focus"
+text = "Contact focus"
 [node name="AODepth" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 50.0
@@ -177,7 +235,7 @@ popup/item_2/id = 2
 [node name="AOGenerate" type="Button" parent="."]
 theme_type_variation = &"AccentButton"
 layout_mode = 2
-text = "Bake cavity AO"
+text = "Bake ambient occlusion"
 [node name="NormalSep" type="HSeparator" parent="."]
 layout_mode = 2
 [node name="NormalSection" type="Button" parent="."]

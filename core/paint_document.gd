@@ -9,7 +9,8 @@ var active_layer := 0
 var editing_mask := false
 var geometry: ModelGeometry
 var effects: Dictionary = {"steps": 0, "dither": 0.0, "brightness": 0.0,
-	"contrast": 1.0, "saturation": 1.0, "noise": 0.0, "palette": false}
+	"contrast": 1.0, "saturation": 1.0, "noise": 0.0, "noise_density": 1.0,
+	"noise_grain": 1, "noise_mode": 0, "noise_seed": 0, "palette": false}
 var palette := PackedColorArray([
 	Color("17202e"), Color("303d50"), Color("566a7f"), Color("9bafbd"),
 	Color("e4e9df"), Color("ffffff"), Color("8b434d"), Color("de6c64"),

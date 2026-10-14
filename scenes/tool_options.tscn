@@ -67,6 +67,13 @@ custom_minimum_size = Vector2(34, 30)
 theme_override_constants/icon_max_width = 20
 tooltip_text = "Mirror strokes across the center of the UV texture"
 focus_mode = 0
+[node name="EdgeWrap" type="Button" parent="."]
+layout_mode = 2
+text = "Wrap"
+toggle_mode = true
+custom_minimum_size = Vector2(44, 30)
+tooltip_text = "Carry a stroke across a touched 3D edge onto neighboring selected faces, including UV seams"
+focus_mode = 0
 [node name="SymmetryLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Sym"

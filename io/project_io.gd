@@ -196,13 +196,14 @@ static func export_png(progress: BackgroundJob.JobProgress, doc: PaintDocument, 
 static func render_image(progress: BackgroundJob.JobProgress, doc: PaintDocument, channel := "") -> Dictionary:
 	if channel.is_empty(): channel = doc.current_channel()
 	doc = doc.read_copy()
+	var albedo_effects := channel == "albedo" and doc.effects != PaintDocument.new().effects
 	var image := Image.create(doc.width, doc.height, false, Image.FORMAT_RGBA8)
 	var keys := doc.all_keys()
 	for i in keys.size():
 		if progress.report(float(i) / keys.size(), "Rendering export…"):
 			return {"cancelled": true}
 		var tile := doc.compose_tile(keys[i], channel)
-		if channel == "albedo" and doc.effects != {"steps": 0, "dither": 0.0, "brightness": 0.0, "contrast": 1.0, "saturation": 1.0, "noise": 0.0, "palette": false}:
+		if albedo_effects:
 			tile = apply_effects(tile, keys[i] * 64, doc)
 		image.blit_rect(tile, Rect2i(0, 0, 64, 64), keys[i] * 64)
 	return {"image": image}
@@ -212,7 +213,40 @@ static func apply_effects(image: Image, origin: Vector2i, doc: PaintDocument) ->
 	var fx := doc.effects
 	var lookup := doc.get_palette_lookup() if fx.palette else null
 	var bayer := [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5]
+	var dither_amount := float(fx.dither)
+	var noise_amount := float(fx.noise)
+	var noise_density := clampf(float(fx.get("noise_density",1.0)),0.0,1.0)
+	var noise_grain := clampi(int(fx.get("noise_grain",1)),1,16)
+	var noise_mode := clampi(int(fx.get("noise_mode",0)),0,3)
+	var noise_seed := clampi(int(fx.get("noise_seed",0)),0,9999)
+	var noise_offsets: Array[Vector3] = []
+	var noise_columns := PackedInt32Array()
+	var first_cell_x := floori(float(origin.x) / noise_grain)
+	var first_cell_y := floori(float(origin.y) / noise_grain)
+	var cell_columns := 0
+	if noise_amount > 0.0 and noise_density > 0.0:
+		cell_columns = floori(float(origin.x + image.get_width() - 1) / noise_grain) - first_cell_x + 1
+		var cell_rows := floori(float(origin.y + image.get_height() - 1) / noise_grain) - first_cell_y + 1
+		noise_offsets.resize(cell_columns * cell_rows)
+		for x in image.get_width():
+			noise_columns.append(floori(float(origin.x + x) / noise_grain) - first_cell_x)
+		var threshold := roundi(noise_density * 65521.0)
+		for cell_y in cell_rows:
+			for cell_x in cell_columns:
+				var nx := first_cell_x + cell_x
+				var ny := first_cell_y + cell_y
+				var offset := Vector3.ZERO
+				if _noise_hash(nx,ny,noise_seed,0) < threshold:
+					var value := float(_noise_hash(nx,ny,noise_seed,1)) / 65520.0
+					match noise_mode:
+						1: offset = Vector3.ONE * (-value * noise_amount)
+						2: offset = Vector3.ONE * (value * noise_amount)
+						3:
+							offset = (Vector3(value,float(_noise_hash(nx,ny,noise_seed,2)) / 65520.0,float(_noise_hash(nx,ny,noise_seed,3)) / 65520.0) - Vector3.ONE * 0.5) * noise_amount
+						_: offset = Vector3.ONE * ((value - 0.5) * noise_amount)
+				noise_offsets[cell_y * cell_columns + cell_x] = offset
 	for y in image.get_height():
+		var noise_row := (floori(float(origin.y + y) / noise_grain) - first_cell_y) * cell_columns if not noise_offsets.is_empty() else 0
 		for x in image.get_width():
 			var i := (y * image.get_width() + x) * 4
 			var c := Vector3(data[i], data[i + 1], data[i + 2]) / 255.0
@@ -220,8 +254,9 @@ static func apply_effects(image: Image, origin: Vector2i, doc: PaintDocument) ->
 			var lum := c.dot(Vector3(0.299, 0.587, 0.114))
 			c = (Vector3.ONE * lum).lerp(c, float(fx.saturation))
 			var p := origin + Vector2i(x, y)
-			c += Vector3.ONE * ((p.x * 13 + p.y * 57) % 17 / 16.0 - 0.5) * float(fx.noise)
-			var d: float = (bayer[(p.y % 4) * 4 + p.x % 4] / 16.0 - 0.46875) * float(fx.dither)
+			if not noise_offsets.is_empty(): c += noise_offsets[noise_row + noise_columns[x]]
+			var d := 0.0
+			if dither_amount > 0.0: d = (bayer[(p.y % 4) * 4 + p.x % 4] / 16.0 - 0.46875) * dither_amount
 			if int(fx.steps) > 1:
 				var levels := float(fx.steps) - 1.0
 				for axis in 3:
@@ -231,6 +266,11 @@ static func apply_effects(image: Image, origin: Vector2i, doc: PaintDocument) ->
 			for axis in 3:
 				data[i + axis] = roundi(clampf(c[axis], 0.0, 1.0) * 255)
 	return Image.create_from_data(image.get_width(), image.get_height(), false, Image.FORMAT_RGBA8, data)
+
+static func _noise_hash(x: int, y: int, seed: int, salt: int) -> int:
+	var n := (x * 11939 + y * 19937 + seed * 7919 + salt * 104729) % 65521
+	n = (n * (n % 127 + 37) + 31337) % 65521
+	return (n * 2971 + 101) % 65521
 
 static func export_obj(model: ModelGeometry, path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.WRITE)

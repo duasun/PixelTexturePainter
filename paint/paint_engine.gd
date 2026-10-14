@@ -14,6 +14,10 @@ var shape := 0
 var dither := false
 var selection: Dictionary = {}
 var selection_active := false
+var edge_wrap := false
+var edge_wrap_faces: Dictionary = {}
+var edge_wrap_camera_position := Vector3.ZERO
+var edge_wrap_visible_only := false
 var stencil: Image
 var stencil_region := Rect2i()
 var stencil_rotation := 0.0
@@ -60,7 +64,7 @@ var last_work_ms := 0.0
 var _layer: PaintLayer
 var _mask := false
 var _before: Dictionary = {}
-var _points: Array[Vector3i] = []
+var _points: Array[Vector4i] = []
 var _symmetry_paths: Dictionary = {}
 var _island_masks: Dictionary = {}
 var _mask_geometry: ModelGeometry
@@ -76,6 +80,7 @@ func setup(doc: PaintDocument, undo: PaintHistory) -> void:
 	history = undo
 	selection.clear()
 	selection_active = false
+	edge_wrap_faces.clear()
 	active = false
 	finishing = false
 	_points.clear()
@@ -101,6 +106,7 @@ var _stroke_shape: int
 var _stroke_dither: bool
 var _stroke_mirror: bool
 var _stroke_stencil_rotation: float
+var _stroke_edge_wrap: bool
 
 func begin(uv: Vector2, island := -1, face := -1) -> void:
 	if active or document.selected_layer().locked:
@@ -114,6 +120,7 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 	_stroke_dither = dither
 	_stroke_mirror = mirror
 	_stroke_stencil_rotation = stencil_rotation
+	_stroke_edge_wrap = edge_wrap
 	if tool == "stencil": _stroke_brush_size = _stencil_extent(brush_size, _stroke_stencil_rotation)
 	if tool == "spray":
 		_stroke_brush_size = footprint_size()
@@ -223,19 +230,19 @@ func break_path() -> void:
 	_spray_elapsed = 0.0
 
 func append_symmetry(uv: Vector2, island: int, path_id: int) -> void:
-	if not active or finishing or _stroke_tool not in ["brush","eraser","stencil","spray","smudge","blur"]: return
-	var pixel := _pixel(uv)
+	if not active or finishing or _stroke_tool not in ["brush","eraser","stencil","spray","smudge","blur","clone","line","rect","ellipse"]: return
+	var pixel := Vector2i((uv * Vector2(document.width, document.height)).floor()) if path_id >= 1000 else _pixel(uv)
 	var previous: Dictionary = _symmetry_paths.get(path_id,{})
 	if previous.is_empty() or int(previous.island) != island:
-		_enqueue(pixel,island)
+		_enqueue(pixel,island,path_id)
 	else:
 		var old: Vector2i = previous.pixel
 		var distance := Vector2(old).distance_to(Vector2(pixel))
 		if distance < maxf(document.width,document.height)*0.25:
 			var spacing := _stroke_spray_spacing if _stroke_tool == "spray" else maxf(1.0,_stroke_brush_size*0.25)
 			var steps := maxi(1,ceili(distance/spacing))
-			for i in range(1,steps+1): _enqueue(Vector2i(Vector2(old).lerp(Vector2(pixel),i/float(steps)).round()),island)
-		else: _enqueue(pixel,island)
+			for i in range(1,steps+1): _enqueue(Vector2i(Vector2(old).lerp(Vector2(pixel),i/float(steps)).round()),island,path_id)
+		else: _enqueue(pixel,island,path_id)
 	_symmetry_paths[path_id] = {"pixel":pixel,"island":island}
 
 func footprint_size() -> int:
@@ -324,8 +331,16 @@ func _queue_line(a: Vector2i, b: Vector2i) -> void:
 	for i in steps + 1:
 		_enqueue(Vector2i(Vector2(a).lerp(Vector2(b), i / float(steps)).round()), _last_island)
 
-func _enqueue(point: Vector2i, island: int) -> void:
-	_points.append(Vector3i(point.x, point.y, island))
+func _enqueue(point: Vector2i, island: int, path_id := 0) -> void:
+	_points.append(Vector4i(point.x, point.y, island, path_id))
+	if not _stroke_edge_wrap or path_id != 0 or island < 0 or document.geometry == null:
+		return
+	var resolution := Vector2i(document.width, document.height)
+	var found := document.geometry.surface_at_uv((Vector2(point) + Vector2.ONE * 0.5) / Vector2(resolution), island, _last_face)
+	if found.is_empty(): return
+	var allowed := edge_wrap_faces if selection_active else {}
+	for target in document.geometry.edge_wrap_targets(int(found.face), found.position, _stroke_brush_size, resolution, allowed, edge_wrap_camera_position, edge_wrap_visible_only):
+		append_symmetry(target.uv, int(target.island), 1000 + int(target.face))
 
 func _pixel(uv: Vector2) -> Vector2i:
 	return Vector2i(clampi(floori(uv.x * document.width), 0, document.width - 1), clampi(floori(uv.y * document.height), 0, document.height - 1))
@@ -347,9 +362,9 @@ func _process(_delta: float) -> void:
 		var p := Vector2i(queued.x, queued.y)
 		_read += 1
 		if _stroke_tool == "spray": _make_spray_stamp()
-		_dab(p, changed, queued.z)
+		_dab(p, changed, queued.z, false, queued.w)
 		if _stroke_mirror:
-			_dab(Vector2i(document.width - p.x - 1, p.y), changed, -1, true)
+			_dab(Vector2i(document.width - p.x - 1, p.y), changed, -1, true, -1)
 	if not changed.is_empty():
 		var keys: Array[Vector2i] = []
 		keys.assign(changed.keys())
@@ -408,7 +423,7 @@ func _make_stamp() -> void:
 				if (x + y) % 2:
 					_stamp.set_pixel(x, y, Color.TRANSPARENT)
 
-func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false) -> void:
+func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false, path_id := 0) -> void:
 	if _stroke_opacity <= 0: return
 	var origin := p - Vector2i(_stroke_brush_size >> 1, _stroke_brush_size >> 1)
 	if _stroke_tool == "clone":
@@ -416,7 +431,7 @@ func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false) -> 
 	elif _stroke_tool == "spray":
 		if _stroke_spray_flow <= 0: return
 	elif _stroke_tool in ["smudge","blur"]:
-		if not _make_filter_stamp(origin,island,mirrored): return
+		if not _make_filter_stamp(origin,island,path_id): return
 	var rect := Rect2i(origin, Vector2i.ONE * _stroke_brush_size).intersection(Rect2i(0, 0, document.width, document.height))
 	if not rect.has_area():
 		return
@@ -492,22 +507,22 @@ func _restriction(key: Vector2i, island: int) -> Image:
 		return combined
 	return result
 
-func _make_filter_stamp(origin: Vector2i, island: int, mirrored: bool) -> bool:
+func _make_filter_stamp(origin: Vector2i, island: int, path_id: int) -> bool:
 	var extent := Vector2i.ONE * _stroke_brush_size
 	var sample := BrushFilters.sample(document,_layer,_mask,Rect2i(origin,extent))
 	if _stroke_tool == "blur":
 		var padded := BrushFilters.sample(document,_layer,_mask,Rect2i(origin-Vector2i(2,2),extent+Vector2i(4,4)))
 		_stamp = BrushFilters.strength(BrushFilters.blur(padded).get_region(Rect2i(Vector2i(2,2),extent)),_stroke_opacity,_shape_stamp)
 		return true
-	var old: Dictionary = _drag_buffers.get(mirrored,{})
+	var old: Dictionary = _drag_buffers.get(path_id,{})
 	if old.is_empty() or old.island != island:
-		_drag_buffers[mirrored] = {"image":sample,"origin":origin,"island":island}
+		_drag_buffers[path_id] = {"image":sample,"origin":origin,"island":island}
 		return false
 	if old.origin == origin: return false
 	_stamp = BrushFilters.strength(old.image,_stroke_opacity,_shape_stamp)
 	var carry: Image = old.image.duplicate()
 	carry.blend_rect(BrushFilters.strength(sample,0.25),Rect2i(Vector2i.ZERO,extent),Vector2i.ZERO)
-	_drag_buffers[mirrored] = {"image":carry,"origin":origin,"island":island}
+	_drag_buffers[path_id] = {"image":carry,"origin":origin,"island":island}
 	return true
 
 func _commit() -> void:

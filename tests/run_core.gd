@@ -97,6 +97,77 @@ func run() -> void:
 	var ao_doc := PaintDocument.new()
 	ao_doc.initialize(64,64,Color.WHITE)
 	ao_doc.geometry = corner_model
+	var wrap_doc := PaintDocument.new()
+	wrap_doc.initialize(64,64,Color.WHITE)
+	wrap_doc.geometry = corner_model
+	painter.setup(wrap_doc,PaintHistory.new())
+	painter.tool = "brush"
+	painter.brush_size = 12
+	painter.color = Color.RED
+	painter.selection = UVRaster.selection(corner_model,PackedInt32Array([0,1]),Vector2i(64,64))
+	painter.selection_active = true
+	painter.edge_wrap_faces = {0:true,1:true}
+	painter.edge_wrap = false
+	painter.begin(Vector2(0.115,0.19),corner_model.islands[0],0)
+	painter.end()
+	while painter.active: painter._process(0.0)
+	var unwrapped_alpha := wrap_doc.selected_layer().tile_at(Vector2i.ZERO,false,false).get_pixel(44,9).a
+	wrap_doc = PaintDocument.new()
+	wrap_doc.initialize(64,64,Color.WHITE)
+	wrap_doc.geometry = corner_model
+	painter.setup(wrap_doc,PaintHistory.new())
+	painter.tool = "brush"
+	painter.brush_size = 12
+	painter.color = Color.RED
+	painter.selection = UVRaster.selection(corner_model,PackedInt32Array([0,1]),Vector2i(64,64))
+	painter.selection_active = true
+	painter.edge_wrap_faces = {0:true,1:true}
+	painter.edge_wrap = true
+	painter.edge_wrap_camera_position = Vector3(2,2,2)
+	painter.edge_wrap_visible_only = true
+	painter.begin(Vector2(0.115,0.19),corner_model.islands[0],0)
+	painter.end()
+	while painter.active: painter._process(0.0)
+	var wrapped_alpha := wrap_doc.selected_layer().tile_at(Vector2i.ZERO,false,false).get_pixel(44,9).a
+	check(unwrapped_alpha == 0.0 and wrapped_alpha > 0.0,"Wrap toggle paints a touched neighboring face across a UV seam")
+	var wrap_hit := corner_model.surface_at_uv(Vector2(0.115,0.19),corner_model.islands[0],0)
+	check(corner_model.edge_wrap_targets(0,wrap_hit.position,12,Vector2i(64,64),{0:true,1:true},Vector3(-2,2,2),true).is_empty(),"Wrap avoids a neighboring face hidden behind the model")
+	check(corner_model.edge_wrap_targets(0,wrap_hit.position,12,Vector2i(64,64),{0:true},Vector3(2,2,2),true).is_empty(),"Wrap stays within the selected faces")
+	var shape_doc := PaintDocument.new()
+	shape_doc.initialize(64,64,Color.WHITE)
+	shape_doc.geometry = corner_model
+	painter.setup(shape_doc,PaintHistory.new())
+	painter.tool = "line"
+	painter.brush_size = 12
+	painter.edge_wrap = true
+	painter.edge_wrap_camera_position = Vector3(2,2,2)
+	painter.edge_wrap_visible_only = true
+	painter.begin(Vector2(0.115,0.15),corner_model.islands[0],0)
+	painter.append(Vector2(0.115,0.25),corner_model.islands[0],0)
+	painter.end()
+	while painter.active: painter._process(0.0)
+	check(shape_doc.selected_layer().tile_at(Vector2i.ZERO,false,false).get_pixel(44,9).a > 0.0,"Line tool also wraps its drawn edge across the UV seam")
+	var noise_doc := PaintDocument.new()
+	noise_doc.initialize(64,64,Color.GRAY)
+	var flat := Image.create(16,16,false,Image.FORMAT_RGBA8)
+	flat.fill(Color(0.5,0.5,0.5))
+	noise_doc.effects.noise = 0.8
+	noise_doc.effects.noise_density = 0.0
+	check(ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc).get_data() == flat.get_data(),"Zero noise coverage leaves the texture unchanged")
+	noise_doc.effects.noise_density = 1.0
+	noise_doc.effects.noise_grain = 3
+	noise_doc.effects.noise_seed = 42
+	var grains := ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc)
+	check(grains.get_pixel(0,0) == grains.get_pixel(2,2) and grains.get_pixel(0,0) != grains.get_pixel(3,0),"Grain size groups deterministic pixel noise into cells")
+	check(grains.get_data() == ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc).get_data(),"Pixel noise is stable between preview and repeated exports")
+	noise_doc.effects.noise_mode = 1
+	var dark_grains := ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc)
+	noise_doc.effects.noise_mode = 2
+	var light_grains := ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc)
+	check(dark_grains.get_pixel(0,0).r < flat.get_pixel(0,0).r and light_grains.get_pixel(0,0).r > flat.get_pixel(0,0).r,"Noise tone can make only dark or only light specks")
+	noise_doc.effects.noise_mode = 3
+	var color_grains := ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc)
+	check(color_grains.get_pixel(0,0).r != color_grains.get_pixel(0,0).g,"Color noise varies channels independently")
 	var model_start := {"uv": Vector2(0.13,0.15), "face": 0}
 	var model_end := {"uv": Vector2(0.13,0.25), "face": 0}
 	var model_narrow := PaintOperations.gradient(progress,ao_doc,PackedInt32Array([0]),model_start,model_end,7,Color.WHITE,Color.BLACK,false,4)
@@ -104,12 +175,23 @@ func run() -> void:
 	check(model_narrow.command.after[Vector2i.ZERO].get_pixel(12,12).a == 0.0 and model_wide.command.after[Vector2i.ZERO].get_pixel(12,12).a > 0.99, "Gradient Size also changes width on a 3D face")
 	var ao_narrow := PaintOperations.cavity_ao(progress, ao_doc, 1.0, 6, 0.0, 0)
 	var ao_wide := PaintOperations.cavity_ao(progress, ao_doc, 1.0, 12, 0.0, 0)
-	check(ao_narrow.corners == 1 and not ao_narrow.layer.tiles.is_empty(), "AO detects inward shared geometry corner")
+	check(ao_narrow.samples > 0 and not ao_narrow.layer.tiles.is_empty(), "AO rays detect nearby occluding geometry")
 	var ao_tile: Image = ao_narrow.layer.tiles.get(Vector2i.ZERO)
 	var ao_wide_tile: Image = ao_wide.layer.tiles.get(Vector2i.ZERO)
-	check(ao_tile.get_pixel(8,15).a > 0.5 and ao_tile.get_pixel(15,15).a == 0.0 and ao_wide_tile.get_pixel(15,15).a > 0.0, "AO radius controls its pixel reach")
+	check(ao_tile.get_pixel(8,15).a > 0.05 and ao_tile.get_pixel(15,15).a == 0.0 and ao_wide_tile.get_pixel(15,15).a > 0.0, "AO radius controls its pixel reach without solid edge wedges")
 	var ao_soft := PaintOperations.cavity_ao(progress, ao_doc, 0.5, 6, 0.0, 2)
 	check(ao_soft.layer.tiles[Vector2i.ZERO].get_pixel(10,15).a < ao_tile.get_pixel(10,15).a, "AO strength and sharp falloff reduce edge shadow")
+	var detached := ModelGeometry.new()
+	detached.positions = PackedVector3Array([Vector3(0,0,0),Vector3(1,0,0),Vector3(0,0,1),Vector3(0.2,0.1,0.2),Vector3(0.6,0.1,0.2),Vector3(0.2,0.1,0.6)])
+	detached.uvs = PackedVector2Array([Vector2(0.1,0.1),Vector2(0.8,0.1),Vector2(0.1,0.8),Vector2(0.8,0.8),Vector2(0.9,0.8),Vector2(0.8,0.9)])
+	detached.materials = PackedInt32Array([0,0])
+	detached.objects = PackedInt32Array([0,1])
+	detached.build_cache()
+	ao_doc.geometry = detached
+	var detached_ao := PaintOperations.cavity_ao(progress,ao_doc,1.0,32,0.0,0)
+	var detached_tile: Image = detached_ao.layer.tiles[Vector2i.ZERO]
+	check(detached_tile.get_pixel(20,20).a > detached_tile.get_pixel(35,10).a + 0.2,"AO darkens a surface below separate geometry with no shared edge")
+	ao_doc.geometry = corner_model
 	var edge_geometry := ModelGeometry.new()
 	edge_geometry.positions = PackedVector3Array([Vector3.ZERO,Vector3.RIGHT,Vector3.FORWARD])
 	edge_geometry.uvs = PackedVector2Array([Vector2(0.2,0.2),Vector2(0.8,0.2),Vector2(0.2,0.8)])
@@ -130,6 +212,18 @@ func run() -> void:
 	check(flat_scatter.layer.tiles[Vector2i.ZERO].get_pixel(30,18).a > edge_tile.get_pixel(30,18).a,"Falloff control changes scatter strength at the outer edge")
 	var repeat_scatter := PaintOperations.edge_layer(progress,edge_doc,1,Color.WHITE,6,1.0,1.0)
 	check(repeat_scatter.layer.tiles[Vector2i.ZERO].get_data() == edge_tile.get_data(),"Edge noise is deterministic between previews and baking")
+	var split_quad := ModelGeometry.new()
+	split_quad.positions = PackedVector3Array([Vector3(0,0,0),Vector3(1,0,0),Vector3(0,0,1),Vector3(1,0,0),Vector3(1,0,1),Vector3(0,0,1)])
+	split_quad.uvs = PackedVector2Array([Vector2(0.1,0.1),Vector2(0.9,0.1),Vector2(0.1,0.9),Vector2(0.9,0.1),Vector2(0.9,0.9),Vector2(0.1,0.9)])
+	split_quad.materials = PackedInt32Array([0,0])
+	split_quad.objects = PackedInt32Array([0,0])
+	split_quad.build_cache()
+	var quad_scatter := {}
+	PaintOperations._edge_scatter(quad_scatter,split_quad,split_quad.islands[0],{},Vector2(6.4,6.4),Vector2(57.6,6.4),Vector2i(64,64),2,25,1.0,1.0,Color.WHITE)
+	var quad_tile: Image = quad_scatter.get(Vector2i.ZERO)
+	check(split_quad.islands[0] == split_quad.islands[1] and quad_tile != null and quad_tile.get_pixel(50,25).a > 0.0,
+		"Edge scatter stays continuous across triangles in the same UV island")
+	check(quad_tile != null and quad_tile.get_pixel(2,25).a == 0.0,"Edge scatter stays inside the UV island")
 	var ao_4k := PaintDocument.new()
 	ao_4k.initialize(4096,4096,Color.WHITE)
 	ao_4k.geometry = corner_model
@@ -140,7 +234,7 @@ func run() -> void:
 	var ao_started := Time.get_ticks_usec()
 	var ao_big := PaintOperations.cavity_ao(progress,ao_4k,0.65,64,0.5,1)
 	print("4K cavity AO: %.2f ms; %d sparse tiles" % [(Time.get_ticks_usec() - ao_started) / 1000.0,ao_big.layer.tiles.size()])
-	check(ao_big.layer.tiles.size() > 0 and ao_big.layer.tiles.size() < 128, "4K AO touches only narrow strips beside corners")
+	check(ao_big.samples > 0 and ao_big.layer.tiles.size() > 0, "4K AO samples geometry and produces a baked layer")
 	corner_model.positions[5] = Vector3(0,-1,0)
 	corner_model.build_cache()
 	check(PaintOperations.cavity_ao(progress, ao_doc, 1.0, 6, 0.0, 0).layer.tiles.is_empty(), "AO does not darken outward corners")
