@@ -1306,7 +1306,13 @@ func _job_completed(kind: String, value: Variant) -> void:
 			_last_saved_autosave_revision = int(result.revision)
 			_status("Recovery copy saved")
 			_refresh_metadata()
-		"export", "export_model": _status("Exported · " + result.path)
+		"export": _status("Exported · " + result.path)
+		"export_model":
+			_status("Exported · " + result.path)
+			if OS.get_name() == "Windows" and DisplayServer.get_name() != "headless":
+				var folder_error := OS.shell_show_in_file_manager(ProjectSettings.globalize_path(result.path).get_base_dir())
+				if folder_error != OK:
+					_message("Model exported, but Windows Explorer could not open its folder.")
 		"import":
 			var before := _document_state()
 			var added: Array = result.get("imported_layers",[])
