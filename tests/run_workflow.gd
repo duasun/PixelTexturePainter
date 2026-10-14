@@ -117,10 +117,28 @@ func run() -> void:
 		var material: StandardMaterial3D = state.get_materials()[0]
 		check(material.normal_enabled and material.normal_texture != null and material.roughness_texture != null and material.metallic_texture != null and material.ao_texture != null and material.emission_texture != null,"GLB keeps normal, roughness, metallic, AO and emission textures")
 		check(material.albedo_texture.get_image().get_pixel(1,1).to_rgba32() == ProjectIO.render_image(progress,doc,"albedo").image.get_pixel(1,1).to_rgba32(),"GLB always uses Albedo as base color while another map is active")
+	var geometry_import := ModelIO.load_model(progress,glb)
 	var material_import := ModelIO.load_model(progress,glb,128,128)
-	check(material_import.has("imported_layers") and material_import.imported_layers.size() >= 5,"Import transfers source material maps to a new UV atlas")
+	check(material_import.has("imported_layers") and material_import.imported_layers.size() >= 5,"GLB import transfers source material maps")
 	if material_import.has("imported_layers"):
 		check(material_import.geometry.has_uv and not material_import.imported_layers[0].tiles.is_empty(),"Imported material keeps UV coverage and paint tiles")
+		check(geometry_import.has("geometry") and material_import.geometry.uvs == geometry_import.geometry.uvs,"GLB material import preserves every source UV coordinate")
+	var shared_uv := ModelGeometry.new()
+	for material_id in 2:
+		for point in [Vector3.ZERO, Vector3.RIGHT, Vector3.UP]:
+			shared_uv.positions.append(point)
+			shared_uv.normals.append(Vector3.FORWARD)
+		for uv_point in [Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN]: shared_uv.uvs.append(uv_point)
+		shared_uv.materials.append(material_id)
+		shared_uv.objects.append(material_id)
+	shared_uv.build_cache()
+	var red_source := Image.create(1,1,false,Image.FORMAT_RGBA8); red_source.fill(Color.RED)
+	var blue_source := Image.create(1,1,false,Image.FORMAT_RGBA8); blue_source.fill(Color.BLUE)
+	var shared_import := ProjectTransforms.import_materials(progress,shared_uv,{
+		0:{"albedo":{"image":red_source,"component":-1,"factor":Color.WHITE}},
+		1:{"albedo":{"image":blue_source,"component":-1,"factor":Color.WHITE}}},Vector2i(16,16))
+	check(shared_import.geometry.uvs == shared_uv.uvs and int(shared_import.material_overlap) > 0,"Overlapping material UVs are reported without changing the model layout")
+	check(shared_import.imported_layers[0].tiles[Vector2i.ZERO].get_pixel(2,2).r > 0.9,"First material keeps shared texels instead of a later overwrite")
 	var preview_maps := PBRPreview.build(progress,doc)
 	check(preview_maps.has("maps") and preview_maps.maps.size() == 6,"Lit preview builds all six material maps")
 	var mask_result := PaintOperations.geometry_mask(progress,doc,"edges",{"width":2,"invert":false})

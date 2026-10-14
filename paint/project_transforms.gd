@@ -3,14 +3,12 @@ extends RefCounted
 ## Full-document edits run on BackgroundJob; original layers remain untouched for Undo.
 
 static func import_materials(progress: BackgroundJob.JobProgress, source: ModelGeometry, materials: Dictionary, size: Vector2i) -> Dictionary:
-	# Give every material its own atlas space before sampling its original UVs.
-	var unwrapped := UVUnwrapper.unwrap(source,size.x,size.y,45.0,2,progress)
-	if unwrapped.has("cancelled"): return unwrapped
-	if unwrapped.has("error"):
-		return {"geometry":source,"warning":"Original material textures could not be transferred: " + str(unwrapped.error)}
-	var target: ModelGeometry = unwrapped.geometry
+	# Material import must not replace UVs authored in the source model.
 	var banks := {}
 	var source_bytes := {}
+	var owners := {}
+	var overlaps := 0
+	var textured_materials := 0
 	for material_id in materials:
 		var entries: Dictionary = materials[material_id]
 		var prepared := {}
@@ -21,22 +19,36 @@ static func import_materials(progress: BackgroundJob.JobProgress, source: ModelG
 				"component":int(entry.component),"factor":entry.factor}
 			if not banks.has(channel): banks[channel] = {}
 		source_bytes[material_id] = prepared
-	for face in target.face_count():
-		if face % 16 == 0 and progress.report(0.25+0.7*float(face)/maxi(1,target.face_count()),"Transferring source material %d / %d…" % [face+1,target.face_count()]): return {"cancelled":true}
+		if not prepared.is_empty(): textured_materials += 1
+	for face in source.face_count():
+		if face % 16 == 0 and progress.report(0.25+0.7*float(face)/maxi(1,source.face_count()),"Transferring source material %d / %d…" % [face+1,source.face_count()]): return {"cancelled":true}
 		var entries: Dictionary = source_bytes.get(source.materials[face],{})
 		if entries.is_empty(): continue
 		var tri := PackedVector2Array()
-		for corner in 3: tri.append(target.uvs[face*3+corner]*Vector2(size))
+		for corner in 3: tri.append(source.uvs[face*3+corner]*Vector2(size))
 		var area := (tri[1]-tri[0]).cross(tri[2]-tri[0])
 		if absf(area) < 0.00000001: continue
 		var coverage := {}
 		UVRaster.triangle(coverage,tri,size,Color.WHITE)
 		for key in coverage:
 			var mask: PackedByteArray = coverage[key].get_data()
+			if textured_materials > 1 and not owners.has(key):
+				var new_owners := PackedInt32Array()
+				new_owners.resize(4096)
+				new_owners.fill(-1)
+				owners[key] = new_owners
+			var tile_owners: PackedInt32Array = owners.get(key,PackedInt32Array())
 			for y in mini(64,size.y-key.y*64):
 				for x in mini(64,size.x-key.x*64):
 					var pixel := y*64+x
 					if mask[pixel*4+3] == 0: continue
+					if not tile_owners.is_empty():
+						if tile_owners[pixel] == -2: continue
+						if tile_owners[pixel] >= 0 and tile_owners[pixel] != source.materials[face]:
+							tile_owners[pixel] = -2
+							overlaps += 1
+							continue
+						tile_owners[pixel] = source.materials[face]
 					var point := Vector2(key*64+Vector2i(x,y))+Vector2.ONE*0.5
 					var u := (point-tri[0]).cross(tri[2]-tri[0])/area
 					var v := (tri[1]-tri[0]).cross(point-tri[0])/area
@@ -65,6 +77,7 @@ static func import_materials(progress: BackgroundJob.JobProgress, source: ModelG
 						else:
 							for c in 4: bytes[to+c] = clampi(roundi(image_data[from+c]*factor[c]),0,255) if channel != "normal" else image_data[from+c]
 						bank[key] = bytes
+			if not tile_owners.is_empty(): owners[key] = tile_owners
 	var layers: Array[PaintLayer] = []
 	for channel in PaintChannels.IDS:
 		if not banks.has(channel): continue
@@ -74,7 +87,9 @@ static func import_materials(progress: BackgroundJob.JobProgress, source: ModelG
 		for key in banks[channel]:
 			layer.tiles[key] = Image.create_from_data(64,64,false,Image.FORMAT_RGBA8,banks[channel][key])
 		layers.append(layer)
-	return {"geometry":target,"imported_layers":layers,"warning":"Original material textures transferred to a new UV atlas."}
+	var message := "Imported material textures on the original UV layout."
+	if overlaps > 0: message += " %d shared texels between materials kept their first texture." % overlaps
+	return {"geometry":source,"imported_layers":layers,"warning":message,"material_overlap":overlaps}
 
 static func resize(progress: BackgroundJob.JobProgress, doc: PaintDocument, width: int, height: int) -> Dictionary:
 	width = clampi(width,16,4096)
