@@ -226,19 +226,19 @@ horizontal_scroll_mode = 0
 size_flags_horizontal = 3
 layout_mode = 2
 unique_name_in_owner = true
-[node name="Effects" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
-layout_mode = 2
-horizontal_scroll_mode = 0
-[node name="Effects" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/Effects" instance=ExtResource("effects")]
-size_flags_horizontal = 3
-layout_mode = 2
-unique_name_in_owner = true
 [node name="UV" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
 layout_mode = 2
 horizontal_scroll_mode = 0
 [node name="UV" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/UV" instance=ExtResource("uv")]
 size_flags_horizontal = 3
 layout_mode = 2
+unique_name_in_owner = true
+[node name="Stamp" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+[node name="StampPanel" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/Stamp" instance=ExtResource("stamp")]
+layout_mode = 2
+size_flags_horizontal = 3
 unique_name_in_owner = true
 [node name="PaletteDock" type="PanelContainer" parent="Margin/Layout/MainSplit/LeftColumn/MainDock"]
 layout_mode = 2
@@ -255,12 +255,12 @@ horizontal_scroll_mode = 0
 size_flags_horizontal = 3
 layout_mode = 2
 unique_name_in_owner = true
-[node name="Stamp" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
+[node name="Effects" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
 layout_mode = 2
 horizontal_scroll_mode = 0
-[node name="StampPanel" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/Stamp" instance=ExtResource("stamp")]
-layout_mode = 2
+[node name="Effects" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/Effects" instance=ExtResource("effects")]
 size_flags_horizontal = 3
+layout_mode = 2
 unique_name_in_owner = true
 [node name="StatusBar" type="HBoxContainer" parent="Margin/Layout"]
 layout_mode = 2

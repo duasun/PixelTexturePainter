@@ -130,7 +130,7 @@ func run() -> void:
 	scene.get_node("%Effects/AOSection").button_pressed = true
 	scene.get_node("%Effects/BlurSection").button_pressed = true
 	scene.get_node("%UV/Padding").set_value(5)
-	scene.get_node("%Inspector").current_tab = 4
+	scene.get_node("%Inspector").current_tab = 2
 	await process_frame
 	var preview = scene.get_node("%StampPanel/Preview")
 	var wheel := InputEventMouseButton.new()
@@ -145,6 +145,7 @@ func run() -> void:
 	scene._save_preferences()
 	var stored := ConfigFile.new()
 	check(stored.load(config_path) == OK and stored.get_value("files","last_project","") == project_path and stored.get_value("spray","flow",0) == 7.5,"Config saves last project and spray settings")
+	check(stored.get_value("view","inspector_tab_name","") == "Stamp","Config saves inspector tab by name")
 	root.remove_child(scene); scene.free()
 	var reopened = load("res://scenes/main_window.tscn").instantiate()
 	reopened.settings_path = config_path
@@ -154,7 +155,7 @@ func run() -> void:
 	check(reopened.document.path == project_path and reopened.document.title == "Field crate","Startup reopens last project")
 	check(reopened.document.stamp_image != null and reopened.document.stamp_region == Rect2i(2,0,3,4) and reopened.get_node("%StampPanel").source != null and reopened.document.stamp_rotation == 45.0 and reopened.get_node("%StampPanel/RotationRow/Rotation").value == 45.0,"Last project restores embedded stamp, crop and rotation")
 	check(reopened.document.pattern_image != null and reopened.document.pattern_settings.angle == 90.0 and reopened.document.pattern_settings.scale == 1.25 and reopened.get_node("%Pattern/OffsetY").value == -2.0,"Last project restores Pattern image and transform")
-	check(reopened.get_node("%Inspector").current_tab == 4 and reopened.get_node("%StampPanel/Preview").view_state().zoom > 1.0,"Last inspector tab and stamp zoom restore")
+	check(reopened.get_node("%Inspector").current_tab == 2 and reopened.get_node("%StampPanel/Preview").view_state().zoom > 1.0,"Last inspector tab and stamp zoom restore")
 	check(reopened.get_node("%Effects/AOStrength").value == 42 and reopened.get_node("%Effects/AORadius").value == 11 and reopened.get_node("%Effects/AOFalloff").selected == 2 and reopened.get_node("%UV/Padding").value == 5,"Inspector effect and UV controls restore")
 	check(reopened.get_node("%Effects/EdgeScatter").value == 9 and reopened.get_node("%Effects/EdgeNoise").value == 52 and reopened.get_node("%Effects/EdgeFalloff").value == 80,"Geometry edge scatter settings restore")
 	check(reopened.get_node("%Effects/NormalStrength").value == 175 and reopened.get_node("%Effects/BlurRadius").value == 9 and reopened.get_node("%Effects/AOSection").button_pressed and reopened.get_node("%Effects/BlurSection").button_pressed and not reopened.get_node("%Effects/NormalSection").button_pressed,"Effect settings and expanded sections restore")
@@ -169,12 +170,18 @@ func run() -> void:
 	reopened._action("ToggleRestoreLast")
 	reopened._save_preferences()
 	root.remove_child(reopened); reopened.free()
+	var legacy_settings := ConfigFile.new()
+	check(legacy_settings.load(config_path) == OK,"Legacy inspector settings can be loaded")
+	legacy_settings.erase_section_key("view","inspector_tab_name")
+	legacy_settings.set_value("view","inspector_tab",4)
+	check(legacy_settings.save(config_path) == OK,"Legacy inspector settings can be saved")
 	var sample = load("res://scenes/main_window.tscn").instantiate()
 	sample.settings_path = config_path
 	root.add_child(sample)
 	sample.get_node("%Autosave").stop()
 	await ready_document(sample)
 	check(sample.document.path.is_empty() and sample.document.title == "Field crate","Disabling reopen starts the sample while retaining last-project path")
+	check(sample.get_node("%Inspector").current_tab == 2,"Old Stamp tab index migrates to its new position")
 	sample.document.saved_revision = sample.document.revision
 	print("PREFERENCES CHECKS: %d passed / %d; failures: %d" % [checks-failures,checks,failures])
 	quit(1 if failures else 0)

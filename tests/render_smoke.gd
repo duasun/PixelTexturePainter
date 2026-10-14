@@ -51,7 +51,7 @@ func run() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://test_output/inspector_%d.png" % index)
-		if index == 4:
+		if index == 2:
 			var preview = scene.get_node("%StampPanel/Preview")
 			var pivot: Vector2 = preview._image_rect().get_center()
 			var wheel := InputEventMouseButton.new()

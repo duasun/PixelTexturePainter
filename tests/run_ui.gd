@@ -27,6 +27,10 @@ func run() -> void:
 	root.size = Vector2i(1440,900)
 	scene.get_node("%Autosave").stop()
 	await ready_document(scene)
+	var inspector: TabContainer = scene.get_node("%Inspector")
+	var tab_names: Array[String] = []
+	for index in inspector.get_tab_count(): tab_names.append(str(inspector.get_child(index).name))
+	check(tab_names == ["Layers","UV","Stamp","Pattern","Effects"], "Inspector tabs follow the requested order")
 	var model_view: ModelView = scene.model_view
 	var zoom_point: Vector2 = model_view.display.size * 0.5
 	var zoom_hit: Dictionary = model_view._hit(zoom_point)
@@ -451,7 +455,7 @@ func run() -> void:
 	stamp_image.save_png(stamp_path)
 	scene._file_action = "stencil"
 	scene._file_selected(stamp_path)
-	check(scene.painter.tool == "stencil" and scene.get_node("%Inspector").current_tab == 4 and scene.document.stamp_region == Rect2i(0,0,8,4), "Loading a stamp opens its inspector and defaults to full image")
+	check(scene.painter.tool == "stencil" and scene.get_node("%Inspector").current_tab == 2 and scene.document.stamp_region == Rect2i(0,0,8,4), "Loading a stamp opens its inspector and defaults to full image")
 	var stamp_panel = scene.get_node("%StampPanel")
 	var crop = stamp_panel.get_node("Preview")
 	var bounds: Rect2 = crop._image_rect()

@@ -325,7 +325,7 @@ func _select_tool(tool: String) -> void:
 	%ToolOptions.set_tool(tool)
 	%SprayOptions.visible = tool == "spray"
 	if tool == "select": model_view.get_node("Header/Wires").button_pressed = true
-	if tool == "stencil": %Inspector.current_tab = 4
+	if tool == "stencil": _show_inspector_tab("Stamp")
 	_refresh_cursor()
 	_queue_preferences_save()
 	_status({"gradient": "Gradient: click and drag the direction. Length stays exactly %d px. UV seams use unfolded surface distance." % gradient_length,
@@ -1229,7 +1229,7 @@ func _file_selected(path: String) -> void:
 					history.push(document, {"kind": "property", "target": document, "property": "pattern_image", "before": document.pattern_image, "after": image})
 					document.pattern_image = image
 				else: _apply_pattern(document.selected_layer().pattern_faces)
-				%Inspector.current_tab = 3
+				_show_inspector_tab("Pattern")
 				%ToolBar.select("texture")
 
 func _texture_fill(faces: PackedInt32Array) -> void:
@@ -1766,8 +1766,17 @@ func _restore_preferences() -> void:
 	for field in ["Angle", "Padding", "MoveStep", "Scale"]:
 		var control: NumberField = %UV.get_node(field)
 		control.set_value(float(_preferences.get_setting("uv",field,control.value)),false)
-	%Inspector.current_tab = clampi(int(_preferences.get_setting("view","inspector_tab",%Inspector.current_tab)),0,%Inspector.get_tab_count()-1)
+	var saved_tab_name := str(_preferences.get_setting("view","inspector_tab_name",""))
+	if not saved_tab_name.is_empty() and %Inspector.has_node(saved_tab_name):
+		_show_inspector_tab(saved_tab_name)
+	else:
+		var legacy_tab := clampi(int(_preferences.get_setting("view","inspector_tab",0)),0,4)
+		%Inspector.current_tab = [0,4,1,3,2][legacy_tab]
 	_restoring_preferences = false
+
+func _show_inspector_tab(tab_name: String) -> void:
+	var tab: Control = %Inspector.get_node_or_null(tab_name)
+	if tab != null: %Inspector.current_tab = tab.get_index()
 
 func _remember_project(path: String) -> void:
 	if path.is_empty(): return
@@ -1792,6 +1801,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("view","model_background",model_view.background_color())
 	_preferences.set_setting("view","selection_mode",selection_mode)
 	_preferences.set_setting("view","inspector_tab",%Inspector.current_tab)
+	_preferences.set_setting("view","inspector_tab_name",str(%Inspector.get_child(%Inspector.current_tab).name))
 	if document != null and not document.path.is_empty() and document.path == _last_project_path:
 		_saved_stamp_view_path = document.path
 		_saved_stamp_view = %StampPanel.view_state()
