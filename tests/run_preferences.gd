@@ -35,6 +35,8 @@ func run() -> void:
 	for name in ["Undo","Redo","Frame","Wires","Ortho","Light"]:
 		var button: Button = scene.model_view.get_node("Header/"+name)
 		check(button.icon != null and button.text.is_empty() and not button.tooltip_text.is_empty(),"Model "+name+" is an icon with tooltip")
+	var background_swatch: ColorPickerButton = scene.model_view.get_node("Display/BackgroundSwatch")
+	check(background_swatch != null and background_swatch.edit_alpha == false and not background_swatch.tooltip_text.is_empty(),"Model preview has a background color swatch")
 	for name in ["Shape","Dither","Mirror"]:
 		var button: Button = scene.get_node("%ToolOptions/"+name)
 		check(button.icon != null and button.text.is_empty() and not button.tooltip_text.is_empty(),"Brush "+name+" is an icon with tooltip")
@@ -111,6 +113,9 @@ func run() -> void:
 	scene.get_node("%SprayOptions/Particles").set_value(24)
 	scene.model_view.get_node("Header/Wires").button_pressed = true
 	scene.model_view.get_node("Header/Ortho").button_pressed = true
+	var chosen_background := Color("566778")
+	background_swatch.color_changed.emit(chosen_background)
+	check(scene.model_view.background_color().is_equal_approx(chosen_background) and background_swatch.color.is_equal_approx(chosen_background),"Preview background changes immediately from the swatch")
 	scene.get_node("%Effects/AOStrength").set_value(42)
 	scene.get_node("%Effects/AORadius").set_value(11)
 	scene.get_node("%Effects/AOFalloff").select(2)
@@ -151,6 +156,7 @@ func run() -> void:
 	check(is_equal_approx(reopened.painter.falloff,0.55),"Brush falloff restores from config")
 	check(is_equal_approx(reopened.painter.opacity,0.35) and is_equal_approx(reopened.painter.spray_flow,0.075) and reopened.painter.spray_particles == 24,"Spray controls restore")
 	check(reopened.model_view.get_node("Header/Wires").button_pressed and reopened.model_view.get_node("Header/Ortho").button_pressed and not reopened.get_node("%UVView").button_pressed,"View toggles restore")
+	check(reopened.model_view.background_color().is_equal_approx(chosen_background) and reopened.model_view.get_node("Display/BackgroundSwatch").color.is_equal_approx(chosen_background),"Model preview background color restores from config")
 	check(reopened.get_node("%MainDock").split_offset == -160 and reopened.get_node("%MainSplit").split_offset == -380,"Panel sizes restore")
 	check(not reopened.get_node("%MenuBar/File").get_popup().is_item_disabled(2),"File menu offers last project")
 	reopened._action("ToggleRestoreLast")

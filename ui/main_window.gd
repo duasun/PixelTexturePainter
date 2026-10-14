@@ -90,6 +90,7 @@ func _ready() -> void:
 	%Inspector.tab_changed.connect(func(_tab: int): _queue_preferences_save())
 	model_view.surface_event.connect(_surface_input.bind(true))
 	model_view.history_requested.connect(_action)
+	model_view.background_color_changed.connect(func(_color: Color): _queue_preferences_save())
 	uv_canvas.surface_event.connect(_surface_input.bind(false))
 	model_view.gesture_motion.connect(_gesture_motion)
 	uv_canvas.gesture_motion.connect(_gesture_motion)
@@ -1621,6 +1622,8 @@ func _restore_preferences() -> void:
 	uv_canvas.show_uv = show_uv_lines
 	uv_canvas.queue_redraw()
 	model_view.restore_view(bool(_preferences.get_setting("view","model_wires",false)),bool(_preferences.get_setting("view","orthographic",false)),bool(_preferences.get_setting("view","light",false)))
+	var saved_background: Variant = _preferences.get_setting("view","model_background",Color(0.15,0.15,0.15))
+	if saved_background is Color: model_view.set_background_color(saved_background)
 	selection_mode = clampi(int(_preferences.get_setting("view","selection_mode",0)),0,3)
 	%Layers.get_node("SelectionMode").select(selection_mode)
 	%ToolOptions.get_node("Size").set_value(float(_preferences.get_setting("brush","size",4)),false)
@@ -1688,6 +1691,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("view","model_wires",model_view.get_node("Header/Wires").button_pressed)
 	_preferences.set_setting("view","orthographic",model_view.get_node("Header/Ortho").button_pressed)
 	_preferences.set_setting("view","light",model_view.get_node("Header/Light").button_pressed)
+	_preferences.set_setting("view","model_background",model_view.background_color())
 	_preferences.set_setting("view","selection_mode",selection_mode)
 	_preferences.set_setting("view","inspector_tab",%Inspector.current_tab)
 	if document != null and not document.path.is_empty() and document.path == _last_project_path:

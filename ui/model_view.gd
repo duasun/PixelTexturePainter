@@ -4,6 +4,7 @@ signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
 signal hovered(hit: Dictionary)
 signal history_requested(action: String)
+signal background_color_changed(color: Color)
 var geometry: ModelGeometry
 var display_material: ShaderMaterial
 var yaw := 0.55
@@ -23,8 +24,12 @@ var _hover_key := Vector2i(-2,-2)
 @onready var camera: Camera3D = $Display/Viewport/World/Camera
 @onready var model: MeshInstance3D = $Display/Viewport/World/Model
 @onready var overlay: MeshInstance3D = $Display/Viewport/World/Selection
+@onready var world_environment: WorldEnvironment = $Display/Viewport/World/Environment
+@onready var background_swatch: ColorPickerButton = $Display/BackgroundSwatch
 
 func _ready() -> void:
+	world_environment.environment = world_environment.environment.duplicate()
+	background_swatch.color_changed.connect(_background_selected)
 	display_material = ShaderMaterial.new()
 	display_material.shader = preload("res://shaders/model.gdshader")
 	model.material_override = display_material
@@ -42,6 +47,18 @@ func _ready() -> void:
 		_update_camera())
 	display.mouse_exited.connect(func(): hovered.emit({}))
 	_update_camera()
+
+func set_background_color(value: Color) -> void:
+	var opaque := Color(value.r, value.g, value.b)
+	world_environment.environment.background_color = opaque
+	background_swatch.color = opaque
+
+func background_color() -> Color:
+	return world_environment.environment.background_color
+
+func _background_selected(value: Color) -> void:
+	set_background_color(value)
+	background_color_changed.emit(background_color())
 
 func set_history_available(can_undo: bool, can_redo: bool) -> void:
 	$Header/Undo.disabled = not can_undo

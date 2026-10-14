@@ -126,6 +126,21 @@ anchor_bottom = 1.0
 mouse_filter = 2
 clip_contents = true
 script = ExtResource("symmetry_preview")
+[node name="BackgroundSwatch" type="ColorPickerButton" parent="Display"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = 40.0
+grow_horizontal = 0
+custom_minimum_size = Vector2(30, 30)
+focus_mode = 0
+tooltip_text = "Change model preview background"
+color = Color(0.15, 0.15, 0.15, 1)
+edit_alpha = false
 [node name="Navigation" type="Label" parent="."]
 layout_mode = 2
 text = "RMB orbit · MMB pan · wheel zoom"
