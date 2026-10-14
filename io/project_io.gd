@@ -174,7 +174,7 @@ static func load_project(progress: BackgroundJob.JobProgress, path: String) -> D
 			return {"error": "Invalid model data."}
 		doc.geometry = ModelGeometry.from_data(geometry_data)
 		var count := doc.geometry.positions.size()
-		if count == 0 or count % 3 != 0 or doc.geometry.uvs.size() != count or doc.geometry.normals.size() != count or doc.geometry.objects.size() != count / 3 or doc.geometry.materials.size() != count / 3:
+		if count == 0 or count % 3 != 0 or doc.geometry.uvs.size() != count or doc.geometry.normals.size() != count or doc.geometry.objects.size() != floori(count / 3.0) or doc.geometry.materials.size() != floori(count / 3.0):
 			zip.close()
 			return {"error": "Incomplete model data."}
 		doc.geometry.build_cache()

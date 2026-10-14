@@ -188,7 +188,7 @@ func run() -> void:
 	var pbr_preview := PBRPreview.build(progress,large)
 	print("4K lit preview: %.2f ms; %d maps" % [(Time.get_ticks_usec()-pbr_started)/1000.0,pbr_preview.maps.size()])
 	check(pbr_preview.maps.albedo.get_width() == 1024,"4K lit preview caps GPU image dimensions")
-	await additional_checks(painter, progress)
+	additional_checks(painter, progress)
 	var report := {"checks": checks, "failures": failures, "stroke_4k_ms": elapsed, "peak_slice_ms": peak, "undo_bytes": large_history.memory_bytes, "godot": Engine.get_version_info().string}
 	var report_file := FileAccess.open("res://test_output/core_results.json", FileAccess.WRITE)
 	report_file.store_string(JSON.stringify(report, "\t"))
@@ -304,7 +304,7 @@ func additional_checks(painter: PaintEngine, progress: BackgroundJob.JobProgress
 	painter.opacity = 1.0
 	check(painter.footprint_size() == 24, "Spray distance controls actual cursor footprint")
 	painter.begin(Vector2(32.5,32.5)/64.0)
-	painter._spray_rng.seed = 934
+	painter._spray_seed = 934
 	painter._process(0.0)
 	var initial := spray.selected_layer().tile_at(Vector2i.ZERO).get_data()
 	painter.brush_size = 2

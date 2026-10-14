@@ -6,8 +6,8 @@ var rows: Dictionary = {}
 var _active_id := ""
 
 func _ready() -> void:
-	for name in ["Add", "Duplicate", "Delete", "Up", "Down"]:
-		get_node("Actions/" + name).pressed.connect(func(): action_requested.emit(name.to_lower(), null))
+	for action_name in ["Add", "Duplicate", "Delete", "Up", "Down"]:
+		get_node("Actions/" + action_name).pressed.connect(func(): action_requested.emit(action_name.to_lower(), null))
 	$ClearMap.pressed.connect(func(): action_requested.emit("clear_map",null))
 	$Opacity.value_changed.connect(func(v: float):
 		if not refreshing: action_requested.emit("opacity", v / 100.0))

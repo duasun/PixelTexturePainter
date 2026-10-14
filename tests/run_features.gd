@@ -14,9 +14,9 @@ func run() -> void:
 	var progress := BackgroundJob.JobProgress.new()
 	var expected := PackedColorArray([Color("be4a2f"), Color("d77643")])
 	for ext in ["hex", "gpl", "pal", "txt", "ase"]:
-		var path: String = "res://test_output/lospec/endesga-32." + ext
-		if FileAccess.file_exists(path):
-			var parsed := PaletteIO.load_palette(progress, path)
+		var palette_path: String = "res://test_output/lospec/endesga-32." + ext
+		if FileAccess.file_exists(palette_path):
+			var parsed := PaletteIO.load_palette(progress, palette_path)
 			check(parsed.has("palette") and parsed.palette.size() == 32 and parsed.palette[0].to_rgba32() == expected[0].to_rgba32() and parsed.palette[1].to_rgba32() == expected[1].to_rgba32(), "Real Lospec " + ext + " decodes count, order and values")
 	var json := '{"name":"Small","colors":["be4a2f","d77643"]}'
 	var csv := '"Name, quoted",Author,be4a2f,d77643'
@@ -80,7 +80,7 @@ func run() -> void:
 		for y in 64:
 			for x in 64:
 				if image.get_pixel(x,y).a > 0: covered += 1
-	check(covered > 0 and covered < 64 * 64 / 4, "Model bucket stays within clicked UV island")
+	check(covered > 0 and covered < 64 * 64 >> 2, "Model bucket stays within clicked UV island")
 	var grown := doc.geometry.grow_selection(PackedInt32Array([0]))
 	check(grown.size() == doc.geometry.neighbors[0].size() + 1 and grown.has(0), "Selection grows exactly one shared-edge ring")
 	for face in grown:

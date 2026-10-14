@@ -419,9 +419,9 @@ func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: 
 			if painter.selection_active:
 				jobs.start("operation", PaintOperations.fill.bind(document, painter.selection, true, painter.color))
 			else:
-				var seed := Vector2i((hit.uv * Vector2(document.width, document.height)).floor())
+				var fill_pixel := Vector2i((hit.uv * Vector2(document.width, document.height)).floor())
 				var limit_island := document.geometry.islands[int(hit.face)] if from_model and int(hit.get("face", -1)) >= 0 else -1
-				jobs.start("operation", PaintFloodFill.run.bind(document, seed, limit_island, painter.color, fill_tolerance, fill_contiguous))
+				jobs.start("operation", PaintFloodFill.run.bind(document, fill_pixel, limit_island, painter.color, fill_tolerance, fill_contiguous))
 		return
 	if painter.tool == "texture":
 		if phase == "begin":
@@ -506,7 +506,7 @@ func _clear_shape_preview() -> void:
 
 func _pick_color(hit: Dictionary) -> void:
 	var pixel := Vector2i((hit.uv * Vector2(document.width, document.height)).floor()).clamp(Vector2i.ZERO, Vector2i(document.width - 1, document.height - 1))
-	var tile := document.compose_tile(Vector2i(pixel.x / 64, pixel.y / 64))
+	var tile := document.compose_tile(Vector2i(pixel.x >> 6, pixel.y >> 6))
 	var sample := tile.get_region(Rect2i(pixel.x % 64, pixel.y % 64, 1, 1))
 	var c := (ProjectIO.apply_effects(sample,pixel,document) if document.current_channel() == "albedo" else sample).get_pixel(0,0)
 	_setting("color", c)

@@ -17,8 +17,8 @@ func _ready() -> void:
 	$Preview.region_previewed.connect(_preview_region)
 	$Preview.region_committed.connect(_commit_region)
 	$Preview.navigation_changed.connect(func(): navigation_changed.emit())
-	for name in ["X", "Y", "W", "H"]:
-		$Fields.get_node(name).value_changed.connect(func(_value: float): _fields_changed())
+	for field_name in ["X", "Y", "W", "H"]:
+		$Fields.get_node(field_name).value_changed.connect(func(_value: float): _fields_changed())
 	_refresh()
 
 func set_source(image: Image, title: String, selected: Rect2i) -> void:
@@ -50,9 +50,9 @@ func _refresh() -> void:
 	$Full.disabled = not enabled
 	$Preview.mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
 	_syncing = true
-	for name in ["X", "Y", "W", "H"]:
-		var field: NumberField = $Fields.get_node(name)
-		field.maximum = float((source.get_width() if name in ["X", "W"] else source.get_height()) - (1 if name in ["X", "Y"] else 0)) if enabled else 0.0
+	for field_name in ["X", "Y", "W", "H"]:
+		var field: NumberField = $Fields.get_node(field_name)
+		field.maximum = float((source.get_width() if field_name in ["X", "W"] else source.get_height()) - (1 if field_name in ["X", "Y"] else 0)) if enabled else 0.0
 	var values := [region.position.x, region.position.y, region.size.x, region.size.y]
 	for index in 4:
 		$Fields.get_node(["X", "Y", "W", "H"][index]).set_value(values[index], false)

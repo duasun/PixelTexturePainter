@@ -100,8 +100,8 @@ static func _resize_bank(bank: Dictionary, default_color: Color, old_size: Vecto
 		var start := Vector2i(floori(source_key.x*64.0*new_size.x/old_size.x),floori(source_key.y*64.0*new_size.y/old_size.y))
 		var end := Vector2i(ceili(mini(old_size.x,(source_key.x+1)*64)*float(new_size.x)/old_size.x)-1,
 			ceili(mini(old_size.y,(source_key.y+1)*64)*float(new_size.y)/old_size.y)-1)
-		for y in range(start.y/64,end.y/64+1):
-			for x in range(start.x/64,end.x/64+1): destinations[Vector2i(x,y)] = true
+		for y in range(start.y >> 6,(end.y >> 6)+1):
+			for x in range(start.x >> 6,(end.x >> 6)+1): destinations[Vector2i(x,y)] = true
 	var source_bytes := {}
 	for key in bank: source_bytes[key] = bank[key].get_data()
 	var output := {}
@@ -114,7 +114,7 @@ static func _resize_bank(bank: Dictionary, default_color: Color, old_size: Vecto
 			var sy := clampi(floori((target_key.y*64+y+0.5)*old_size.y/new_size.y),0,old_size.y-1)
 			for x in mini(64,new_size.x-target_key.x*64):
 				var sx := clampi(floori((target_key.x*64+x+0.5)*old_size.x/new_size.x),0,old_size.x-1)
-				var source_key := Vector2i(sx/64,sy/64)
+				var source_key := Vector2i(sx >> 6,sy >> 6)
 				if not source_bytes.has(source_key): continue
 				var source: PackedByteArray = source_bytes[source_key]
 				var from := ((sy%64)*64+sx%64)*4
@@ -141,8 +141,8 @@ static func reproject_uv(progress: BackgroundJob.JobProgress, doc: PaintDocument
 		if coverage.is_empty(): uncovered += 1
 		for key in coverage:
 			if not mapping.has(key):
-				var table := PackedInt32Array(); table.resize(4096); table.fill(-1); mapping[key] = table
-				var owner := PackedInt32Array(); owner.resize(4096); owner.fill(-1); owners[key] = owner
+				var new_table := PackedInt32Array(); new_table.resize(4096); new_table.fill(-1); mapping[key] = new_table
+				var new_owner := PackedInt32Array(); new_owner.resize(4096); new_owner.fill(-1); owners[key] = new_owner
 			var table: PackedInt32Array = mapping[key]
 			var owner: PackedInt32Array = owners[key]
 			var mask: Image = coverage[key]
@@ -192,8 +192,8 @@ static func _map_bank(bank: Dictionary, default_color: Color, mapping: Dictionar
 			var source_index := table[i]
 			if source_index < 0: continue
 			var sx := source_index % width
-			var sy := source_index / width
-			var source_key := Vector2i(sx/64,sy/64)
+			var sy := floori(float(source_index) / width)
+			var source_key := Vector2i(sx >> 6,sy >> 6)
 			if not bank.has(source_key): continue
 			if bytes.is_empty():
 				var image := Image.create(64,64,false,Image.FORMAT_RGBA8)
@@ -237,7 +237,7 @@ static func dilate_uv(progress: BackgroundJob.JobProgress, image: Image, model: 
 		var next := PackedInt32Array()
 		for index in frontier:
 			var x := index%size.x
-			var y := index/size.x
+			var y := floori(float(index) / size.x)
 			for neighbor in [index-1 if x>0 else -1,index+1 if x+1<size.x else -1,index-size.x if y>0 else -1,index+size.x if y+1<size.y else -1]:
 				if neighbor < 0 or owner[neighbor] >= 0: continue
 				owner[neighbor] = owner[index]
@@ -261,7 +261,7 @@ static func inspect_uv(progress: BackgroundJob.JobProgress, model: ModelGeometry
 		var covered := false
 		for key in masks:
 			if not owners.has(key):
-				var bank := PackedInt32Array(); bank.resize(4096); bank.fill(-1); owners[key] = bank
+				var new_bank := PackedInt32Array(); new_bank.resize(4096); new_bank.fill(-1); owners[key] = new_bank
 			var bank: PackedInt32Array = owners[key]
 			var mask: Image = masks[key]
 			for y in mini(64,size.y-key.y*64):

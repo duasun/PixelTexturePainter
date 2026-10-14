@@ -429,7 +429,7 @@ static func normal_from_height(progress: BackgroundJob.JobProgress, doc: PaintDo
 static func _height_byte(cache: Dictionary, doc: PaintDocument, x: int, y: int) -> int:
 	x = clampi(x,0,doc.width-1)
 	y = clampi(y,0,doc.height-1)
-	var key := Vector2i(x/64,y/64)
+	var key := Vector2i(x >> 6,y >> 6)
 	if not cache.has(key):
 		cache[key] = doc.compose_tile(key,"height").get_data()
 	var bytes: PackedByteArray = cache[key]
@@ -488,9 +488,9 @@ static func _blur_tile(layer: PaintLayer, key: Vector2i, radius: int) -> Image:
 		for x in side:
 			var pixel := (y*side+x)*4
 			var a := int(data[pixel+3])
-			rr += int(data[pixel])*a/255
-			gg += int(data[pixel+1])*a/255
-			bb += int(data[pixel+2])*a/255
+			rr += floori(int(data[pixel])*a/255.0)
+			gg += floori(int(data[pixel+1])*a/255.0)
+			bb += floori(int(data[pixel+2])*a/255.0)
 			aa += a
 			var at := (y+1)*stride+x+1
 			var above := y*stride+x+1
@@ -539,7 +539,7 @@ static func _ao_edge_strip(tiles: Dictionary, a: Vector2, b: Vector2, c: Vector2
 				1: t = t * t * (3.0 - 2.0 * t)
 				2: t = t * t
 			var alpha := opacity * t
-			var key := Vector2i(pixel.x / 64, pixel.y / 64)
+			var key := Vector2i(pixel.x >> 6, pixel.y >> 6)
 			if not tiles.has(key):
 				var image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
 				image.fill(Color.TRANSPARENT)

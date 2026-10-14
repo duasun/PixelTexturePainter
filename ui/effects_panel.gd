@@ -15,7 +15,9 @@ const SECTIONS := {
 func _ready() -> void:
 	for node_name in SETTINGS:
 		get_node(node_name).value_changed.connect(func(v: float):
-			if not refreshing: effect_changed.emit(SETTINGS[node_name], int(v) if node_name == "Steps" else v / 100.0))
+			if not refreshing:
+				if node_name == "Steps": effect_changed.emit(SETTINGS[node_name], int(v))
+				else: effect_changed.emit(SETTINGS[node_name], v / 100.0))
 	$Palette.toggled.connect(func(v: bool):
 		if not refreshing: effect_changed.emit("palette", v))
 	$Reset.pressed.connect(func(): effect_changed.emit("reset", null))
@@ -25,7 +27,7 @@ func _ready() -> void:
 
 func _show_section(heading: String) -> void:
 	var opened: bool = get_node(heading).button_pressed
-	for name in SECTIONS[heading]: get_node(name).visible = opened
+	for control_name in SECTIONS[heading]: get_node(control_name).visible = opened
 	get_node(heading).text = ("▼ " if opened else "▶ ") + get_node(heading).text.substr(2)
 
 func open_sections() -> Dictionary:
@@ -40,9 +42,9 @@ func restore_sections(state: Dictionary) -> void:
 
 func set_channel(channel: String) -> void:
 	$Hint.text = "Live Albedo preview · included in PNG export" if channel == "albedo" else "Albedo adjustments unavailable on this map · map generators below"
-	for name in SETTINGS:
-		get_node(name).set_deferred("mouse_filter", Control.MOUSE_FILTER_STOP)
-		get_node(name).modulate.a = 1.0 if channel == "albedo" else 0.45
+	for control_name in SETTINGS:
+		get_node(control_name).set_deferred("mouse_filter", Control.MOUSE_FILTER_STOP)
+		get_node(control_name).modulate.a = 1.0 if channel == "albedo" else 0.45
 	$Palette.disabled = channel != "albedo"
 	$Reset.disabled = channel != "albedo"
 

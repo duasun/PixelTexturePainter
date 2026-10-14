@@ -184,8 +184,8 @@ func _draw() -> void:
 func _draw_cursor_at(origin: Vector2, pixel: Vector2, mirrored := false) -> void:
 	var preview := spray_mirror_texture if mirrored else spray_preview_texture
 	if preview != null:
-		var position := origin + (pixel-Vector2.ONE*floorf(brush_size/2.0))*zoom
-		draw_texture_rect(preview,Rect2(position,Vector2.ONE*brush_size*zoom),false)
+		var preview_position := origin + (pixel-Vector2.ONE*floorf(brush_size/2.0))*zoom
+		draw_texture_rect(preview,Rect2(preview_position,Vector2.ONE*brush_size*zoom),false)
 	if _outline_size != brush_size or _outline_round != round_brush:
 		_outline = BrushFootprint.outline(brush_size, round_brush)
 		_outline_size = brush_size

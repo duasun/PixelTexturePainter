@@ -17,7 +17,7 @@ var bvh: Dictionary = {}
 var uv_buckets: Dictionary = {}
 
 func face_count() -> int:
-	return positions.size() / 3
+	return floori(positions.size() / 3.0)
 
 func grow_selection(faces: PackedInt32Array) -> PackedInt32Array:
 	var expanded: Dictionary = {}
@@ -124,7 +124,7 @@ func _build_bvh(faces: Array[int]) -> Dictionary:
 	var axis := box.size.max_axis_index()
 	faces.sort_custom(func(a: int, b: int) -> bool:
 		return (positions[a * 3][axis] + positions[a * 3 + 1][axis] + positions[a * 3 + 2][axis]) < (positions[b * 3][axis] + positions[b * 3 + 1][axis] + positions[b * 3 + 2][axis]))
-	var half := faces.size() / 2
+	var half := faces.size() >> 1
 	return {"box": box, "left": _build_bvh(faces.slice(0, half)), "right": _build_bvh(faces.slice(half))}
 
 func ray_hit(origin: Vector3, direction: Vector3) -> Dictionary:

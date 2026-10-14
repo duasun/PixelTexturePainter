@@ -38,8 +38,8 @@ static func triangle(tiles: Dictionary, p: PackedVector2Array, size: Vector2i, c
 static func span(tiles: Dictionary, y: int, x0: int, x1: int, color: Color) -> void:
 	if x1 < x0:
 		return
-	for tx in range(x0 / 64, x1 / 64 + 1):
-		var key := Vector2i(tx, y / 64)
+	for tx in range(x0 >> 6, (x1 >> 6) + 1):
+		var key := Vector2i(tx, y >> 6)
 		if not tiles.has(key):
 			var tile := Image.create(64, 64, false, Image.FORMAT_RGBA8)
 			tile.fill(Color.TRANSPARENT)

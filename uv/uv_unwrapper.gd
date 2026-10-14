@@ -9,22 +9,22 @@ static func unwrap(source: ModelGeometry, width: int, height: int, angle := 45.0
 	assigned.resize(model.face_count())
 	var charts: Array[Dictionary] = []
 	var threshold := cos(deg_to_rad(clampf(angle, 1.0, 80.0)))
-	for seed in model.face_count():
-		if progress != null and progress.report(0.05 + 0.35 * seed / float(model.face_count()), "Projecting UV charts…"):
+	for start_face in model.face_count():
+		if progress != null and progress.report(0.05 + 0.35 * start_face / float(model.face_count()), "Projecting UV charts…"):
 			return {"cancelled": true}
-		if assigned[seed]:
+		if assigned[start_face]:
 			continue
 		var faces: Array[int] = []
-		var queue: Array[int] = [seed]
-		assigned[seed] = 1
-		var normal: Vector3 = model.face_normals[seed]
+		var queue: Array[int] = [start_face]
+		assigned[start_face] = 1
+		var normal: Vector3 = model.face_normals[start_face]
 		while not queue.is_empty():
 			if progress != null and progress.is_cancelled():
 				return {"cancelled": true}
 			var current: int = queue.pop_back()
 			faces.append(current)
 			for other in model.neighbors[current]:
-				if not assigned[other] and model.materials[other] == model.materials[seed] and model.face_normals[other].dot(normal) >= threshold:
+				if not assigned[other] and model.materials[other] == model.materials[start_face] and model.face_normals[other].dot(normal) >= threshold:
 					assigned[other] = 1
 					queue.append(other)
 		var chart := _project(model, faces, normal)
@@ -86,8 +86,8 @@ static func unwrap(source: ModelGeometry, width: int, height: int, angle := 45.0
 		"subpixel_faces":subpixel_faces}
 
 static func _project(model: ModelGeometry, faces: Array, normal: Vector3) -> Dictionary:
-	var reference := Vector3.UP if absf(normal.y) < 0.9 else Vector3.RIGHT
-	var u := reference.cross(normal).normalized()
+	var reference_axis := Vector3.UP if absf(normal.y) < 0.9 else Vector3.RIGHT
+	var u := reference_axis.cross(normal).normalized()
 	var v := normal.cross(u).normalized()
 	var points := PackedVector2Array()
 	var minimum := Vector2(INF, INF)

@@ -15,12 +15,12 @@ static func load_model(progress: BackgroundJob.JobProgress, path: String, target
 		var root := loader.generate_scene(state)
 		if root == null:
 			return {"error": "The file contains no loadable scene."}
-		var model := ModelGeometry.new()
-		model.label = path.get_file().get_basename()
+		var loaded_model := ModelGeometry.new()
+		loaded_model.label = path.get_file().get_basename()
 		var material_sources := {}
-		_collect(root, Transform3D.IDENTITY, model,material_sources)
+		_collect(root, Transform3D.IDENTITY, loaded_model,material_sources)
 		root.free()
-		result = {"geometry": model,"material_sources":material_sources}
+		result = {"geometry": loaded_model,"material_sources":material_sources}
 	if result.has("error"):
 		return result
 	var model: ModelGeometry = result.geometry

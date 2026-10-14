@@ -25,7 +25,7 @@ func set_compact(compact: bool) -> void:
 	compact_changed.emit(compact)
 
 func select(tool: String, emit := true) -> void:
-	for name in TOOLS:
-		get_node("Tools/"+name.capitalize()).set_pressed_no_signal(tool == name)
+	for tool_name in TOOLS:
+		get_node("Tools/"+tool_name.capitalize()).set_pressed_no_signal(tool == tool_name)
 	if emit:
 		tool_selected.emit(tool)

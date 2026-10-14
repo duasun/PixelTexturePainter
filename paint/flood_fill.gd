@@ -20,7 +20,7 @@ var pending: Array[Vector2i] = []
 var use_effects := false
 var tolerance := 0.0
 
-static func run(progress: BackgroundJob.JobProgress, doc: PaintDocument, seed: Vector2i, limit_island: int, fill_color: Color, match_tolerance := 0.0, contiguous := true) -> Dictionary:
+static func run(progress: BackgroundJob.JobProgress, doc: PaintDocument, start_pixel: Vector2i, limit_island: int, fill_color: Color, match_tolerance := 0.0, contiguous := true) -> Dictionary:
 	var job := PaintFloodFill.new()
 	job.document = doc
 	job.source = doc.read_copy()
@@ -28,12 +28,12 @@ static func run(progress: BackgroundJob.JobProgress, doc: PaintDocument, seed: V
 	job.color = fill_color
 	job.tolerance = clampf(match_tolerance,0.0,1.0)
 	job.use_effects = doc.current_channel() == "albedo" and doc.effects != PaintDocument.new().effects and not doc.editing_mask
-	seed = seed.clamp(Vector2i.ZERO, Vector2i(doc.width - 1, doc.height - 1))
-	var first := job._source_tile(seed / 64)
-	job.target = first.get_data().to_int32_array()[(seed.y % 64) * 64 + seed.x % 64]
+	start_pixel = start_pixel.clamp(Vector2i.ZERO, Vector2i(doc.width - 1, doc.height - 1))
+	var first := job._source_tile(Vector2i(start_pixel.x >> 6, start_pixel.y >> 6))
+	job.target = first.get_data().to_int32_array()[(start_pixel.y % 64) * 64 + start_pixel.x % 64]
 	if not contiguous:
 		return job._fill_matching(progress)
-	job.pending.append(seed)
+	job.pending.append(start_pixel)
 	var iterations := 0
 	while not job.pending.is_empty():
 		if iterations % 32 == 0 and progress.report(minf(0.95, job.after.size() / float(doc.tile_extent().x * doc.tile_extent().y)), "Filling connected color region…"):
@@ -100,7 +100,7 @@ func _tile(key: Vector2i) -> Tile:
 
 func _matches(p: Vector2i) -> bool:
 	if p.x < 0 or p.y < 0 or p.x >= document.width or p.y >= document.height: return false
-	var tile := _tile(p / 64)
+	var tile := _tile(Vector2i(p.x >> 6, p.y >> 6))
 	if tile.done: return false
 	if tile.full: return true
 	var local := Vector2i(p.x % 64, p.y % 64)
@@ -109,7 +109,7 @@ func _matches(p: Vector2i) -> bool:
 
 func _visit(p: Vector2i) -> void:
 	if not _matches(p): return
-	var key := p / 64
+	var key := Vector2i(p.x >> 6, p.y >> 6)
 	var tile := _tile(key)
 	var origin := key * 64
 	var extent := Vector2i(mini(64, document.width - origin.x), mini(64, document.height - origin.y))
@@ -135,7 +135,7 @@ func _visit(p: Vector2i) -> void:
 
 func _edge(start: Vector2i, direction: Vector2i, length: int) -> void:
 	# Every range lies inside one adjacent tile. One seed suffices for a uniform tile.
-	if _matches(start) and _tile(start / 64).full:
+	if _matches(start) and _tile(Vector2i(start.x >> 6, start.y >> 6)).full:
 		pending.append(start)
 		return
 	var in_run := false

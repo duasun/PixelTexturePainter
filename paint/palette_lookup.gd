@@ -55,14 +55,14 @@ func nearest(point: Vector3) -> Vector3:
 	memo[point] = color
 	return color
 
-static func _branch(entries: Array[Vector4], depth: int, nodes: Array[Dictionary]) -> int:
+static func _branch(entries: Array[Vector4], depth: int, tree_nodes: Array[Dictionary]) -> int:
 	if entries.is_empty():
 		return -1
 	var axis := depth % 3
 	entries.sort_custom(func(a: Vector4,b: Vector4) -> bool: return a[axis] < b[axis] if a[axis] != b[axis] else a.w < b.w)
-	var middle := entries.size() / 2
-	var index := nodes.size()
-	nodes.append({"color":entries[middle],"axis":axis,"left":-1,"right":-1})
-	nodes[index].left = _branch(entries.slice(0,middle),depth+1,nodes)
-	nodes[index].right = _branch(entries.slice(middle+1),depth+1,nodes)
+	var middle := entries.size() >> 1
+	var index := tree_nodes.size()
+	tree_nodes.append({"color":entries[middle],"axis":axis,"left":-1,"right":-1})
+	tree_nodes[index].left = _branch(entries.slice(0,middle),depth+1,tree_nodes)
+	tree_nodes[index].right = _branch(entries.slice(middle+1),depth+1,tree_nodes)
 	return index

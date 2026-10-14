@@ -84,9 +84,9 @@ func run() -> void:
 	doc.initialize(32,32,Color("336699"))
 	doc.geometry = UVUnwrapper.unwrap(ModelGeometry.demo(),32,32,45,1).geometry
 	for channel in PaintChannels.IDS.slice(1):
-		var layer := PaintLayer.new(); layer.channel = channel; layer.title = channel
-		layer.base_color = Color(0.3,0.3,0.3) if PaintChannels.scalar(channel) else PaintChannels.background(channel)
-		doc.layers.append(layer)
+		var channel_layer := PaintLayer.new(); channel_layer.channel = channel; channel_layer.title = channel
+		channel_layer.base_color = Color(0.3,0.3,0.3) if PaintChannels.scalar(channel) else PaintChannels.background(channel)
+		doc.layers.append(channel_layer)
 	doc.active_layer = 3
 	doc.effects.brightness = 0.2
 	var progress := BackgroundJob.JobProgress.new()

@@ -6,8 +6,8 @@ static func sample(doc: PaintDocument, layer: PaintLayer, mask: bool, rect: Rect
 	result.fill(Color.TRANSPARENT)
 	var clipped := rect.intersection(Rect2i(0,0,doc.width,doc.height))
 	if not clipped.has_area(): return result
-	for ty in range(clipped.position.y / 64, (clipped.end.y-1) / 64+1):
-		for tx in range(clipped.position.x / 64, (clipped.end.x-1) / 64+1):
+	for ty in range(clipped.position.y >> 6, ((clipped.end.y-1) >> 6)+1):
+		for tx in range(clipped.position.x >> 6, ((clipped.end.x-1) >> 6)+1):
 			var key := Vector2i(tx,ty)
 			var source := layer.tile_at(key,true,false) if mask else doc.compose_tile(key)
 			var part := clipped.intersection(Rect2i(key*64,Vector2i(64,64)))
@@ -17,10 +17,10 @@ static func sample(doc: PaintDocument, layer: PaintLayer, mask: bool, rect: Rect
 static func strength(image: Image, amount: float, shape: Image = null) -> Image:
 	var result: Image = image.duplicate()
 	if shape != null:
-		var data := result.get_data()
+		var masked_data := result.get_data()
 		var mask := shape.get_data()
-		for i in range(3,data.size(),4): data[i] = roundi(data[i] * mask[i] / 255.0)
-		return Image.create_from_data(image.get_width(),image.get_height(),false,Image.FORMAT_RGBA8,data)
+		for i in range(3,masked_data.size(),4): masked_data[i] = roundi(masked_data[i] * mask[i] / 255.0)
+		return Image.create_from_data(image.get_width(),image.get_height(),false,Image.FORMAT_RGBA8,masked_data)
 	if amount >= 1.0: return result
 	var data := result.get_data()
 	for i in range(3,data.size(),4): data[i] = roundi(data[i]*amount)
@@ -32,7 +32,7 @@ static func blur(image: Image) -> Image:
 	var result: Image = image.duplicate()
 	var transparent := image.detect_alpha() != Image.ALPHA_NONE
 	if transparent: result.premultiply_alpha()
-	result.resize(maxi(1,size.x/2),maxi(1,size.y/2),Image.INTERPOLATE_BILINEAR)
+	result.resize(maxi(1,size.x >> 1),maxi(1,size.y >> 1),Image.INTERPOLATE_BILINEAR)
 	result.resize(size.x,size.y,Image.INTERPOLATE_BILINEAR)
 	if transparent:
 		var data := result.get_data()

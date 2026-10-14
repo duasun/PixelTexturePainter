@@ -32,11 +32,11 @@ func set_source(image: Image, title: String) -> void:
 	$Preview/Texture.texture = ImageTexture.create_from_image(image)
 	_preview()
 
-func restore_settings(settings: Dictionary) -> void:
-	$Angle.set_value(float(settings.get("angle", 0)), false)
-	$Scale.set_value(float(settings.get("scale", 1)) * 100, false)
-	$OffsetX.set_value(float(settings.get("offset_x", 0)), false)
-	$OffsetY.set_value(float(settings.get("offset_y", 0)), false)
+func restore_settings(saved_settings: Dictionary) -> void:
+	$Angle.set_value(float(saved_settings.get("angle", 0)), false)
+	$Scale.set_value(float(saved_settings.get("scale", 1)) * 100, false)
+	$OffsetX.set_value(float(saved_settings.get("offset_x", 0)), false)
+	$OffsetY.set_value(float(saved_settings.get("offset_y", 0)), false)
 	_preview()
 
 func _preview() -> void:

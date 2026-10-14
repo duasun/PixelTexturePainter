@@ -32,8 +32,8 @@ func set_source(image: Image, selected: Rect2i) -> void:
 func _image_rect() -> Rect2:
 	if source == null: return Rect2()
 	var available := (size - Vector2(16, 16)).max(Vector2.ONE)
-	var scale := minf(available.x / source.get_width(), available.y / source.get_height()) * _zoom
-	var extent := Vector2(source.get_size()) * scale
+	var image_scale := minf(available.x / source.get_width(), available.y / source.get_height()) * _zoom
+	var extent := Vector2(source.get_size()) * image_scale
 	return Rect2((size - extent) * 0.5 + _pan, extent)
 
 func _constrain_pan() -> void:
@@ -56,8 +56,8 @@ func restore_view_state(state: Dictionary) -> void:
 	if source == null or state.is_empty(): return
 	_zoom = clampf(float(state.get("zoom", 1.0)), MIN_ZOOM, MAX_ZOOM)
 	var available := (size - Vector2(16, 16)).max(Vector2.ONE)
-	var scale := minf(available.x / source.get_width(), available.y / source.get_height()) * _zoom
-	var extent := Vector2(source.get_size()) * scale
+	var image_scale := minf(available.x / source.get_width(), available.y / source.get_height()) * _zoom
+	var extent := Vector2(source.get_size()) * image_scale
 	var center := Vector2(clampf(float(state.get("center_x", 0.5)), -1.0, 2.0), clampf(float(state.get("center_y", 0.5)), -1.0, 2.0))
 	_pan = size * 0.5 - center * extent - (size - extent) * 0.5
 	_constrain_pan()
@@ -72,8 +72,8 @@ func _zoom_at(point: Vector2, factor: float) -> void:
 	_zoom = next_zoom
 	# Recompute from the fitted dimensions to avoid accumulating rounding error.
 	var available := (size - Vector2(16, 16)).max(Vector2.ONE)
-	var scale := minf(available.x / source.get_width(), available.y / source.get_height()) * _zoom
-	var new_extent := Vector2(source.get_size()) * scale
+	var image_scale := minf(available.x / source.get_width(), available.y / source.get_height()) * _zoom
+	var new_extent := Vector2(source.get_size()) * image_scale
 	_pan = anchor - uv * new_extent - (size - new_extent) * 0.5
 	_constrain_pan()
 	queue_redraw()
@@ -133,19 +133,19 @@ func _draw() -> void:
 	if texture == null:
 		return
 	var bounds := _image_rect()
-	var visible := bounds.intersection(Rect2(Vector2.ZERO, size))
+	var visible_area := bounds.intersection(Rect2(Vector2.ZERO, size))
 	var checker := 12.0
-	var left := floori((visible.position.x - bounds.position.x) / checker)
-	var right := ceili((visible.end.x - bounds.position.x) / checker)
-	var top := floori((visible.position.y - bounds.position.y) / checker)
-	var bottom := ceili((visible.end.y - bounds.position.y) / checker)
+	var left := floori((visible_area.position.x - bounds.position.x) / checker)
+	var right := ceili((visible_area.end.x - bounds.position.x) / checker)
+	var top := floori((visible_area.position.y - bounds.position.y) / checker)
+	var bottom := ceili((visible_area.end.y - bounds.position.y) / checker)
 	for y in range(top, bottom):
 		for x in range(left, right):
 			if (x + y) % 2 == 0:
-				draw_rect(Rect2(bounds.position + Vector2(x, y) * checker, Vector2.ONE * checker).intersection(visible), Color(0.30, 0.30, 0.30), true)
+				draw_rect(Rect2(bounds.position + Vector2(x, y) * checker, Vector2.ONE * checker).intersection(visible_area), Color(0.30, 0.30, 0.30), true)
 	draw_texture_rect(texture, bounds, false)
-	var scale := bounds.size / Vector2(source.get_size())
-	var selected := Rect2(bounds.position + Vector2(region.position) * scale, Vector2(region.size) * scale)
+	var image_scale := bounds.size / Vector2(source.get_size())
+	var selected := Rect2(bounds.position + Vector2(region.position) * image_scale, Vector2(region.size) * image_scale)
 	draw_rect(selected, Color(0.96, 0.59, 0.25, 0.17), true)
 	draw_rect(selected, Color(1.0, 0.67, 0.31), false, 2.0)
 	draw_rect(bounds, Color(0.56, 0.56, 0.56), false, 1.0)

@@ -57,7 +57,7 @@ func _process(_delta: float) -> void:
 		urgent.erase(key)
 		dirty.erase(key)
 		var composed := document.compose_tile(key)
-		var page_xy := Vector2i(key.x / 4, key.y / 4)
+		var page_xy := Vector2i(key.x >> 2, key.y >> 2)
 		var index := page_xy.y * columns + page_xy.x
 		pages[index].blit_rect(composed, Rect2i(0, 0, 64, 64), Vector2i(key.x % 4, key.y % 4) * 64)
 		upload_pending[index] = true

@@ -39,7 +39,6 @@ var _preview_pattern: Image
 var _drag_buffers: Dictionary = {}
 var _spray_elapsed := 0.0
 var _spray_anchor := Vector2(-99999, -99999)
-var _spray_rng := RandomNumberGenerator.new()
 var _stroke_spray_particles := 12
 var _stroke_spray_spacing := 4.0
 var _stroke_spray_rate := 20.0
@@ -327,8 +326,8 @@ func _make_stamp() -> void:
 			var dy := y + 0.5 - radius
 			var half := sqrt(maxf(0.0, radius * radius - dy * dy))
 			var start := ceili(radius - half - 0.5)
-			var end := floori(radius + half - 0.5)
-			_stamp.fill_rect(Rect2i(start, y, end - start + 1, 1), paint)
+			var row_end := floori(radius + half - 0.5)
+			_stamp.fill_rect(Rect2i(start, y, row_end - start + 1, 1), paint)
 	if _stroke_falloff > 0.0 and _stroke_brush_size > 1:
 		var pixels := _stamp.get_data()
 		var radius := _stroke_brush_size * 0.5
@@ -353,7 +352,7 @@ func _make_stamp() -> void:
 
 func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false) -> void:
 	if _stroke_opacity <= 0: return
-	var origin := p - Vector2i(_stroke_brush_size / 2, _stroke_brush_size / 2)
+	var origin := p - Vector2i(_stroke_brush_size >> 1, _stroke_brush_size >> 1)
 	if _stroke_tool == "clone":
 		_make_clone_stamp(origin + _clone_offset)
 	elif _stroke_tool == "spray":
@@ -363,8 +362,8 @@ func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false) -> 
 	var rect := Rect2i(origin, Vector2i.ONE * _stroke_brush_size).intersection(Rect2i(0, 0, document.width, document.height))
 	if not rect.has_area():
 		return
-	for ty in range(rect.position.y / 64, (rect.end.y - 1) / 64 + 1):
-		for tx in range(rect.position.x / 64, (rect.end.x - 1) / 64 + 1):
+	for ty in range(rect.position.y >> 6, ((rect.end.y - 1) >> 6) + 1):
+		for tx in range(rect.position.x >> 6, ((rect.end.x - 1) >> 6) + 1):
 			var key := Vector2i(tx, ty)
 			var restriction := _restriction(key,island)
 			if (selection_active or island >= 0) and restriction == null: continue
@@ -509,9 +508,9 @@ static func spray_pattern(seed_value: int, diameter: int, count: int, tint: Colo
 
 func _apply_spray(key: Vector2i, origin: Vector2i, target: Image, restriction: Image) -> void:
 	if not _spray_coverage.has(key):
-		var coverage := Image.create(64,64,false,Image.FORMAT_RF)
-		coverage.fill(Color.BLACK)
-		_spray_coverage[key] = coverage
+		var fresh_coverage := Image.create(64,64,false,Image.FORMAT_RF)
+		fresh_coverage.fill(Color.BLACK)
+		_spray_coverage[key] = fresh_coverage
 	var coverage: Image = _spray_coverage[key]
 	var original: Image = _before[key]
 	var tint := _stroke_color
@@ -542,10 +541,10 @@ func spray_preview(uv: Vector2, island: int) -> Image:
 		_preview_pattern = spray_pattern(_spray_seed,diameter,density,Color(0.9,1,1,0.8 if strength*flow*tint_alpha >= 0.5/255 else 0.0),ordered).image
 	var preview := Image.create(diameter,diameter,false,Image.FORMAT_RGBA8)
 	preview.fill(Color.TRANSPARENT)
-	var origin := _pixel(uv)-Vector2i(diameter/2,diameter/2)
+	var origin := _pixel(uv)-Vector2i(diameter >> 1,diameter >> 1)
 	var rect := Rect2i(origin,Vector2i.ONE*diameter).intersection(Rect2i(0,0,document.width,document.height))
-	for ty in range(rect.position.y/64,(rect.end.y-1)/64+1):
-		for tx in range(rect.position.x/64,(rect.end.x-1)/64+1):
+	for ty in range(rect.position.y >> 6,((rect.end.y-1) >> 6)+1):
+		for tx in range(rect.position.x >> 6,((rect.end.x-1) >> 6)+1):
 			var key := Vector2i(tx,ty)
 			var mask := _restriction(key,island)
 			if (selection_active or island >= 0) and mask == null: continue
@@ -562,8 +561,8 @@ func _make_clone_stamp(origin: Vector2i) -> void:
 	sampled.fill(Color.TRANSPARENT)
 	var rect := Rect2i(origin, Vector2i.ONE * _stroke_brush_size).intersection(Rect2i(0, 0, document.width, document.height))
 	if rect.has_area():
-		for ty in range(rect.position.y / 64, (rect.end.y - 1) / 64 + 1):
-			for tx in range(rect.position.x / 64, (rect.end.x - 1) / 64 + 1):
+		for ty in range(rect.position.y >> 6, ((rect.end.y - 1) >> 6) + 1):
+			for tx in range(rect.position.x >> 6, ((rect.end.x - 1) >> 6) + 1):
 				var key := Vector2i(tx, ty)
 				if not _clone_cache.has(key):
 					_clone_cache[key] = _clone_snapshot.compose_tile(key)
