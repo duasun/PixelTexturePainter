@@ -52,6 +52,10 @@ var _gesture_dragging := false
 var _replaying_gesture_click := false
 var _spray_preview_texture: ImageTexture
 var _spray_mirror_texture: ImageTexture
+var _stamp_source_texture: ImageTexture
+var _stamp_source_image: Image
+var _stamp_rotation_editing := false
+var _stamp_rotation_before := 0.0
 var settings_enabled := true
 var settings_path := "user://painter.cfg"
 var _preferences := PainterConfig.new()
@@ -86,6 +90,8 @@ func _ready() -> void:
 		if document != null and document.selected_layer().pattern_image != null: _apply_pattern(document.selected_layer().pattern_faces))
 	%StampPanel.load_requested.connect(func(): _file_dialog("stencil"))
 	%StampPanel.region_changed.connect(_stamp_region_changed)
+	%StampPanel.rotation_changed.connect(func(angle: float): _stamp_rotation_input(angle,false))
+	%StampPanel.rotation_committed.connect(func(angle: float): _stamp_rotation_input(angle,true))
 	%StampPanel.navigation_changed.connect(_queue_preferences_save)
 	%Inspector.tab_changed.connect(func(_tab: int): _queue_preferences_save())
 	model_view.surface_event.connect(_surface_input.bind(true))
@@ -93,6 +99,7 @@ func _ready() -> void:
 	model_view.background_color_changed.connect(func(_color: Color): _queue_preferences_save())
 	uv_canvas.surface_event.connect(_surface_input.bind(false))
 	model_view.gesture_motion.connect(_gesture_motion)
+	model_view.stamp_rotation_event.connect(_stamp_rotation_drag)
 	uv_canvas.gesture_motion.connect(_gesture_motion)
 	model_view.hovered.connect(_hover.bind(true))
 	uv_canvas.hovered.connect(_hover.bind(false))
@@ -224,6 +231,7 @@ func _set_document(doc: PaintDocument) -> void:
 	_sync_pattern_inspector()
 	%UV.get_node("ExportPadding").set_value(doc.uv_export_padding,false)
 	%StampPanel.set_source(doc.stamp_image, doc.stamp_name, doc.stamp_region)
+	%StampPanel.set_stamp_rotation(doc.stamp_rotation)
 	if not doc.path.is_empty() and doc.path == _saved_stamp_view_path:
 		%StampPanel.restore_view_state(_saved_stamp_view)
 	_refresh_metadata()
@@ -308,6 +316,7 @@ func _select_tool(tool: String) -> void:
 		_status("Finish the current stroke before changing tools.")
 		return
 	painter.tool = tool
+	model_view.set_stamp_rotation_mode(tool == "stencil")
 	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "fill", "texture", "picker"]
 	_gradient_start.clear()
 	_gradient_end.clear()
@@ -322,11 +331,11 @@ func _select_tool(tool: String) -> void:
 		"select": "Click a surface. Shift adds; Ctrl subtracts. Ctrl+. grows; Ctrl+, shrinks. Esc clears.",
 		"fill": "Fill selected faces, or the connected color region under the cursor.",
 		"texture": "Select faces, load a texture in Pattern, then click to fill. Set its rotation before filling.",
-		"clone": "Ctrl+click sets the source. Paint to copy it; the source stays frozen during the stroke.",
+		"clone": "Ctrl+click sets the source on the active layer. Paint to copy it; the source stays frozen during the stroke.",
 		"smudge": "Smudge: drag existing paint · Opacity sets strength · up to 64 px · reads current map",
 		"blur": "Blur: smooth local texels · Opacity sets strength · up to 64 px · reads current map",
 		"spray": "Preview shows the next burst · Opacity caps the stroke · Flow sets buildup · Alt+click picks a color",
-		"stencil": "Stamp: load an image and drag a crop in the Stamp inspector tab. Size sets the footprint."}.get(tool, tool.capitalize() + " · draw in either view"))
+		"stencil": "Stamp: load and crop an image, then hover to preview. Right-drag on the model rotates; Shift+right-drag orbits."}.get(tool, tool.capitalize() + " · draw in either view"))
 
 func _setting(key: String, value: Variant) -> void:
 	if key == "color": _cancel_geometry_preview()
@@ -1123,11 +1132,14 @@ func _action(action: String) -> void:
 			_sync_colors()
 			painter.stencil = document.stamp_image
 			painter.stencil_region = document.stamp_region
+			painter.stencil_rotation = document.stamp_rotation
 			%Pattern.set_source(document.pattern_image, "Project texture")
 			%Pattern.restore_settings(document.pattern_settings)
 			_sync_pattern_inspector()
 			%UV.get_node("ExportPadding").set_value(document.uv_export_padding,false)
 			%StampPanel.set_source(document.stamp_image, document.stamp_name, document.stamp_region)
+			%StampPanel.set_stamp_rotation(document.stamp_rotation)
+			_stamp_rotation_editing = false
 			_refresh_metadata()
 
 func _perform_guarded(action: String) -> void:
@@ -1240,8 +1252,37 @@ func _stamp_region_changed(region: Rect2i) -> void:
 	history.push(document, {"kind": "stamp", "before": previous, "after": next, "bytes": 0})
 	document.stamp_region = region
 	painter.stencil_region = region
+	_stamp_source_image = null
+	_refresh_cursor()
 	_refresh_metadata()
 	_status("Stamp crop: %d × %d px from %d, %d" % [region.size.x, region.size.y, region.position.x, region.position.y])
+
+func _stamp_rotation_input(angle: float, commit: bool) -> void:
+	if document == null or painter.active: return
+	if not _stamp_rotation_editing:
+		_stamp_rotation_before = document.stamp_rotation
+		_stamp_rotation_editing = true
+	var normalized := fposmod(angle+180.0,360.0)-180.0
+	document.stamp_rotation = normalized
+	painter.stencil_rotation = normalized
+	%StampPanel.set_stamp_rotation(normalized)
+	_refresh_cursor()
+	if commit:
+		if not is_equal_approx(_stamp_rotation_before,normalized):
+			history.push(document,{"kind":"property","target":document,"property":"stamp_rotation","before":_stamp_rotation_before,"after":normalized,"bytes":0})
+			_refresh_metadata()
+		_stamp_rotation_editing = false
+		if painter.stencil != null: %StampPanel.set_result_preview(painter.stamp_preview())
+		_status("Stamp rotation: %d°" % roundi(normalized))
+
+func _stamp_rotation_drag(phase: String, horizontal_delta: float) -> void:
+	if phase == "begin":
+		_stamp_rotation_before = document.stamp_rotation if document != null else 0.0
+		_stamp_rotation_editing = true
+	elif phase == "move" and _stamp_rotation_editing:
+		_stamp_rotation_input(document.stamp_rotation+horizontal_delta*0.5,false)
+	elif phase == "end" and _stamp_rotation_editing:
+		_stamp_rotation_input(document.stamp_rotation,true)
 
 func _job_completed(kind: String, value: Variant) -> void:
 	var result: Dictionary = value if value is Dictionary else {"error": "Operation returned no result."}
@@ -1529,7 +1570,13 @@ func _refresh_cursor() -> void:
 	uv_canvas.set_cursor(_cursor_hit, diameter, rounded, painter.mirror and brush_tool)
 	var face_under := int(_cursor_hit.get("face",-1))
 	model_view.show_hover(face_under if painter.tool == "select" else -1,selection_mode)
+	var current_stamp: Image
+	if painter.tool == "stencil" and painter.stencil != null:
+		current_stamp = painter.stamp_source_preview()
+		if not _stamp_rotation_editing: %StampPanel.set_result_preview(painter.stamp_preview())
 	if painter.tool == "spray" and not _cursor_hit.is_empty():
+		model_view.set_stamp_preview(null,1,0.0)
+		uv_canvas.set_stamp_preview(null,0.0)
 		var island := document.geometry.islands[face_under] if _cursor_from_model and face_under >= 0 else -1
 		var preview := painter.spray_preview(_cursor_hit.uv,island)
 		if _spray_preview_texture == null or Vector2i(_spray_preview_texture.get_size()) != preview.get_size():
@@ -1549,10 +1596,21 @@ func _refresh_cursor() -> void:
 		else:
 			model_view.set_spray_mirror_preview(null)
 			uv_canvas.set_spray_preview(_spray_preview_texture)
+	elif painter.tool == "stencil" and painter.stencil != null and not _cursor_hit.is_empty():
+		if current_stamp != _stamp_source_image:
+			_stamp_source_image = current_stamp
+			_stamp_source_texture = ImageTexture.create_from_image(current_stamp)
+		model_view.set_spray_preview(null)
+		model_view.set_spray_mirror_preview(null)
+		model_view.set_stamp_preview(_stamp_source_texture,painter.brush_size,painter.stencil_rotation)
+		uv_canvas.set_spray_preview(null)
+		uv_canvas.set_stamp_preview(_stamp_source_texture,painter.stencil_rotation)
 	else:
 		model_view.set_spray_preview(null)
 		model_view.set_spray_mirror_preview(null)
+		model_view.set_stamp_preview(null,1,0.0)
 		uv_canvas.set_spray_preview(null)
+		uv_canvas.set_stamp_preview(null,0.0)
 
 func _status(text: String) -> void:
 	%Status.text = text

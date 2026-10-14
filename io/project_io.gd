@@ -40,7 +40,7 @@ static func save_project(progress: BackgroundJob.JobProgress, doc: PaintDocument
 		"primary_color": doc.primary_color.to_html(true), "secondary_color": doc.secondary_color.to_html(true),
 		"revision": doc.revision, "pattern_settings": doc.pattern_settings, "uv_export_padding":doc.uv_export_padding,
 		"stamp_region": [doc.stamp_region.position.x, doc.stamp_region.position.y, doc.stamp_region.size.x, doc.stamp_region.size.y],
-		"stamp_name": doc.stamp_name}
+		"stamp_name": doc.stamp_name, "stamp_rotation": doc.stamp_rotation}
 	if _write(zip, "manifest.json", JSON.stringify(manifest, "\t").to_utf8_buffer()) != OK:
 		return _archive_error(zip)
 	if doc.geometry != null:
@@ -111,6 +111,7 @@ static func load_project(progress: BackgroundJob.JobProgress, path: String) -> D
 	if stamp_bounds is Array and stamp_bounds.size() == 4:
 		doc.stamp_region = Rect2i(int(stamp_bounds[0]), int(stamp_bounds[1]), int(stamp_bounds[2]), int(stamp_bounds[3]))
 	doc.stamp_name = str(data.get("stamp_name", "Embedded stamp")).left(128)
+	doc.stamp_rotation = clampf(float(data.get("stamp_rotation",0.0)),-180.0,180.0)
 	for asset in ["stamp", "pattern"]:
 		if zip.file_exists(asset + ".png"):
 			var image := Image.new()

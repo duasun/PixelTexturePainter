@@ -2,12 +2,15 @@ extends VBoxContainer
 
 signal load_requested
 signal region_changed(region: Rect2i)
+signal rotation_changed(angle: float)
+signal rotation_committed(angle: float)
 signal navigation_changed
 
 var source: Image
 var region := Rect2i()
 var _source_texture: ImageTexture
 var _atlas: AtlasTexture
+var _result_image: Image
 var _syncing := false
 
 func _ready() -> void:
@@ -17,6 +20,8 @@ func _ready() -> void:
 	$Preview.region_previewed.connect(_preview_region)
 	$Preview.region_committed.connect(_commit_region)
 	$Preview.navigation_changed.connect(func(): navigation_changed.emit())
+	$RotationRow/Rotation.value_changed.connect(func(angle: float): rotation_changed.emit(angle))
+	$RotationRow/Rotation.value_committed.connect(func(angle: float): rotation_committed.emit(angle))
 	for field_name in ["X", "Y", "W", "H"]:
 		$Fields.get_node(field_name).value_changed.connect(func(_value: float): _fields_changed())
 	_refresh()
@@ -24,6 +29,7 @@ func _ready() -> void:
 func set_source(image: Image, title: String, selected: Rect2i) -> void:
 	if source != image:
 		source = image
+		_result_image = null
 		_source_texture = ImageTexture.create_from_image(image) if image != null else null
 		_atlas = AtlasTexture.new() if image != null else null
 		if _atlas != null: _atlas.atlas = _source_texture
@@ -37,6 +43,14 @@ func view_state() -> Dictionary:
 
 func restore_view_state(state: Dictionary) -> void:
 	$Preview.restore_view_state(state)
+
+func set_stamp_rotation(angle: float) -> void:
+	$RotationRow/Rotation.set_value(angle,false)
+
+func set_result_preview(image: Image) -> void:
+	if image == _result_image: return
+	_result_image = image
+	$SelectedPreview.texture = ImageTexture.create_from_image(image) if image != null else null
 
 func _valid_region(value: Rect2i) -> Rect2i:
 	if source == null: return Rect2i()
@@ -60,6 +74,7 @@ func _refresh() -> void:
 	if enabled:
 		_atlas.region = Rect2(region)
 		$SelectedPreview.texture = _atlas
+		_result_image = null
 		$CropSummary.text = "Selected: %d × %d px · dragged area becomes one stamp" % [region.size.x, region.size.y]
 	else:
 		$SelectedPreview.texture = null

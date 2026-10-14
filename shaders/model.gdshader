@@ -20,6 +20,10 @@ uniform bool spray_preview_enabled = false;
 uniform sampler2D spray_preview : filter_nearest, repeat_disable;
 uniform bool spray_mirror_enabled = false;
 uniform sampler2D spray_mirror : filter_nearest, repeat_disable;
+uniform bool stamp_preview_enabled = false;
+uniform sampler2D stamp_preview_source : filter_nearest, repeat_disable;
+uniform float stamp_source_size = 1.0;
+uniform float stamp_angle = 0.0;
 uniform float shape_preview_island = -1.0;
 
 float footprint(vec2 p, vec2 center, float diameter, bool rounded) {
@@ -43,6 +47,15 @@ vec3 cursor_overlay(vec3 c, vec2 p, vec2 center, vec2 fw) {
 	c = mix(c, vec3(0.2, 0.9, 0.85), inside * 0.12);
 	c = mix(c, vec3(0.015), halo);
 	return mix(c, vec3(0.9, 1.0, 1.0), edge);
+}
+vec4 stamp_texel(vec2 local) {
+	vec2 d = local - vec2((cursor_size - 1.0) * 0.5);
+	float ca = cos(stamp_angle);
+	float sa = sin(stamp_angle);
+	vec2 source = vec2(ca * d.x + sa * d.y, -sa * d.x + ca * d.y) + vec2((stamp_source_size - 1.0) * 0.5);
+	vec2 pixel = floor(source + vec2(0.5));
+	if (any(lessThan(pixel, vec2(0.0))) || any(greaterThanEqual(pixel,vec2(stamp_source_size)))) return vec4(0.0);
+	return texture(stamp_preview_source,(pixel+vec2(0.5))/stamp_source_size);
 }
 void fragment() {
 	vec4 col = painted(UV);
@@ -98,6 +111,13 @@ void fragment() {
 				c = mix(c,dots.rgb,dots.a);
 			}
 		}
+		if (stamp_preview_enabled && (cursor_island < 0.0 || abs(UV2.x - cursor_island) < 0.25)) {
+			vec2 local = floor(p) - (cursor_pixel - floor(cursor_size*0.5));
+			if (all(greaterThanEqual(local,vec2(0.0))) && all(lessThan(local,vec2(cursor_size)))) {
+				vec4 ink = stamp_texel(local);
+				c = mix(c,ink.rgb,ink.a);
+			}
+		}
 		if (cursor_mirror) { c = cursor_overlay(c, p, vec2(texture_size.x - cursor_pixel.x - 1.0, cursor_pixel.y), fw); }
 		if (cursor_mirror && spray_mirror_enabled) {
 			vec2 center = vec2(texture_size.x-cursor_pixel.x-1.0,cursor_pixel.y);
@@ -105,6 +125,14 @@ void fragment() {
 			if (all(greaterThanEqual(local,vec2(0.0))) && all(lessThan(local,vec2(cursor_size)))) {
 				vec4 dots = texture(spray_mirror,(local+vec2(0.5))/cursor_size);
 				c = mix(c,dots.rgb,dots.a);
+			}
+		}
+		if (cursor_mirror && stamp_preview_enabled) {
+			vec2 center = vec2(texture_size.x-cursor_pixel.x-1.0,cursor_pixel.y);
+			vec2 local = floor(p)-(center-floor(cursor_size*0.5));
+			if (all(greaterThanEqual(local,vec2(0.0))) && all(lessThan(local,vec2(cursor_size)))) {
+				vec4 ink = stamp_texel(local);
+				c = mix(c,ink.rgb,ink.a);
 			}
 		}
 		if (all(equal(floor(p), cursor_pixel))) { c = mix(c, vec3(1.0, 0.72, 0.25), 0.65); }

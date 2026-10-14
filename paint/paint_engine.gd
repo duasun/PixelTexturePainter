@@ -16,12 +16,20 @@ var selection: Dictionary = {}
 var selection_active := false
 var stencil: Image
 var stencil_region := Rect2i()
+var stencil_rotation := 0.0
 var _cached_stencil: Image
 var _cached_stencil_region := Rect2i()
 var _cached_stencil_size := -1
+var _cached_stencil_rotation := -1.0
 var _cached_stencil_opacity := -1.0
 var _cached_stencil_mask := false
 var _cached_stencil_stamp: Image
+var _cached_source: Image
+var _cached_source_stencil: Image
+var _cached_source_region := Rect2i()
+var _cached_source_size := -1
+var _cached_source_opacity := -1.0
+var _cached_source_mask := false
 var stencil_scale := 1.0
 var mirror := false
 var clone_source := Vector2i(-1, -1)
@@ -43,7 +51,7 @@ var _stroke_spray_particles := 12
 var _stroke_spray_spacing := 4.0
 var _stroke_spray_rate := 20.0
 var _clone_offset := Vector2i.ZERO
-var _clone_snapshot: PaintDocument
+var _clone_layer: PaintLayer
 var _clone_cache: Dictionary = {}
 var _shape_stamp: Image
 var active := false
@@ -79,8 +87,10 @@ func setup(doc: PaintDocument, undo: PaintHistory) -> void:
 	clone_source = Vector2i(-1, -1)
 	stencil = doc.stamp_image
 	stencil_region = doc.stamp_region
+	stencil_rotation = doc.stamp_rotation
 	_cached_stencil = null
 	_cached_stencil_stamp = null
+	_cached_source = null
 
 var _stroke_tool: String
 var _stroke_color: Color
@@ -90,6 +100,7 @@ var _stroke_falloff: float
 var _stroke_shape: int
 var _stroke_dither: bool
 var _stroke_mirror: bool
+var _stroke_stencil_rotation: float
 
 func begin(uv: Vector2, island := -1, face := -1) -> void:
 	if active or document.selected_layer().locked:
@@ -102,6 +113,8 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 	_stroke_shape = shape
 	_stroke_dither = dither
 	_stroke_mirror = mirror
+	_stroke_stencil_rotation = stencil_rotation
+	if tool == "stencil": _stroke_brush_size = _stencil_extent(brush_size, _stroke_stencil_rotation)
 	if tool == "spray":
 		_stroke_brush_size = footprint_size()
 		_stroke_spray_flow = spray_flow / maxf(1.0,spray_distance*spray_distance)
@@ -135,15 +148,10 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 	if _stroke_tool == "clone":
 		_clone_offset = clone_source - _start
 		_clone_cache.clear()
-		_clone_snapshot = PaintDocument.new()
-		_clone_snapshot.width = document.width
-		_clone_snapshot.height = document.height
-		_clone_snapshot.active_layer = document.active_layer
-		for source_layer in document.layers:
-			var frozen := PaintLayer.from_metadata(source_layer.metadata())
-			frozen.tiles = source_layer.tiles.duplicate()
-			frozen.masks = source_layer.masks.duplicate()
-			_clone_snapshot.layers.append(frozen)
+		_clone_layer = PaintLayer.from_metadata(_layer.metadata())
+		_clone_layer.tiles = _layer.tiles.duplicate()
+		_clone_layer.masks = _layer.masks.duplicate()
+		_clone_layer.pattern_tiles = _layer.pattern_tiles.duplicate()
 		_shape_stamp = _stamp
 	if _stroke_tool not in ["line", "rect", "ellipse"]:
 		append(uv, island, face)
@@ -234,7 +242,80 @@ func footprint_size() -> int:
 	if active:
 		return _stroke_brush_size
 	if tool in ["smudge","blur"]: return mini(64,brush_size)
+	if tool == "stencil": return _stencil_extent(brush_size,stencil_rotation)
 	return clampi(roundi(brush_size * spray_distance), 1, 256) if tool == "spray" else brush_size
+
+func stamp_preview() -> Image:
+	if stencil == null: return null
+	return _stencil_raster(brush_size, stencil_rotation, opacity, document.editing_mask)
+
+func stamp_source_preview() -> Image:
+	if stencil == null: return null
+	return _stencil_source(brush_size,opacity,document.editing_mask)
+
+func _stencil_extent(size: int, angle: float) -> int:
+	var radians := deg_to_rad(angle)
+	return maxi(size, ceili(size * (absf(cos(radians)) + absf(sin(radians))) - 0.00001))
+
+func _stencil_raster(size: int, angle: float, alpha: float, grayscale: bool) -> Image:
+	var full := Rect2i(Vector2i.ZERO,stencil.get_size())
+	var region := stencil_region.intersection(full)
+	if not region.has_area(): region = full
+	if _cached_stencil == stencil and _cached_stencil_region == region and _cached_stencil_size == size and is_equal_approx(_cached_stencil_rotation,angle) and is_equal_approx(_cached_stencil_opacity,alpha) and _cached_stencil_mask == grayscale and _cached_stencil_stamp != null:
+		return _cached_stencil_stamp
+	var source := _stencil_source(size,alpha,grayscale)
+	var source_pixels := source.get_data()
+	var extent := _stencil_extent(size,angle)
+	var pixels := PackedByteArray()
+	pixels.resize(extent*extent*4)
+	var radians := deg_to_rad(angle)
+	var c := cos(radians)
+	var s := sin(radians)
+	var output_center := (extent-1)*0.5
+	var source_center := (size-1)*0.5
+	for y in extent:
+		var dy := y-output_center
+		for x in extent:
+			var dx := x-output_center
+			var sx := roundi(c*dx+s*dy+source_center)
+			var sy := roundi(-s*dx+c*dy+source_center)
+			if sx < 0 or sx >= size or sy < 0 or sy >= size: continue
+			var src := (sy*size+sx)*4
+			var dst := (y*extent+x)*4
+			pixels[dst] = source_pixels[src]; pixels[dst+1] = source_pixels[src+1]
+			pixels[dst+2] = source_pixels[src+2]; pixels[dst+3] = source_pixels[src+3]
+	_cached_stencil = stencil
+	_cached_stencil_region = region
+	_cached_stencil_size = size
+	_cached_stencil_rotation = angle
+	_cached_stencil_opacity = alpha
+	_cached_stencil_mask = grayscale
+	_cached_stencil_stamp = Image.create_from_data(extent,extent,false,Image.FORMAT_RGBA8,pixels)
+	return _cached_stencil_stamp
+
+func _stencil_source(size: int, alpha: float, grayscale: bool) -> Image:
+	var full := Rect2i(Vector2i.ZERO,stencil.get_size())
+	var region := stencil_region.intersection(full)
+	if not region.has_area(): region = full
+	if _cached_source_stencil == stencil and _cached_source_region == region and _cached_source_size == size and is_equal_approx(_cached_source_opacity,alpha) and _cached_source_mask == grayscale and _cached_source != null:
+		return _cached_source
+	var source := stencil.get_region(region)
+	source.resize(size,size,Image.INTERPOLATE_NEAREST)
+	if alpha < 1.0 or grayscale:
+		var pixels := source.get_data()
+		for index in range(0,pixels.size(),4):
+			if grayscale:
+				var gray := roundi(0.2126*pixels[index]+0.7152*pixels[index+1]+0.0722*pixels[index+2])
+				pixels[index] = gray; pixels[index+1] = gray; pixels[index+2] = gray
+			pixels[index+3] = roundi(pixels[index+3]*alpha)
+		source = Image.create_from_data(size,size,false,Image.FORMAT_RGBA8,pixels)
+	_cached_source_stencil = stencil
+	_cached_source_region = region
+	_cached_source_size = size
+	_cached_source_opacity = alpha
+	_cached_source_mask = grayscale
+	_cached_source = source
+	return source
 
 func _queue_line(a: Vector2i, b: Vector2i) -> void:
 	if b.x < -90000:
@@ -291,30 +372,7 @@ func _make_stamp() -> void:
 		_stamp.fill(Color.TRANSPARENT)
 		return
 	if _stroke_tool == "stencil" and stencil != null:
-		var full := Rect2i(Vector2i.ZERO, stencil.get_size())
-		var region := stencil_region.intersection(full)
-		if not region.has_area(): region = full
-		if _cached_stencil == stencil and _cached_stencil_region == region and _cached_stencil_size == _stroke_brush_size and is_equal_approx(_cached_stencil_opacity, _stroke_opacity) and _cached_stencil_mask == _mask and _cached_stencil_stamp != null:
-			_stamp = _cached_stencil_stamp
-			return
-		_stamp = stencil.get_region(region)
-		_stamp.resize(_stroke_brush_size, _stroke_brush_size, Image.INTERPOLATE_NEAREST)
-		if _stroke_opacity < 1.0 or _mask:
-			var pixels := _stamp.get_data()
-			for index in range(0, pixels.size(), 4):
-				if _mask:
-					var gray := roundi(0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2])
-					pixels[index] = gray
-					pixels[index + 1] = gray
-					pixels[index + 2] = gray
-				pixels[index + 3] = roundi(pixels[index + 3] * _stroke_opacity)
-			_stamp = Image.create_from_data(_stroke_brush_size, _stroke_brush_size, false, Image.FORMAT_RGBA8, pixels)
-		_cached_stencil = stencil
-		_cached_stencil_region = region
-		_cached_stencil_size = _stroke_brush_size
-		_cached_stencil_opacity = _stroke_opacity
-		_cached_stencil_mask = _mask
-		_cached_stencil_stamp = _stamp
+		_stamp = _stencil_raster(brush_size,_stroke_stencil_rotation,_stroke_opacity,_mask)
 		return
 	_stamp = Image.create(_stroke_brush_size, _stroke_brush_size, false, Image.FORMAT_RGBA8)
 	_stamp.fill(Color.TRANSPARENT)
@@ -472,7 +530,7 @@ func _commit() -> void:
 	_spray_coverage.clear()
 	_drag_buffers.clear()
 	stroke_committed.emit()
-	_clone_snapshot = null
+	_clone_layer = null
 	_clone_cache.clear()
 
 func _make_spray_stamp() -> void:
@@ -565,7 +623,14 @@ func _make_clone_stamp(origin: Vector2i) -> void:
 			for tx in range(rect.position.x >> 6, ((rect.end.x - 1) >> 6) + 1):
 				var key := Vector2i(tx, ty)
 				if not _clone_cache.has(key):
-					_clone_cache[key] = _clone_snapshot.compose_tile(key)
+					if _mask:
+						_clone_cache[key] = _clone_layer.tile_at(key,true,false)
+					elif _clone_layer.pattern_tiles.has(key):
+						var combined: Image = _clone_layer.pattern_tiles[key].duplicate()
+						if _clone_layer.tiles.has(key): combined.blend_rect(_clone_layer.tiles[key],Rect2i(0,0,64,64),Vector2i.ZERO)
+						_clone_cache[key] = combined
+					else:
+						_clone_cache[key] = _clone_layer.tile_at(key,false,false)
 				var part := rect.intersection(Rect2i(key * 64, Vector2i.ONE * 64))
 				sampled.blit_rect(_clone_cache[key], Rect2i(part.position - key * 64, part.size), part.position - origin)
 	_stamp = Image.create(_stroke_brush_size, _stroke_brush_size, false, Image.FORMAT_RGBA8)

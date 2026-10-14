@@ -4,6 +4,7 @@ const ZOOM_STEP := 0.95
 const MIN_DISTANCE_FACTOR := 0.0001
 signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
+signal stamp_rotation_event(phase: String, horizontal_delta: float)
 signal hovered(hit: Dictionary)
 signal history_requested(action: String)
 signal background_color_changed(color: Color)
@@ -14,6 +15,9 @@ var pitch := 0.3
 var distance := 5.5
 var target := Vector3.ZERO
 var _orbit := false
+var stamp_rotation_mode := false
+var _stamp_rotating := false
+var _stamp_anchor_hit: Dictionary = {}
 var _pan := false
 var _navigation_keys: Dictionary = {}
 var _navigation_fast := false
@@ -54,12 +58,16 @@ func _ready() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		if _stamp_rotating: stamp_rotation_event.emit("end",0.0)
+		_stamp_rotating = false
 		_orbit = false
 		_navigation_keys.clear()
 		_navigation_fast = false
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+		if _stamp_rotating: stamp_rotation_event.emit("end",0.0)
+		_stamp_rotating = false
 		_orbit = false
 		_navigation_keys.clear()
 		return
@@ -96,6 +104,10 @@ func _process(delta: float) -> void:
 			step += camera.basis.z * maxf(0.0, step.dot(-camera.basis.z) - allowed)
 	target += step
 	_update_camera()
+
+func set_stamp_rotation_mode(enabled: bool) -> void:
+	stamp_rotation_mode = enabled
+	$Navigation.text = "RMB drag rotates stamp · Shift+RMB orbit · MMB pan · wheel zoom" if enabled else "RMB orbit + WASD move · Q/E down/up · Shift faster · MMB pan · wheel zoom"
 
 func set_background_color(value: Color) -> void:
 	var opaque := Color(value.r, value.g, value.b)
@@ -218,9 +230,15 @@ func _hit(point: Vector2) -> Dictionary:
 
 func _input_display(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
-		hovered.emit(_hit(event.position))
+		if not _stamp_rotating: hovered.emit(_hit(event.position))
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			_orbit = event.pressed
+			if event.pressed and stamp_rotation_mode and not event.shift_pressed:
+				_stamp_rotating = true
+				_stamp_anchor_hit = _hit(event.position)
+				hovered.emit(_stamp_anchor_hit)
+				stamp_rotation_event.emit("begin",0.0)
+			else:
+				_orbit = event.pressed and not _stamp_rotating
 			if event.pressed: display.grab_focus()
 			else: _navigation_keys.clear()
 		elif event.button_index == MOUSE_BUTTON_MIDDLE:
@@ -239,7 +257,10 @@ func _input_display(event: InputEvent) -> void:
 				_gesture_candidate = false
 		display.accept_event()
 	elif event is InputEventMouseMotion:
-		if _orbit:
+		if _stamp_rotating:
+			stamp_rotation_event.emit("move",event.relative.x)
+			hovered.emit(_stamp_anchor_hit)
+		elif _orbit:
 			yaw -= event.relative.x * 0.008
 			pitch = clampf(pitch + event.relative.y * 0.008, -1.5, 1.5)
 			_update_camera()
@@ -305,3 +326,10 @@ func set_spray_preview(texture: Texture2D) -> void:
 func set_spray_mirror_preview(texture: Texture2D) -> void:
 	display_material.set_shader_parameter("spray_mirror_enabled",texture != null)
 	if texture != null: display_material.set_shader_parameter("spray_mirror",texture)
+
+func set_stamp_preview(texture: Texture2D, base_size: int, angle: float) -> void:
+	display_material.set_shader_parameter("stamp_preview_enabled",texture != null)
+	if texture == null: return
+	display_material.set_shader_parameter("stamp_preview_source",texture)
+	display_material.set_shader_parameter("stamp_source_size",float(base_size))
+	display_material.set_shader_parameter("stamp_angle",deg_to_rad(angle))

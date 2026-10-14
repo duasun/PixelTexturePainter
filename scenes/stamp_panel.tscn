@@ -83,6 +83,19 @@ layout_mode = 2
 text = "Load an image, then drag on its preview to choose the stamp area."
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 11
+[node name="RotationRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+[node name="RotationLabel" type="Label" parent="RotationRow"]
+layout_mode = 2
+text = "Rotation"
+[node name="Rotation" parent="RotationRow" instance=ExtResource("number")]
+layout_mode = 2
+size_flags_horizontal = 3
+minimum = -180.0
+maximum = 180.0
+value = 0.0
+suffix = "°"
+tooltip_text = "Rotate the stamp; right-drag over the model to change this angle"
 [node name="SelectedLabel" type="Label" parent="."]
 layout_mode = 2
 text = "STAMP RESULT"

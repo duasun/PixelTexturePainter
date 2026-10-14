@@ -24,6 +24,7 @@ var saved_revision := 0
 var stamp_image: Image
 var stamp_region := Rect2i()
 var stamp_name := ""
+var stamp_rotation := 0.0
 var pattern_image: Image
 var pattern_settings: Dictionary = {"angle": 0.0, "scale": 1.0, "offset_x": 0.0, "offset_y": 0.0}
 var uv_export_padding := 2
@@ -143,6 +144,7 @@ func snapshot() -> PaintDocument:
 	result.stamp_image = stamp_image
 	result.stamp_region = stamp_region
 	result.stamp_name = stamp_name
+	result.stamp_rotation = stamp_rotation
 	result.pattern_image = pattern_image
 	result.pattern_settings = pattern_settings.duplicate(true)
 	for layer in layers:

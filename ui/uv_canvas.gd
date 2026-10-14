@@ -19,6 +19,8 @@ var show_grid := true
 var selected_faces := PackedInt32Array()
 var spray_preview_texture: Texture2D
 var spray_mirror_texture: Texture2D
+var stamp_preview_texture: Texture2D
+var stamp_preview_angle := 0.0
 var shape_preview_kind := ""
 var shape_preview_start := Vector2i.ZERO
 var shape_preview_end := Vector2i.ZERO
@@ -50,6 +52,11 @@ func set_cursor(hit: Dictionary, diameter: int, rounded: bool, mirrored: bool) -
 func set_spray_preview(texture: Texture2D, mirrored: Texture2D = null) -> void:
 	spray_preview_texture = texture
 	spray_mirror_texture = mirrored
+	queue_redraw()
+
+func set_stamp_preview(texture: Texture2D, angle: float) -> void:
+	stamp_preview_texture = texture
+	stamp_preview_angle = angle
 	queue_redraw()
 
 func set_shape_preview(start: Vector2i, finish: Vector2i, kind: String, diameter: int) -> void:
@@ -186,6 +193,12 @@ func _draw_cursor_at(origin: Vector2, pixel: Vector2, mirrored := false) -> void
 	if preview != null:
 		var preview_position := origin + (pixel-Vector2.ONE*floorf(brush_size/2.0))*zoom
 		draw_texture_rect(preview,Rect2(preview_position,Vector2.ONE*brush_size*zoom),false)
+	elif stamp_preview_texture != null:
+		var center := origin + (pixel+Vector2.ONE*float(brush_size%2)*0.5)*zoom
+		var extent := Vector2(stamp_preview_texture.get_size())*zoom
+		draw_set_transform(center,deg_to_rad(stamp_preview_angle))
+		draw_texture_rect(stamp_preview_texture,Rect2(-extent*0.5,extent),false)
+		draw_set_transform(Vector2.ZERO)
 	if _outline_size != brush_size or _outline_round != round_brush:
 		_outline = BrushFootprint.outline(brush_size, round_brush)
 		_outline_size = brush_size

@@ -499,6 +499,49 @@ func run() -> void:
 	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
 	crop._gui_input(wheel)
 	check(crop._image_rect().size.is_equal_approx(original_extent), "Wheel down returns the stamp view to fit scale")
+	# A single asymmetric source pixel makes preview orientation and the painted result unambiguous.
+	scene._start_new(16,16,"Rotated stamp")
+	await ready_document(scene)
+	var asymmetric := Image.create(4,4,false,Image.FORMAT_RGBA8)
+	asymmetric.fill(Color.TRANSPARENT)
+	asymmetric.set_pixel(0,0,Color.RED)
+	scene.document.stamp_image = asymmetric
+	scene.document.stamp_region = Rect2i(0,0,4,4)
+	scene.painter.stencil = asymmetric
+	scene.painter.stencil_region = scene.document.stamp_region
+	scene.get_node("%StampPanel").set_source(asymmetric,"Asymmetric",scene.document.stamp_region)
+	scene.get_node("%ToolBar").select("stencil")
+	scene._setting("brush_size",4)
+	scene._setting("opacity",1.0)
+	var rotation_field: NumberField = scene.get_node("%StampPanel/RotationRow/Rotation")
+	rotation_field.set_value(90)
+	rotation_field.value_committed.emit(90.0)
+	scene._hover({"uv":Vector2(0.5,0.5),"face":0,"position":Vector3.ZERO},true)
+	var rotated_preview: Image = scene.painter.stamp_preview()
+	var model_preview: Texture2D = scene.model_view.display_material.get_shader_parameter("stamp_preview_source")
+	check(scene.document.stamp_rotation == 90.0 and scene.painter.footprint_size() == 4 and rotated_preview.get_pixel(3,0) == Color.RED and rotated_preview.get_pixel(0,0).a == 0.0,"Stamp rotation turns an asymmetric crop clockwise without clipping")
+	check(scene.model_view.display_material.get_shader_parameter("stamp_preview_enabled") and model_preview.get_image().get_pixel(0,0) == Color.RED and is_equal_approx(scene.model_view.display_material.get_shader_parameter("stamp_angle"),PI*0.5),"Model preview uses the cropped source with the same rotation as painting")
+	var rotation_hit := {"uv":Vector2(0.5,0.5),"face":-1}
+	scene._surface_input("begin",rotation_hit,0,false)
+	scene._surface_input("end",rotation_hit,0,false)
+	while scene.painter.active: await process_frame
+	var rotated_tile: Image = scene.document.selected_layer().tiles[Vector2i.ZERO]
+	check(rotated_tile.get_pixel(9,6) == Color.RED and rotated_tile.get_pixel(6,6).a == 0.0,"Clicking paints exactly the pixel shown in the rotated preview")
+	var yaw_before_stamp_drag: float = scene.model_view.yaw
+	var rotate_press := InputEventMouseButton.new()
+	rotate_press.button_index = MOUSE_BUTTON_RIGHT
+	rotate_press.pressed = true
+	rotate_press.position = scene.model_view.display.size*0.5
+	scene.model_view._input_display(rotate_press)
+	var rotate_motion := InputEventMouseMotion.new()
+	rotate_motion.position = rotate_press.position+Vector2(20,0)
+	rotate_motion.relative = Vector2(20,0)
+	scene.model_view._input_display(rotate_motion)
+	rotate_press.pressed = false
+	scene.model_view._input(rotate_press)
+	check(scene.document.stamp_rotation == 100.0 and scene.model_view.yaw == yaw_before_stamp_drag and not scene.model_view._orbit,"Right drag rotates the stamp while keeping the camera still")
+	scene._action("Undo")
+	check(scene.document.stamp_rotation == 90.0 and rotation_field.value == 90.0,"Undo restores stamp angle and inspector control")
 	# The Effects button bakes a concave corner into a regular editable Albedo layer.
 	scene._start_new(64,64,"AO scene")
 	await ready_document(scene)
