@@ -11,7 +11,6 @@ var region := Rect2i()
 var _source_texture: ImageTexture
 var _atlas: AtlasTexture
 var _result_image: Image
-var _syncing := false
 
 func _ready() -> void:
 	$Actions/Load.pressed.connect(func(): load_requested.emit())
@@ -22,8 +21,6 @@ func _ready() -> void:
 	$Preview.navigation_changed.connect(func(): navigation_changed.emit())
 	$RotationRow/Rotation.value_changed.connect(func(angle: float): rotation_changed.emit(angle))
 	$RotationRow/Rotation.value_committed.connect(func(angle: float): rotation_committed.emit(angle))
-	for field_name in ["X", "Y", "W", "H"]:
-		$Fields.get_node(field_name).value_changed.connect(func(_value: float): _fields_changed())
 	_refresh()
 
 func set_source(image: Image, title: String, selected: Rect2i) -> void:
@@ -63,14 +60,6 @@ func _refresh() -> void:
 	var enabled := source != null
 	$Full.disabled = not enabled
 	$Preview.mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
-	_syncing = true
-	for field_name in ["X", "Y", "W", "H"]:
-		var field: NumberField = $Fields.get_node(field_name)
-		field.maximum = float((source.get_width() if field_name in ["X", "W"] else source.get_height()) - (1 if field_name in ["X", "Y"] else 0)) if enabled else 0.0
-	var values := [region.position.x, region.position.y, region.size.x, region.size.y]
-	for index in 4:
-		$Fields.get_node(["X", "Y", "W", "H"][index]).set_value(values[index], false)
-	_syncing = false
 	if enabled:
 		_atlas.region = Rect2(region)
 		$SelectedPreview.texture = _atlas
@@ -93,8 +82,3 @@ func _commit_region(value: Rect2i) -> void:
 	$Preview.queue_redraw()
 	_refresh()
 	region_changed.emit(selected)
-
-func _fields_changed() -> void:
-	if _syncing or source == null: return
-	var value := Rect2i(int($Fields/X.value), int($Fields/Y.value), int($Fields/W.value), int($Fields/H.value))
-	_commit_region(value)

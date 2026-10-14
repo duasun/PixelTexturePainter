@@ -2,13 +2,12 @@ extends VBoxContainer
 signal effect_changed(key: String, value: Variant)
 signal section_changed
 var refreshing := false
-const SETTINGS := {"Steps": "steps", "Dither": "dither", "Brightness": "brightness", "Contrast": "contrast", "Saturation": "saturation", "Noise": "noise"}
+const SETTINGS := {"Brightness": "brightness", "Contrast": "contrast", "Saturation": "saturation", "Noise": "noise"}
 const SECTIONS := {
-	"SectionStepsLabel": ["StepsLabel","Steps","DitherLabel","Dither"],
 	"SectionBrightnessLabel": ["BrightnessLabel","Brightness","ContrastLabel","Contrast","SaturationLabel","Saturation"],
 	"SectionNoiseLabel": ["NoiseLabel","Noise","Palette","Reset"],
-	"EdgeSection": ["EdgeLabel","EdgeWidthLabel","EdgeWidth","EdgeScatterLabel","EdgeScatter","EdgeNoiseLabel","EdgeNoise","EdgeFalloffLabel","EdgeFalloff","Edges","EdgeMaskInvert","EdgeMask"],
-	"AOSection": ["AOInfo","AOStrengthLabel","AOStrength","AORadiusLabel","AORadius","AODepthLabel","AODepth","AOFalloffLabel","AOFalloff","AOGenerate","AOMaskInvert","AOMask"],
+	"EdgeSection": ["EdgeLabel","EdgeWidthLabel","EdgeWidth","EdgeScatterLabel","EdgeScatter","EdgeNoiseLabel","EdgeNoise","EdgeFalloffLabel","EdgeFalloff","Edges"],
+	"AOSection": ["AOInfo","AOStrengthLabel","AOStrength","AORadiusLabel","AORadius","AODepthLabel","AODepth","AOFalloffLabel","AOFalloff","AOGenerate"],
 	"NormalSection": ["NormalInfo","NormalStrengthLabel","NormalStrength","NormalGenerate"],
 	"BlurSection": ["BlurInfo","BlurRadiusLabel","BlurRadius","BlurPreview","BlurApply","BlurCancel"]}
 
@@ -16,8 +15,7 @@ func _ready() -> void:
 	for node_name in SETTINGS:
 		get_node(node_name).value_changed.connect(func(v: float):
 			if not refreshing:
-				if node_name == "Steps": effect_changed.emit(SETTINGS[node_name], int(v))
-				else: effect_changed.emit(SETTINGS[node_name], v / 100.0))
+				effect_changed.emit(SETTINGS[node_name], v / 100.0))
 	$Palette.toggled.connect(func(v: bool):
 		if not refreshing: effect_changed.emit("palette", v))
 	$Reset.pressed.connect(func(): effect_changed.emit("reset", null))
@@ -52,6 +50,6 @@ func refresh(doc: PaintDocument) -> void:
 	refreshing = true
 	for node_name in SETTINGS:
 		var v: float = doc.effects[SETTINGS[node_name]]
-		get_node(node_name).set_value(v if node_name == "Steps" else v * 100, false)
+		get_node(node_name).set_value(v * 100, false)
 	$Palette.button_pressed = doc.effects.palette
 	refreshing = false

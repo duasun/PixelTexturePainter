@@ -69,25 +69,6 @@ popup/item_1/text = "Multiply"
 popup/item_1/id = 1
 popup/item_2/text = "Add"
 popup/item_2/id = 2
-[node name="SepMask" type="HSeparator" parent="."]
-layout_mode = 2
-[node name="SectionMask" type="Label" parent="."]
-layout_mode = 2
-text = "LAYER MASK"
-theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
-[node name="Mask" type="HBoxContainer" parent="."]
-layout_mode = 2
-[node name="Enable" type="CheckButton" parent="Mask"]
-layout_mode = 2
-text = "Mask"
-[node name="Edit" type="CheckButton" parent="Mask"]
-layout_mode = 2
-text = "Edit mask"
-[node name="MaskHint" type="Label" parent="."]
-layout_mode = 2
-text = ""
-theme_override_font_sizes/font_size = 11
 [node name="SepSelectionLabel" type="HSeparator" parent="."]
 layout_mode = 2
 [node name="SelectionLabel" type="Label" parent="."]
@@ -112,4 +93,4 @@ text = "Clear selection   Esc"
 [node name="ClearMap" type="Button" parent="."]
 layout_mode = 2
 text = "Reset current map"
-tooltip_text = "Erase all paint and masks on the selected map; Undo restores them"
+tooltip_text = "Erase all paint on the selected map; Undo restores it"

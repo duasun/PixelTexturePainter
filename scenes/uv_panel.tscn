@@ -95,27 +95,6 @@ size_flags_horizontal = 3
 layout_mode = 2
 text = "↓"
 size_flags_horizontal = 3
-[node name="SepScaleLabel" type="HSeparator" parent="."]
-layout_mode = 2
-[node name="ScaleLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Scale around selection center"
-
-[node name="Scale" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 100.0
-minimum = 10.0
-maximum = 400.0
-suffix = "%"
-[node name="ApplyScale" type="Button" parent="."]
-layout_mode = 2
-text = "Apply scale"
-
 [node name="Snap" type="Button" parent="."]
 layout_mode = 2
 text = "Snap vertices to pixel grid"
-
-[node name="Note" type="Label" parent="."]
-layout_mode = 2
-text = "Select an island in 3D or UV view.\nUV edits are undoable.\nExport OBJ to keep the new UV layout."
-theme_override_font_sizes/font_size = 11

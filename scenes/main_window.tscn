@@ -313,7 +313,7 @@ title = "About Retro Texture Painter"
 size = Vector2i(560,280)
 ok_button_text = "Close"
 dialog_autowrap = true
-dialog_text = "Retro Texture Painter\nA fast, focused painter for retro pixel-art 3D models.\n\nPaint on the model or UV texture, manage layers and masks, and export your work.\n\nMore information and credits will be added here as the program grows."
+dialog_text = "Retro Texture Painter\nA fast, focused painter for retro pixel-art 3D models.\n\nPaint on the model or UV texture, manage layers, and export your work.\n\nMore information and credits will be added here as the program grows."
 [node name="Discard" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title = "Unsaved changes"

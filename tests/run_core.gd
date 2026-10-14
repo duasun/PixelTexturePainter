@@ -130,8 +130,6 @@ func run() -> void:
 	check(flat_scatter.layer.tiles[Vector2i.ZERO].get_pixel(30,18).a > edge_tile.get_pixel(30,18).a,"Falloff control changes scatter strength at the outer edge")
 	var repeat_scatter := PaintOperations.edge_layer(progress,edge_doc,1,Color.WHITE,6,1.0,1.0)
 	check(repeat_scatter.layer.tiles[Vector2i.ZERO].get_data() == edge_tile.get_data(),"Edge noise is deterministic between previews and baking")
-	var edge_mask := PaintOperations.geometry_mask(progress,edge_doc,"edges",{"width":1,"scatter_reach":6,"noise_amount":1.0,"side_falloff":1.0,"invert":false})
-	check(edge_mask.masks[Vector2i.ZERO].get_pixel(30,18).r > 0.0,"Geometry edge masks include the same scattered falloff")
 	var ao_4k := PaintDocument.new()
 	ao_4k.initialize(4096,4096,Color.WHITE)
 	ao_4k.geometry = corner_model

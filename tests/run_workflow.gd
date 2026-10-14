@@ -148,8 +148,6 @@ func run() -> void:
 	check(shared_import.imported_layers[0].tiles[Vector2i.ZERO].get_pixel(2,2).r > 0.9,"First material keeps shared texels instead of a later overwrite")
 	var preview_maps := PBRPreview.build(progress,doc)
 	check(preview_maps.has("maps") and preview_maps.maps.size() == 6,"Lit preview builds all six material maps")
-	var mask_result := PaintOperations.geometry_mask(progress,doc,"edges",{"width":2,"invert":false})
-	check(mask_result.has("masks") and not mask_result.masks.is_empty(),"Geometry edges can generate a paint-layer mask")
 	var pattern_doc := PaintDocument.new()
 	pattern_doc.initialize(128,128,Color.BLACK)
 	pattern_doc.geometry = UVUnwrapper.unwrap(ModelGeometry.demo(),128,128,45,1).geometry

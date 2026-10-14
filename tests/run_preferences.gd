@@ -78,9 +78,20 @@ func run() -> void:
 	stamp.save_png(stamp_path)
 	scene._file_action = "stencil"
 	scene._file_selected(stamp_path)
-	scene.get_node("%StampPanel/Fields/X").set_value(2)
-	scene.get_node("%StampPanel/Fields/W").set_value(3)
-	check(scene.document.stamp_region == Rect2i(2,0,3,4),"Stamp crop is editable before saving")
+	var stamp_preview: StampCropPreview = scene.get_node("%StampPanel/Preview")
+	var stamp_bounds: Rect2 = stamp_preview._image_rect()
+	var crop_press := InputEventMouseButton.new()
+	crop_press.button_index = MOUSE_BUTTON_LEFT
+	crop_press.pressed = true
+	crop_press.position = stamp_bounds.position + Vector2(2.5 / 8.0,0.5 / 4.0) * stamp_bounds.size
+	stamp_preview._gui_input(crop_press)
+	var crop_move := InputEventMouseMotion.new()
+	crop_move.position = stamp_bounds.position + Vector2(4.5 / 8.0,3.5 / 4.0) * stamp_bounds.size
+	stamp_preview._gui_input(crop_move)
+	crop_press.pressed = false
+	crop_press.position = crop_move.position
+	stamp_preview._gui_input(crop_press)
+	check(scene.document.stamp_region == Rect2i(2,0,3,4),"Mouse crop is editable before saving")
 	var stamp_angle: NumberField = scene.get_node("%StampPanel/RotationRow/Rotation")
 	stamp_angle.set_value(45)
 	stamp_angle.value_committed.emit(45.0)

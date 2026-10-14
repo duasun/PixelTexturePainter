@@ -15,11 +15,6 @@ func _ready() -> void:
 		if not refreshing: action_requested.emit("blend_mode", v))
 	$Name.text_submitted.connect(_rename_name)
 	$Name.focus_exited.connect(func(): _rename_name($Name.text))
-	$Mask/Enable.toggled.connect(func(v: bool):
-		if not refreshing: action_requested.emit("mask_enabled", v))
-	$Mask/Edit.toggled.connect(func(v: bool):
-		if not refreshing: action_requested.emit("editing_mask", v))
-	$MaskHint.text = "Masks: white reveals, black hides.\nChoose a grayscale brush color."
 
 func refresh(doc: PaintDocument) -> void:
 	refreshing = true
@@ -46,8 +41,6 @@ func refresh(doc: PaintDocument) -> void:
 	$Blend.selected = active.blend_mode
 	if not $Name.has_focus() or _active_id != active.id: $Name.text = active.title
 	_active_id = active.id
-	$Mask/Enable.button_pressed = active.mask_enabled
-	$Mask/Edit.button_pressed = doc.editing_mask
 	refreshing = false
 
 func _rename_name(value: String) -> void:

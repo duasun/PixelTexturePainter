@@ -356,29 +356,6 @@ static func _edge_scatter(tiles: Dictionary, a: Vector2, b: Vector2, third: Vect
 			if tile.get_pixelv(local).a < alpha:
 				tile.set_pixelv(local,Color(color.r,color.g,color.b,alpha))
 
-static func geometry_mask(progress: BackgroundJob.JobProgress, doc: PaintDocument, kind: String, parameters: Dictionary) -> Dictionary:
-	var generated: Dictionary
-	if kind == "edges":
-		generated = edge_layer(progress,doc,int(parameters.width),Color.WHITE,int(parameters.get("scatter_reach",0)),float(parameters.get("noise_amount",0.0)),float(parameters.get("side_falloff",0.7)))
-	else:
-		generated = cavity_ao(progress,doc,float(parameters.strength),int(parameters.radius),float(parameters.depth),int(parameters.falloff))
-	if not generated.has("layer"): return generated
-	var bank := {}
-	var source: PaintLayer = generated.layer
-	var invert: bool = parameters.get("invert",false)
-	for key in doc.all_keys():
-		if progress.is_cancelled(): return {"cancelled":true}
-		var source_data: PackedByteArray = source.tiles[key].get_data() if source.tiles.has(key) else PackedByteArray()
-		var bytes := PackedByteArray()
-		bytes.resize(64*64*4)
-		for pixel in 4096:
-			var opacity := int(source_data[pixel*4+3]) if not source_data.is_empty() else 0
-			var value := 255-opacity if invert else opacity
-			for component in 3: bytes[pixel*4+component] = value
-			bytes[pixel*4+3] = 255
-		bank[key] = Image.create_from_data(64,64,false,Image.FORMAT_RGBA8,bytes)
-	return {"masks":bank,"layer_id":doc.selected_layer().id,"kind":kind}
-
 ## Fast geometry-based cavity AO. Rasterize only a narrow strip beside concave
 ## shared edges, so a 4K atlas never needs a full-image Python/GDScript sweep.
 static func cavity_ao(progress: BackgroundJob.JobProgress, doc: PaintDocument, strength: float, radius: int, depth_focus: float, falloff: int) -> Dictionary:

@@ -123,8 +123,6 @@ func _ready() -> void:
 	%Layers.get_node("ClearSelection").pressed.connect(_clear_selection)
 	%Effects.get_node("Edges").pressed.connect(_edges)
 	%Effects.get_node("AOGenerate").pressed.connect(_ambient_occlusion)
-	%Effects.get_node("EdgeMask").pressed.connect(_generate_geometry_mask.bind("edges"))
-	%Effects.get_node("AOMask").pressed.connect(_generate_geometry_mask.bind("ao"))
 	%Effects.get_node("NormalGenerate").pressed.connect(_generate_normal_map)
 	%Effects.get_node("BlurRadius").value_changed.connect(func(_value: float): _cancel_blur_preview())
 	%Effects.get_node("BlurRadius").value_committed.connect(func(_value: float): _preview_layer_blur())
@@ -138,7 +136,7 @@ func _ready() -> void:
 	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
 		%Effects.get_node(field).value_changed.connect(func(_value: float): _queue_preferences_save())
 	%Effects.get_node("AOFalloff").item_selected.connect(func(_index: int): _queue_preferences_save())
-	for field in ["Angle", "Padding", "MoveStep", "Scale"]:
+	for field in ["Angle", "Padding", "MoveStep"]:
 		%UV.get_node(field).value_changed.connect(func(_value: float): _queue_preferences_save())
 	%FileDialog.file_selected.connect(_file_selected)
 	%Discard.confirmed.connect(func(): _perform_guarded(_pending_discard))
@@ -673,9 +671,6 @@ func _layer_action(action: String, value: Variant) -> void:
 			if document.layers[i].id == value: document.active_layer = i; break
 	elif action == "select":
 		document.active_layer = document.layers.size() - 1 - int(value)
-	elif action == "editing_mask":
-		document.editing_mask = value
-		_status("Painting MASK · use white or black" if value else "Painting COLOR")
 	elif action in ["add", "duplicate", "delete", "up", "down"]:
 		if action in ["add", "duplicate"] and document.layers.size() >= 32:
 			_message("This project supports up to 32 layers across all maps.")
@@ -869,7 +864,6 @@ func _uv_action(action: String, value: Variant) -> void:
 			match action:
 				"move": p += Vector2(value) / resolution
 				"rotate": p = center + ((p - center) * resolution).rotated(deg_to_rad(float(value))) / resolution
-				"scale": p = center + (p - center) * float(value)
 				"snap": p = (p * resolution).round() / resolution
 			if p.x < 0 or p.y < 0 or p.x > 1 or p.y > 1:
 				_status("UV edit would leave the texture. Move the island inward first.")
@@ -928,24 +922,6 @@ func _ambient_occlusion() -> void:
 		int(%Effects.get_node("AORadius").value),
 		float(%Effects.get_node("AODepth").value) / 100.0,
 		%Effects.get_node("AOFalloff").selected))
-
-func _generate_geometry_mask(kind: String) -> void:
-	if document == null or document.geometry == null or jobs.busy() or painter.active: return
-	if document.selected_layer().locked:
-		_status("Unlock the selected layer before generating its mask.")
-		return
-	_cancel_geometry_preview()
-	_cancel_blur_preview()
-	var parameters := {"width":int(%Effects.get_node("EdgeWidth").value),
-		"scatter_reach":int(%Effects.get_node("EdgeScatter").value),
-		"noise_amount":float(%Effects.get_node("EdgeNoise").value)/100.0,
-		"side_falloff":float(%Effects.get_node("EdgeFalloff").value)/100.0,
-		"strength":float(%Effects.get_node("AOStrength").value)/100.0,
-		"radius":int(%Effects.get_node("AORadius").value),
-		"depth":float(%Effects.get_node("AODepth").value)/100.0,
-		"falloff":%Effects.get_node("AOFalloff").selected,
-		"invert":%Effects.get_node("EdgeMaskInvert" if kind == "edges" else "AOMaskInvert").button_pressed}
-	jobs.start("geometry_mask",PaintOperations.geometry_mask.bind(document.read_copy(),kind,parameters))
 
 func _geometry_signature(kind: String) -> Array:
 	if kind == "edges": return [int(%Effects.get_node("EdgeWidth").value),int(%Effects.get_node("EdgeScatter").value),float(%Effects.get_node("EdgeNoise").value),float(%Effects.get_node("EdgeFalloff").value),painter.color.to_rgba32()]
@@ -1311,21 +1287,6 @@ func _job_completed(kind: String, value: Variant) -> void:
 		_status("Operation cancelled · document unchanged")
 		return
 	match kind:
-		"geometry_mask":
-			var selected := _find_layer(str(result.layer_id))
-			if selected == null: return
-			var before := _document_state()
-			var updated := selected.copy_layer()
-			updated.masks = result.masks
-			updated.mask_enabled = true
-			for i in document.layers.size():
-				if document.layers[i].id == selected.id:
-					document.layers[i] = updated
-					break
-			history.push(document,{"kind":"document","label":"Generate geometry mask","before":before,"after":_document_state()})
-			tiles.mark(document.all_keys(),false)
-			_refresh_metadata()
-			_status("%s mask applied to selected layer · Undo restores it" % ["Edge" if result.kind == "edges" else "Cavity"])
 		"pbr_preview":
 			model_view.set_pbr_maps(result.maps)
 		"palette":
@@ -1763,7 +1724,7 @@ func _restore_preferences() -> void:
 	%Effects.get_node("AOFalloff").select(clampi(int(_preferences.get_setting("inspector","AOFalloff",1)),0,2))
 	var expanded: Variant = _preferences.get_setting("inspector","expanded_effects",{})
 	%Effects.restore_sections(expanded if expanded is Dictionary else {})
-	for field in ["Angle", "Padding", "MoveStep", "Scale"]:
+	for field in ["Angle", "Padding", "MoveStep"]:
 		var control: NumberField = %UV.get_node(field)
 		control.set_value(float(_preferences.get_setting("uv",field,control.value)),false)
 	var saved_tab_name := str(_preferences.get_setting("view","inspector_tab_name",""))
@@ -1829,7 +1790,7 @@ func _save_preferences() -> void:
 		_preferences.set_setting("inspector",field,%Effects.get_node(field).value)
 	_preferences.set_setting("inspector","AOFalloff",%Effects.get_node("AOFalloff").selected)
 	_preferences.set_setting("inspector","expanded_effects",%Effects.open_sections())
-	for field in ["Angle", "Padding", "MoveStep", "Scale"]:
+	for field in ["Angle", "Padding", "MoveStep"]:
 		_preferences.set_setting("uv",field,%UV.get_node(field).value)
 	var error := _preferences.save_settings()
 	if error != OK: _status("Could not save painter settings: " + error_string(error))

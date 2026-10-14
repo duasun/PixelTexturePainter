@@ -470,7 +470,7 @@ func run() -> void:
 	crop_press.pressed = false
 	crop_press.position = crop_move.position
 	crop._gui_input(crop_press)
-	check(scene.document.stamp_region == Rect2i(4,0,4,4) and stamp_panel.get_node("Fields/W").value == 4, "Dragging on stamp preview selects source pixels precisely")
+	check(scene.document.stamp_region == Rect2i(4,0,4,4), "Dragging on stamp preview selects source pixels precisely")
 	check(scene.painter.stencil_region == scene.document.stamp_region and stamp_panel.get_node("SelectedPreview").texture != null, "Crop reaches paint engine and selected-area preview")
 	scene._setting("brush_size", 8)
 	scene._setting("opacity", 0.5)

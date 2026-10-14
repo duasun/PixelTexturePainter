@@ -8,33 +8,6 @@ theme_override_constants/separation = 7
 layout_mode = 2
 text = "Live preview · included in PNG export"
 theme_override_font_sizes/font_size = 11
-[node name="SepStepsLabel" type="HSeparator" parent="."]
-layout_mode = 2
-[node name="SectionStepsLabel" type="Button" parent="."]
-layout_mode = 2
-text = "▶ PIXEL STYLE"
-toggle_mode = true
-alignment = 0
-[node name="StepsLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Levels per channel · 0 = off"
-
-[node name="Steps" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 0.0
-minimum = 0.0
-maximum = 256.0
-suffix = ""
-[node name="DitherLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Ordered dithering"
-
-[node name="Dither" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 0.0
-minimum = 0.0
-maximum = 100.0
-suffix = "%"
 [node name="SepBrightnessLabel" type="HSeparator" parent="."]
 layout_mode = 2
 [node name="SectionBrightnessLabel" type="Button" parent="."]
@@ -149,12 +122,6 @@ tooltip_text = "How quickly scattered flecks fade away from the solid edge"
 theme_type_variation = &"AccentButton"
 layout_mode = 2
 text = "Generate edge highlights"
-[node name="EdgeMaskInvert" type="CheckButton" parent="."]
-layout_mode = 2
-text = "Invert edge mask"
-[node name="EdgeMask" type="Button" parent="."]
-layout_mode = 2
-text = "Use edges as layer mask"
 [node name="AOSep" type="HSeparator" parent="."]
 layout_mode = 2
 [node name="AOSection" type="Button" parent="."]
@@ -211,12 +178,6 @@ popup/item_2/id = 2
 theme_type_variation = &"AccentButton"
 layout_mode = 2
 text = "Bake cavity AO"
-[node name="AOMaskInvert" type="CheckButton" parent="."]
-layout_mode = 2
-text = "Invert cavity mask"
-[node name="AOMask" type="Button" parent="."]
-layout_mode = 2
-text = "Use cavities as layer mask"
 [node name="NormalSep" type="HSeparator" parent="."]
 layout_mode = 2
 [node name="NormalSection" type="Button" parent="."]
