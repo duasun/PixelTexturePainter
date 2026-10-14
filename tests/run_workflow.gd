@@ -117,6 +117,13 @@ func run() -> void:
 		var material: StandardMaterial3D = state.get_materials()[0]
 		check(material.normal_enabled and material.normal_texture != null and material.roughness_texture != null and material.metallic_texture != null and material.ao_texture != null and material.emission_texture != null,"GLB keeps normal, roughness, metallic, AO and emission textures")
 		check(material.albedo_texture.get_image().get_pixel(1,1).to_rgba32() == ProjectIO.render_image(progress,doc,"albedo").image.get_pixel(1,1).to_rgba32(),"GLB always uses Albedo as base color while another map is active")
+	var border_uv := ModelGeometry.new()
+	border_uv.uvs = PackedVector2Array([Vector2(-0.00002, 0.5), Vector2(1.00002, 1.0)])
+	ModelIO._normalize_uv_bounds(border_uv)
+	check(border_uv.has_uv and border_uv.uvs[0].x == 0.0 and border_uv.uvs[1].x == 1.0,"GLB float noise at UV borders does not invalidate the whole model")
+	border_uv.uvs[0].x = -0.01
+	ModelIO._normalize_uv_bounds(border_uv)
+	check(not border_uv.has_uv,"Genuinely out-of-range UVs remain unsupported")
 	var geometry_import := ModelIO.load_model(progress,glb)
 	var material_import := ModelIO.load_model(progress,glb,128,128)
 	check(material_import.has("imported_layers") and material_import.imported_layers.size() >= 5,"GLB import transfers source material maps")
@@ -170,6 +177,16 @@ func run() -> void:
 	var scene = load("res://scenes/main_window.tscn").instantiate(); scene.settings_enabled = false; root.add_child(scene)
 	root.size = Vector2i(1440,900); scene.get_node("%Autosave").stop()
 	await settle(scene)
+	var old_geometry: ModelGeometry = scene.document.geometry
+	var old_layer_id: String = scene.document.layers[0].id
+	scene._job_completed("import", material_import)
+	await settle(scene)
+	var imported_layout: bool = scene.document.geometry == material_import.geometry and scene.uv_canvas._lines.size() == material_import.geometry.uvs.size()*2
+	check(imported_layout,"Import replaces the sample cube UV wireframe with the new model layout")
+	check(scene.document.layers.size() == material_import.imported_layers.size()+2 and scene.document.layers[0].id != old_layer_id,"Import clears paint from the previous model while keeping the imported texture")
+	scene._action("Undo")
+	await settle(scene)
+	check(scene.document.geometry == old_geometry and scene.document.layers[0].id == old_layer_id,"Undo restores the previous model and its paint")
 	var palette_count: int = scene.document.palette.size()
 	var custom_color := Color("c7378a")
 	scene._palette_change("add",-1,custom_color)

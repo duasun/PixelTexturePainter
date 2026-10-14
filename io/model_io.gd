@@ -1,5 +1,6 @@
 class_name ModelIO
 extends RefCounted
+const UV_BOUNDARY_EPSILON := 0.0001
 
 static func load_model(progress: BackgroundJob.JobProgress, path: String, target_width := 0, target_height := 0) -> Dictionary:
 	progress.report(0.1, "Reading model…")
@@ -28,10 +29,7 @@ static func load_model(progress: BackgroundJob.JobProgress, path: String, target
 		return {"error": "No triangle geometry was found."}
 	if model.face_count() > 150000:
 		return {"error": "This build supports up to 150,000 triangles. Simplify the mesh before importing."}
-	for uv in model.uvs:
-		if not uv.is_finite() or uv.x < 0.0 or uv.y < 0.0 or uv.x > 1.0 or uv.y > 1.0:
-			model.has_uv = false
-			break
+	_normalize_uv_bounds(model)
 	progress.report(0.65, "Building surface lookup…")
 	model.build_cache()
 	if model.has_uv and target_width >= 16 and target_height >= 16 and result.has("material_sources"):
@@ -44,6 +42,17 @@ static func load_model(progress: BackgroundJob.JobProgress, path: String, target
 			result.merge(baked,true)
 	progress.report(1.0, "Model ready")
 	return result
+
+static func _normalize_uv_bounds(model: ModelGeometry) -> void:
+	# glTF float coordinates on a UV border can round just outside 0..1.
+	# Only clamp that export noise; genuinely tiled UVs remain unsupported.
+	for i in model.uvs.size():
+		var uv := model.uvs[i]
+		if not uv.is_finite() or uv.x < -UV_BOUNDARY_EPSILON or uv.y < -UV_BOUNDARY_EPSILON or uv.x > 1.0 + UV_BOUNDARY_EPSILON or uv.y > 1.0 + UV_BOUNDARY_EPSILON:
+			model.has_uv = false
+			return
+		if uv.x < 0.0 or uv.y < 0.0 or uv.x > 1.0 or uv.y > 1.0:
+			model.uvs[i] = uv.clamp(Vector2.ZERO, Vector2.ONE)
 
 static func _collect(node: Node, parent_transform: Transform3D, model: ModelGeometry, sources: Dictionary) -> void:
 	var transform := parent_transform

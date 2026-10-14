@@ -1310,19 +1310,32 @@ func _job_completed(kind: String, value: Variant) -> void:
 		"import":
 			var before := _document_state()
 			var added: Array = result.get("imported_layers",[])
-			if document.layers.size()+added.size()>32:
+			if added.size()+2>32:
 				_message("The model has too many material maps for the 32-layer limit.")
 				return
+			# A new mesh has a different UV layout. Old paint belongs to the previous mesh.
+			document.layers.clear()
+			var base := PaintLayer.new()
+			base.title = "Base color"
+			document.layers.append(base)
 			for imported in added: document.layers.append(imported)
-			if not added.is_empty():
-				for i in range(document.layers.size()-1,-1,-1):
-					if document.layers[i].channel == "albedo" and document.layers[i].title.begins_with("Imported "):
-						document.active_layer = i
-						break
+			var paint_layer := PaintLayer.new()
+			paint_layer.title = "Paint 01"
+			document.layers.append(paint_layer)
+			document.active_layer = document.layers.size()-1
+			document.editing_mask = false
 			document.geometry = result.geometry
 			history.push(document, {"kind": "document", "label": "Import model and materials", "before": before, "after": _document_state()})
 			_install_document_state(_document_state())
-			_status(str(result.get("warning","Model ready")) if document.geometry.has_uv else "Model imported without UVs · generate a layout in the UV tab")
+			if not document.geometry.has_uv:
+				_status("Model imported without usable UVs · generate a layout in the UV tab")
+			elif added.is_empty():
+				_status("Model UVs loaded; no supported material textures found in the file")
+			else:
+				var import_status := "Model UVs loaded · %d material map(s) imported · previous model paint cleared" % added.size()
+				if int(result.get("material_overlap", 0)) > 0:
+					import_status += " · %d shared texels kept their first texture" % int(result.material_overlap)
+				_status(import_status)
 			_refresh_metadata()
 		"unwrap", "geometry_edit":
 			_uv_preview_before = _document_state()
