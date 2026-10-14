@@ -152,6 +152,25 @@ func run() -> void:
 	check(undo_button.icon != null and redo_button.icon != null and not undo_button.tooltip_text.is_empty() and not redo_button.tooltip_text.is_empty(), "Visible Undo/Redo buttons have icons and shortcuts in tooltips")
 	check(undo_button.get_global_rect().end.x <= redo_button.global_position.x and redo_button.get_global_rect().end.x <= scene.model_view.get_node("Header/Frame").global_position.x and undo_button.disabled and redo_button.disabled, "Undo/Redo sit left of Frame and start disabled")
 	check(bar.get_node("File").get_popup().item_count == 18, "File menu contains project/import/export/exit and recent project actions")
+	if DisplayServer.get_name() != "headless":
+		var mode_before_fullscreen: Window.Mode = root.mode
+		var started_fullscreen: bool = mode_before_fullscreen in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN]
+		var fullscreen_key := InputEventKey.new()
+		fullscreen_key.keycode = KEY_F
+		fullscreen_key.ctrl_pressed = true
+		fullscreen_key.pressed = true
+		scene._input(fullscreen_key)
+		await process_frame
+		check((root.mode in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN]) != started_fullscreen, "Ctrl+F toggles fullscreen")
+		scene._input(fullscreen_key)
+		await process_frame
+		check(root.mode == mode_before_fullscreen, "Ctrl+F restores the previous window mode")
+		bar.get_node("View").get_popup().id_pressed.emit(6)
+		await process_frame
+		check((root.mode in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN]) != started_fullscreen, "View menu also toggles fullscreen")
+		scene._input(fullscreen_key)
+		await process_frame
+		check(root.mode == mode_before_fullscreen, "Fullscreen menu and shortcut share the same restore state")
 	check(bar.get_node("Help").get_popup().get_item_text(0).begins_with("About") and bar.get_node("File").get_popup().get_theme_font_size("font_size") >= 14, "Help/About exists and menus use readable text")
 	bar.get_node("Help").get_popup().id_pressed.emit(0)
 	check(scene.get_node("%About").visible and scene.get_node("%About").dialog_text.contains("Retro Texture Painter"), "About menu opens editable scene dialog")

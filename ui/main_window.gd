@@ -52,6 +52,7 @@ var _gesture_dragging := false
 var _replaying_gesture_click := false
 var _spray_preview_texture: ImageTexture
 var _spray_mirror_texture: ImageTexture
+var _mode_before_fullscreen := Window.MODE_WINDOWED
 var _stamp_source_texture: ImageTexture
 var _stamp_source_image: Image
 var _stamp_rotation_editing := false
@@ -1068,6 +1069,9 @@ func _action(action: String) -> void:
 	if action == "About":
 		%About.popup_centered()
 		return
+	if action == "ToggleFullscreen":
+		_toggle_fullscreen()
+		return
 	if jobs.busy() or painter.active:
 		_status("Wait for the current operation to finish.")
 		return
@@ -1666,9 +1670,21 @@ func _notification(what: int) -> void:
 		_action("Quit")
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.ctrl_pressed and not event.shift_pressed and not event.alt_pressed and not event.meta_pressed and event.keycode == KEY_F:
+		_toggle_fullscreen()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB and not get_viewport().gui_get_focus_owner() is LineEdit:
 		model_view.toggle_wires()
 		get_viewport().set_input_as_handled()
+
+func _toggle_fullscreen() -> void:
+	var window := get_window()
+	if window.mode in [Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN]:
+		window.mode = _mode_before_fullscreen
+	else:
+		_mode_before_fullscreen = window.mode
+		window.mode = Window.MODE_FULLSCREEN
 
 func _restore_layout() -> void:
 	if not settings_enabled: return
