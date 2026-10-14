@@ -539,7 +539,16 @@ func run() -> void:
 	scene.model_view._input_display(rotate_motion)
 	rotate_press.pressed = false
 	scene.model_view._input(rotate_press)
-	check(scene.document.stamp_rotation == 100.0 and scene.model_view.yaw == yaw_before_stamp_drag and not scene.model_view._orbit,"Right drag rotates the stamp while keeping the camera still")
+	check(scene.document.stamp_rotation == 90.0 and scene.model_view.yaw != yaw_before_stamp_drag and not scene.model_view._orbit,"Plain right drag orbits the camera without rotating the stamp")
+	var yaw_after_orbit: float = scene.model_view.yaw
+	rotate_press.pressed = true
+	rotate_press.alt_pressed = true
+	scene.model_view._input_display(rotate_press)
+	rotate_motion.alt_pressed = true
+	scene.model_view._input_display(rotate_motion)
+	rotate_press.pressed = false
+	scene.model_view._input(rotate_press)
+	check(scene.document.stamp_rotation == 100.0 and scene.model_view.yaw == yaw_after_orbit and not scene.model_view._orbit,"Alt+right drag rotates the stamp while keeping the camera still")
 	scene._action("Undo")
 	check(scene.document.stamp_rotation == 90.0 and rotation_field.value == 90.0,"Undo restores stamp angle and inspector control")
 	# The Effects button bakes a concave corner into a regular editable Albedo layer.

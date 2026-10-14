@@ -95,7 +95,7 @@ minimum = -180.0
 maximum = 180.0
 value = 0.0
 suffix = "°"
-tooltip_text = "Rotate the stamp; right-drag over the model to change this angle"
+tooltip_text = "Rotate the stamp; Alt+right-drag over the model to change this angle"
 [node name="SelectedLabel" type="Label" parent="."]
 layout_mode = 2
 text = "STAMP RESULT"

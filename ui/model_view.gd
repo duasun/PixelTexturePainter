@@ -107,7 +107,7 @@ func _process(delta: float) -> void:
 
 func set_stamp_rotation_mode(enabled: bool) -> void:
 	stamp_rotation_mode = enabled
-	$Navigation.text = "RMB drag rotates stamp · Shift+RMB orbit · MMB pan · wheel zoom" if enabled else "RMB orbit + WASD move · Q/E down/up · Shift faster · MMB pan · wheel zoom"
+	$Navigation.text = "Alt+RMB rotate stamp · RMB orbit + WASD · Q/E down/up · MMB pan · wheel zoom" if enabled else "RMB orbit + WASD move · Q/E down/up · Shift faster · MMB pan · wheel zoom"
 
 func set_background_color(value: Color) -> void:
 	var opaque := Color(value.r, value.g, value.b)
@@ -232,7 +232,7 @@ func _input_display(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if not _stamp_rotating: hovered.emit(_hit(event.position))
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			if event.pressed and stamp_rotation_mode and not event.shift_pressed:
+			if event.pressed and stamp_rotation_mode and event.alt_pressed and not event.shift_pressed:
 				_stamp_rotating = true
 				_stamp_anchor_hit = _hit(event.position)
 				hovered.emit(_stamp_anchor_hit)

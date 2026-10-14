@@ -335,7 +335,7 @@ func _select_tool(tool: String) -> void:
 		"smudge": "Smudge: drag existing paint · Opacity sets strength · up to 64 px · reads current map",
 		"blur": "Blur: smooth local texels · Opacity sets strength · up to 64 px · reads current map",
 		"spray": "Preview shows the next burst · Opacity caps the stroke · Flow sets buildup · Alt+click picks a color",
-		"stencil": "Stamp: load and crop an image, then hover to preview. Right-drag on the model rotates; Shift+right-drag orbits."}.get(tool, tool.capitalize() + " · draw in either view"))
+		"stencil": "Stamp: load and crop an image, then hover to preview. Alt+right-drag rotates; right-drag orbits the camera."}.get(tool, tool.capitalize() + " · draw in either view"))
 
 func _setting(key: String, value: Variant) -> void:
 	if key == "color": _cancel_geometry_preview()
