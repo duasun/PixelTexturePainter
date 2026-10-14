@@ -1,5 +1,7 @@
 class_name ModelView
 extends VBoxContainer
+const ZOOM_STEP := 0.95
+const MIN_DISTANCE_FACTOR := 0.0001
 signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
 signal hovered(hit: Dictionary)
@@ -109,10 +111,25 @@ func _update_camera() -> void:
 	camera.position = target + direction * distance
 	camera.look_at(target)
 	camera.size = distance * 0.8
-	camera.near = maxf(0.001, distance * 0.001)
-	camera.far = maxf(100.0, distance * 100.0)
+	var model_extent := geometry.bounds.size.length() if geometry != null else 1.0
+	var model_reach := target.distance_to(geometry.bounds.get_center()) + model_extent if geometry != null else model_extent
+	camera.near = maxf(0.000001, distance * 0.0005)
+	camera.far = maxf(1.0, distance + model_reach * 2.0)
 	if display.get_global_rect().has_point(get_global_mouse_position()):
 		hovered.emit(_hit(display.get_local_mouse_position()))
+
+func _zoom_at(point: Vector2, inward: bool) -> void:
+	var model_extent := geometry.bounds.size.length() if geometry != null else 1.0
+	var minimum := maxf(0.0001, model_extent * MIN_DISTANCE_FACTOR)
+	var next_distance := clampf(distance * (ZOOM_STEP if inward else 1.0 / ZOOM_STEP), minimum, 100000.0)
+	if next_distance == distance: return
+	var hit := _hit(point)
+	if hit.is_empty(): hit = _hit(display.size * 0.5)
+	if not hit.is_empty():
+		# Dolly towards the visible surface while keeping it under the cursor.
+		target = target.lerp(hit.position, 1.0 - next_distance / distance)
+	distance = next_distance
+	_update_camera()
 
 func set_cursor(hit: Dictionary, resolution: Vector2, diameter: int, rounded: bool, mirrored: bool) -> void:
 	display_material.set_shader_parameter("cursor_visible", not hit.is_empty() and geometry != null and geometry.has_uv)
@@ -160,11 +177,9 @@ func _input_display(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_MIDDLE:
 			_pan = event.pressed
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-			distance = maxf(0.01, distance * 0.9)
-			_update_camera()
+			_zoom_at(event.position, true)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-			distance = minf(100000.0, distance / 0.9)
-			_update_camera()
+			_zoom_at(event.position, false)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			_painting = event.pressed
 			if event.pressed:

@@ -27,6 +27,32 @@ func run() -> void:
 	root.size = Vector2i(1440,900)
 	scene.get_node("%Autosave").stop()
 	await ready_document(scene)
+	var model_view: ModelView = scene.model_view
+	var zoom_point: Vector2 = model_view.display.size * 0.5
+	var zoom_hit: Dictionary = model_view._hit(zoom_point)
+	check(not zoom_hit.is_empty(), "Camera zoom test starts on a visible model surface")
+	if not zoom_hit.is_empty():
+		var surface_point: Vector3 = zoom_hit.position
+		var original_camera: Vector3 = model_view.camera.position
+		var original_distance: float = model_view.distance
+		var original_near: float = model_view.camera.near
+		var original_screen: Vector2 = model_view.camera.unproject_position(surface_point)
+		var model_wheel := InputEventMouseButton.new()
+		model_wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		model_wheel.pressed = true
+		model_wheel.position = zoom_point
+		model_view._input_display(model_wheel)
+		check(is_equal_approx(model_view.distance, original_distance * ModelView.ZOOM_STEP) and model_view.camera.near < original_near, "Wheel zoom uses smaller steps and brings the near plane closer")
+		check(model_view.camera.unproject_position(surface_point).distance_to(original_screen) < 1.0, "Zoom keeps the surface under the cursor")
+		for i in 220: model_view._zoom_at(zoom_point, true)
+		var toward_surface: Vector3 = (surface_point - original_camera).normalized()
+		var remaining: float = (surface_point - model_view.camera.position).dot(toward_surface)
+		check(remaining > 0.0 and model_view.camera.near < remaining and model_view.distance < original_distance * 0.001, "Close zoom stops before crossing the surface and keeps it unclipped")
+		model_wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+		var closest_distance: float = model_view.distance
+		model_view._input_display(model_wheel)
+		check(model_view.distance > closest_distance, "Wheel down moves away from the surface")
+		model_view.frame_model()
 	var bar = scene.get_node("%MenuBar")
 	var undo_button: Button = scene.model_view.get_node("Header/Undo")
 	var redo_button: Button = scene.model_view.get_node("Header/Redo")
