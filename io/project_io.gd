@@ -276,7 +276,7 @@ static func export_obj(model: ModelGeometry, path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return {"error": "Cannot write model."}
-	file.store_line("# Retro Texture Painter — current UV layout")
+	file.store_line("# Pixel texture painter — current UV layout")
 	for p in model.positions:
 		file.store_line("v %.9f %.9f %.9f" % [p.x, p.y, p.z])
 	for uv in model.uvs:

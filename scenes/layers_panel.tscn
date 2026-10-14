@@ -1,65 +1,77 @@
 [gd_scene load_steps=3 format=3]
 [ext_resource type="Script" path="res://ui/layers_panel.gd" id="script"]
 [ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="num"]
-[node name="Layers" type="VBoxContainer"]
+[node name="Layers" type="VSplitContainer"]
 script = ExtResource("script")
+split_offset = -140
+theme_override_constants/autohide = 0
+theme_override_constants/separation = 10
+
+[node name="ListSection" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
 theme_override_constants/separation = 8
-[node name="Hint" type="Label" parent="."]
+[node name="Hint" type="Label" parent="ListSection"]
 layout_mode = 2
 text = "Layers blend within their map. Double-click to rename."
 autowrap_mode = 2
 theme_override_font_sizes/font_size = 11
-[node name="List" type="ScrollContainer" parent="."]
+[node name="List" type="ScrollContainer" parent="ListSection"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 120)
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
-[node name="Rows" type="VBoxContainer" parent="List"]
+[node name="Rows" type="VBoxContainer" parent="ListSection/List"]
 layout_mode = 2
 size_flags_horizontal = 3
-[node name="Actions" type="HBoxContainer" parent="."]
+[node name="Actions" type="HBoxContainer" parent="ListSection"]
 layout_mode = 2
-[node name="Add" type="Button" parent="Actions"]
+[node name="Add" type="Button" parent="ListSection/Actions"]
 layout_mode = 2
 text = "+"
 size_flags_horizontal = 3
-[node name="Duplicate" type="Button" parent="Actions"]
+[node name="Duplicate" type="Button" parent="ListSection/Actions"]
 layout_mode = 2
 text = "Copy"
 size_flags_horizontal = 3
-[node name="Delete" type="Button" parent="Actions"]
+[node name="Delete" type="Button" parent="ListSection/Actions"]
 layout_mode = 2
 text = "−"
 size_flags_horizontal = 3
-[node name="Up" type="Button" parent="Actions"]
+[node name="Up" type="Button" parent="ListSection/Actions"]
 layout_mode = 2
 text = "↑"
 size_flags_horizontal = 3
-[node name="Down" type="Button" parent="Actions"]
+[node name="Down" type="Button" parent="ListSection/Actions"]
 layout_mode = 2
 text = "↓"
 size_flags_horizontal = 3
-[node name="SepName" type="HSeparator" parent="."]
+[node name="Properties" type="VBoxContainer" parent="."]
 layout_mode = 2
-[node name="SectionName" type="Label" parent="."]
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="SepName" type="HSeparator" parent="Properties"]
+layout_mode = 2
+[node name="SectionName" type="Label" parent="Properties"]
 layout_mode = 2
 text = "LAYER PROPERTIES"
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
-[node name="Name" type="LineEdit" parent="."]
+[node name="Name" type="LineEdit" parent="Properties"]
 layout_mode = 2
 placeholder_text = "Layer name · Enter to apply"
-[node name="OpacityLabel" type="Label" parent="."]
+[node name="OpacityLabel" type="Label" parent="Properties"]
 layout_mode = 2
 text = "Layer opacity"
 
-[node name="Opacity" parent="." instance=ExtResource("num")]
+[node name="Opacity" parent="Properties" instance=ExtResource("num")]
 layout_mode = 2
 value = 100.0
 minimum = 0.0
 maximum = 100.0
 suffix = "%"
-[node name="Blend" type="OptionButton" parent="."]
+[node name="Blend" type="OptionButton" parent="Properties"]
 layout_mode = 2
 item_count = 3
 selected = 0
@@ -69,13 +81,13 @@ popup/item_1/text = "Multiply"
 popup/item_1/id = 1
 popup/item_2/text = "Add"
 popup/item_2/id = 2
-[node name="SepSelectionLabel" type="HSeparator" parent="."]
+[node name="SepSelectionLabel" type="HSeparator" parent="Properties"]
 layout_mode = 2
-[node name="SelectionLabel" type="Label" parent="."]
+[node name="SelectionLabel" type="Label" parent="Properties"]
 layout_mode = 2
 text = "Selection"
 
-[node name="SelectionMode" type="OptionButton" parent="."]
+[node name="SelectionMode" type="OptionButton" parent="Properties"]
 layout_mode = 2
 item_count = 4
 selected = 0
@@ -87,10 +99,10 @@ popup/item_2/text = "Object"
 popup/item_2/id = 2
 popup/item_3/text = "Material"
 popup/item_3/id = 3
-[node name="ClearSelection" type="Button" parent="."]
+[node name="ClearSelection" type="Button" parent="Properties"]
 layout_mode = 2
 text = "Clear selection   Esc"
-[node name="ClearMap" type="Button" parent="."]
+[node name="ClearMap" type="Button" parent="Properties"]
 layout_mode = 2
 text = "Reset current map"
 tooltip_text = "Erase all paint on the selected map; Undo restores it"

@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Retro Texture Painter"
+config/name="Pixel texture painter"
 run/main_scene="res://scenes/main_window.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/icon.svg"
@@ -21,8 +21,8 @@ gdscript/warnings/inference_on_variant=0
 
 [display]
 
-window/size/viewport_width=1440
-window/size/viewport_height=900
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 window/size/mode=3
 window/size/window_width_override=1440
 window/size/window_height_override=900

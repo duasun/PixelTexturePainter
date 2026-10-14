@@ -32,6 +32,12 @@ func run() -> void:
 	await ready_document(scene)
 	var header = scene.get_node("Margin/Layout/Header")
 	check(header.get_child_count() == 3 and scene.get_node_or_null("%Save") == null and scene.get_node_or_null("%Export") == null,"Top bar contains only menus, brand and project title")
+	var layer_split: VSplitContainer = scene.get_node("%Layers")
+	var layer_list: ScrollContainer = layer_split.get_node("ListSection/List")
+	var list_height := layer_list.size.y
+	layer_split.split_offset = -80
+	await process_frame
+	check(layer_list.size.y > list_height + 1.0,"Layer divider changes the list height")
 	for name in ["Undo","Redo","Frame","Wires","Ortho","Light"]:
 		var button: Button = scene.model_view.get_node("Header/"+name)
 		check(button.icon != null and button.text.is_empty() and not button.tooltip_text.is_empty(),"Model "+name+" is an icon with tooltip")
@@ -157,6 +163,7 @@ func run() -> void:
 	var stored := ConfigFile.new()
 	check(stored.load(config_path) == OK and stored.get_value("files","last_project","") == project_path and stored.get_value("spray","flow",0) == 7.5,"Config saves last project and spray settings")
 	check(stored.get_value("view","inspector_tab_name","") == "Stamp","Config saves inspector tab by name")
+	check(stored.get_value("panels","layers_offset",999) == -80,"Config saves layer list height")
 	root.remove_child(scene); scene.free()
 	var reopened = load("res://scenes/main_window.tscn").instantiate()
 	reopened.settings_path = config_path
@@ -177,6 +184,7 @@ func run() -> void:
 	check(reopened.model_view.get_node("Header/Wires").button_pressed and reopened.model_view.get_node("Header/Ortho").button_pressed and not reopened.get_node("%UVView").button_pressed,"View toggles restore")
 	check(reopened.model_view.background_color().is_equal_approx(chosen_background) and reopened.model_view.get_node("Display/BackgroundSwatch").color.is_equal_approx(chosen_background),"Model preview background color restores from config")
 	check(reopened.get_node("%MainDock").split_offset == -160 and reopened.get_node("%MainSplit").split_offset == -380,"Panel sizes restore")
+	check(reopened.get_node("%Layers").split_offset == -80,"Layer list height restores")
 	check(not reopened.get_node("%MenuBar/File").get_popup().is_item_disabled(2),"File menu offers last project")
 	reopened._action("ToggleRestoreLast")
 	reopened._save_preferences()

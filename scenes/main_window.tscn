@@ -61,7 +61,7 @@ layout_mode = 2
 unique_name_in_owner = true
 [node name="Brand" type="Label" parent="Margin/Layout/Header"]
 layout_mode = 2
-text = "RETRO / PAINTER"
+text = "Pixel texture painter"
 theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
 theme_override_font_sizes/font_size = 20
 [node name="Title" type="Label" parent="Margin/Layout/Header"]
@@ -219,13 +219,11 @@ theme_type_variation = &"WorkspacePane"
 layout_mode = 2
 custom_minimum_size = Vector2(296,0)
 unique_name_in_owner = true
-[node name="Layers" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
-layout_mode = 2
-horizontal_scroll_mode = 0
-[node name="Layers" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/Layers" instance=ExtResource("layers")]
-size_flags_horizontal = 3
+[node name="Layers" parent="Margin/Layout/MainSplit/InspectorDock/Inspector" instance=ExtResource("layers")]
 layout_mode = 2
 unique_name_in_owner = true
+size_flags_horizontal = 3
+size_flags_vertical = 3
 [node name="UV" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
 layout_mode = 2
 horizontal_scroll_mode = 0
@@ -248,10 +246,10 @@ theme_type_variation = &"WorkspacePane"
 layout_mode = 2
 unique_name_in_owner = true
 
-[node name="Pattern" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
+[node name="Texture" type="ScrollContainer" parent="Margin/Layout/MainSplit/InspectorDock/Inspector"]
 layout_mode = 2
 horizontal_scroll_mode = 0
-[node name="Pattern" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/Pattern" instance=ExtResource("pattern")]
+[node name="Pattern" parent="Margin/Layout/MainSplit/InspectorDock/Inspector/Texture" instance=ExtResource("pattern")]
 size_flags_horizontal = 3
 layout_mode = 2
 unique_name_in_owner = true
@@ -304,16 +302,16 @@ access = 2
 use_native_dialog = true
 [node name="Message" type="AcceptDialog" parent="."]
 unique_name_in_owner = true
-title = "Retro Texture Painter"
+title = "Pixel texture painter"
 size = Vector2i(520,160)
 dialog_autowrap = true
 [node name="About" type="AcceptDialog" parent="."]
 unique_name_in_owner = true
-title = "About Retro Texture Painter"
+title = "About Pixel texture painter"
 size = Vector2i(560,280)
 ok_button_text = "Close"
 dialog_autowrap = true
-dialog_text = "Retro Texture Painter\nA fast, focused painter for retro pixel-art 3D models.\n\nPaint on the model or UV texture, manage layers, and export your work.\n\nMore information and credits will be added here as the program grows."
+dialog_text = "Pixel texture painter\nA fast, focused painter for retro pixel-art 3D models.\n\nPaint on the model or UV texture, manage layers, and export your work.\n\nitch.io: https://nipeyo.itch.io/\nYouTube: https://www.youtube.com/@nipeyoentertainment5017"
 [node name="Discard" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title = "Unsaved changes"

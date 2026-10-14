@@ -112,6 +112,7 @@ func _ready() -> void:
 	%MapSelector.item_selected.connect(func(index: int): _select_channel(PaintChannels.IDS[index]))
 	%MainDock.drag_ended.connect(_save_layout)
 	%MainSplit.drag_ended.connect(_save_layout)
+	%Layers.drag_ended.connect(_save_layout)
 	%PreferencesSave.timeout.connect(_save_preferences)
 	jobs.completed.connect(_job_completed)
 	%FitUV.pressed.connect(uv_canvas.fit)
@@ -119,8 +120,8 @@ func _ready() -> void:
 	%WireUV.toggled.connect(func(on: bool): uv_canvas.show_uv = on; uv_canvas.queue_redraw(); _queue_preferences_save())
 	for button in ["Wires", "Ortho", "Light"]:
 		model_view.get_node("Header/"+button).toggled.connect(func(_on: bool): _queue_preferences_save())
-	%Layers.get_node("SelectionMode").item_selected.connect(func(i: int): selection_mode = i; _queue_preferences_save())
-	%Layers.get_node("ClearSelection").pressed.connect(_clear_selection)
+	%Layers.get_node("Properties/SelectionMode").item_selected.connect(func(i: int): selection_mode = i; _queue_preferences_save())
+	%Layers.get_node("Properties/ClearSelection").pressed.connect(_clear_selection)
 	%Effects.get_node("Edges").pressed.connect(_edges)
 	%Effects.get_node("AOGenerate").pressed.connect(_ambient_occlusion)
 	%Effects.get_node("NormalGenerate").pressed.connect(_generate_normal_map)
@@ -297,7 +298,7 @@ func _refresh_metadata() -> void:
 		return
 	var dirty := document.revision != document.saved_revision
 	%Title.text = "  %s%s   /   %d × %d" % [document.title, " *" if dirty else "", document.width, document.height]
-	get_window().title = "%s%s — Retro Texture Painter" % [document.title, " *" if dirty else ""]
+	get_window().title = "%s%s — Pixel texture painter" % [document.title, " *" if dirty else ""]
 	%Layers.refresh(document)
 	%MapSelector.select(PaintChannels.IDS.find(document.current_channel()))
 	%MapHint.text = "Editing " + PaintChannels.label(document.current_channel()) + (" · grayscale data" if PaintChannels.scalar(document.current_channel()) else " · RGB, OpenGL +Y" if document.current_channel() == "normal" else "")
@@ -324,12 +325,13 @@ func _select_tool(tool: String) -> void:
 	%SprayOptions.visible = tool == "spray"
 	if tool == "select": model_view.get_node("Header/Wires").button_pressed = true
 	if tool == "stencil": _show_inspector_tab("Stamp")
+	if tool == "texture": _show_inspector_tab("Texture")
 	_refresh_cursor()
 	_queue_preferences_save()
 	_status({"gradient": "Gradient: click and drag the direction. Length stays exactly %d px. UV seams use unfolded surface distance." % gradient_length,
 		"select": "Click a surface. Shift adds; Ctrl subtracts. Ctrl+. grows; Ctrl+, shrinks. Esc clears.",
 		"fill": "Fill selected faces, or the connected color region under the cursor.",
-		"texture": "Select faces, load a texture in Pattern, then click to fill. Set its rotation before filling.",
+		"texture": "Select faces, load a texture in the Texture tab, then click to fill. Set its rotation before filling.",
 		"clone": "Ctrl+click sets the source on the active layer. Paint to copy it; the source stays frozen during the stroke.",
 		"smudge": "Smudge: drag existing paint · Opacity sets strength · up to 64 px · reads current map",
 		"blur": "Blur: smooth local texels · Opacity sets strength · up to 64 px · reads current map",
@@ -1157,7 +1159,7 @@ func _file_dialog(action: String) -> void:
 	var dialog: FileDialog = %FileDialog
 	dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE if action in ["save", "export", "export_model", "export_maps"] else FileDialog.FILE_MODE_OPEN_FILE
 	match action:
-		"save", "open": dialog.filters = PackedStringArray(["*.rtpaint ; Retro Painter project"])
+		"save", "open": dialog.filters = PackedStringArray(["*.rtpaint ; Pixel texture painter project"])
 		"import": dialog.filters = PackedStringArray(["*.glb, *.gltf, *.obj ; 3D models"])
 		"stencil", "pattern": dialog.filters = PackedStringArray(["*.png, *.jpg, *.webp ; Texture image"])
 		"palette": dialog.filters = PackedStringArray(["*.png, *.hex, *.gpl, *.pal, *.txt, *.ase, *.json, *.csv ; Color palettes"])
@@ -1209,7 +1211,7 @@ func _file_selected(path: String) -> void:
 					history.push(document, {"kind": "property", "target": document, "property": "pattern_image", "before": document.pattern_image, "after": image})
 					document.pattern_image = image
 				else: _apply_pattern(document.selected_layer().pattern_faces)
-				_show_inspector_tab("Pattern")
+				_show_inspector_tab("Texture")
 				%ToolBar.select("texture")
 
 func _texture_fill(faces: PackedInt32Array) -> void:
@@ -1410,7 +1412,7 @@ func _job_completed(kind: String, value: Variant) -> void:
 				document.active_layer = previous+1
 				history.push(document,{"kind":"layers","label":"Create pattern fill layer","before":before,"after":document.layers.duplicate(),"active_before":previous,"active_after":document.active_layer})
 				tiles.mark(document.all_keys(),false)
-				_status("Editable pattern layer created · change its transform in Pattern")
+				_status("Editable pattern layer created · change its transform in Texture")
 			_sync_pattern_inspector()
 			_refresh_metadata()
 		"selection":
@@ -1661,6 +1663,7 @@ func _restore_layout() -> void:
 	_restoring_preferences = true
 	%MainDock.split_offset = clampi(int(_preferences.get_setting("panels","palette_offset",-170)),-8192,-90)
 	%MainSplit.split_offset = clampi(int(_preferences.get_setting("panels","inspector_offset",-320)),-8192,-300)
+	%Layers.split_offset = clampi(int(_preferences.get_setting("panels","layers_offset",-140)),-8192,8192)
 	_restoring_preferences = false
 
 func _save_layout() -> void:
@@ -1688,7 +1691,7 @@ func _restore_preferences() -> void:
 	var saved_background: Variant = _preferences.get_setting("view","model_background",Color(0.15,0.15,0.15))
 	if saved_background is Color: model_view.set_background_color(saved_background)
 	selection_mode = clampi(int(_preferences.get_setting("view","selection_mode",0)),0,3)
-	%Layers.get_node("SelectionMode").select(selection_mode)
+	%Layers.get_node("Properties/SelectionMode").select(selection_mode)
 	%ToolOptions.get_node("Size").set_value(float(_preferences.get_setting("brush","size",4)),false)
 	painter.brush_size = int(%ToolOptions.get_node("Size").value)
 	%ToolOptions.get_node("Opacity").set_value(float(_preferences.get_setting("brush","opacity",100)),false)
@@ -1776,6 +1779,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("view","stamp_preview",_saved_stamp_view)
 	_preferences.set_setting("panels","palette_offset",%MainDock.split_offset)
 	_preferences.set_setting("panels","inspector_offset",%MainSplit.split_offset)
+	_preferences.set_setting("panels","layers_offset",%Layers.split_offset)
 	_preferences.set_setting("brush","tool",painter.tool)
 	_preferences.set_setting("brush","size",painter.brush_size)
 	_preferences.set_setting("brush","opacity",%ToolOptions.get_node("Opacity").value)

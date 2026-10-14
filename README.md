@@ -1,4 +1,4 @@
-# Retro Texture Painter
+# Pixel texture painter
 
 Samostalni alat za bojenje low-poly modela. Projekat koristi Godot 4.7, GDScript i Compatibility renderer. Razvijen i testiran postojećim Godotom sa ovog računara; ne zahteva dodatne biblioteke ili GDExtension.
 
@@ -6,7 +6,7 @@ Samostalni alat za bojenje low-poly modela. Projekat koristi Godot 4.7, GDScript
 
 - Dvoklik na **Pokreni Painter.cmd**. Ako postoji izvezeni program u `build`, pokreće njega; u suprotnom koristi postojeći Godot.
 - Za uređivanje: otvori **project.godot** u Godotu, zatim F6 za pojedinačnu scenu ili F5 za program.
-- Izvoz u `build/RetroTexturePainter.exe` je za Windows ARM64, za ovaj Snapdragon računar. Za x64 računar promeni arhitekturu export preseta i izvezi odgovarajući build.
+- Izvoz u `build/PixelTexturePainter.exe` je za Windows ARM64, za ovaj Snapdragon računar. Za x64 računar promeni arhitekturu export preseta i izvezi odgovarajući build.
 
 UI je u `.tscn` scenama. Font je instalirana **Verdana**, preko SystemFont resursa. Font nije kopiran iz Windowsa u projekat.
 
@@ -18,7 +18,7 @@ UI je u `.tscn` scenama. Font je instalirana **Verdana**, preko SystemFont resur
 4. **B / Brush** crta direktno na modelu ili UV teksturi. Na modelu potez ostaje unutar pogođenog UV ostrva i ručnog izbora. U 2D možeš crtati i u praznim delovima atlasa.
 5. **File → Save / Save as** čuva `.rtpaint` projekat. **Export current map PNG** izvozi izabranu mapu, a **Export all maps PNG** sve napravljene mape. **Export model** nudi **GLB**, **glTF** i OBJ; po uspešnom izvozu otvara odredišni folder u Windows Exploreru. GLB čuva geometriju, trenutni UV, Albedo sa efektima i podržane materijalne mape u jednom fajlu. Uz glTF sačuvaj i prateće `.bin`/slikovne fajlove koje izvoz napravi. Materijal koristi nearest filtriranje; projekat samo sa Albedom izvozi se kao unshaded, a sa dodatnim podržanim mapama kao PBR materijal. OBJ čuva geometriju i UV; teksture za njega izvezi posebno.
 
-**UV view** uz izbor mape dole desno u prozoru modela, ili **View → Show / hide UV panel**, skriva i vraća ceo UV panel. UV podaci ostaju u projektu. **Compact** na bočnom toolbaru slaže ikonice u **dve kolone**; naziv i prečica alata vide se u tooltipu. Ponovni klik vraća tekst. Model, UV, paleta i inspektor imaju odvojene sive panele. Inspektor zauzima celu desnu visinu radnog prostora, a paleta je ispod prikaza levo. Visina palete i širina inspektora menjaju se povlačenjem njihovih razdelnika i pamte se između pokretanja. Promena alata, sadržaja i taba ne menja njihovu veličinu.
+**UV view** uz izbor mape dole desno u prozoru modela, ili **View → Show / hide UV panel**, skriva i vraća ceo UV panel. UV podaci ostaju u projektu. **Compact** na bočnom toolbaru slaže ikonice u **dve kolone**; naziv i prečica alata vide se u tooltipu. Ponovni klik vraća tekst. Model, UV, paleta i inspektor imaju odvojene sive panele. Inspektor zauzima celu desnu visinu radnog prostora, a paleta je ispod prikaza levo. Visina palete i širina inspektora menjaju se povlačenjem njihovih razdelnika i pamte se između pokretanja. U Layers tabu razdelnik između liste i svojstava menja visinu liste slojeva i pamti se između pokretanja. Promena alata, sadržaja i taba ne menja njihovu veličinu.
 
 **Tab**, **Wires** iznad modela ili **View → Toggle model wireframe** uključuje/isključuje ivice modela. Select automatski uključuje wireframe i svetloplavom bojom pokazuje površinu pod kursorom; žuta označava već izabrane površine. **Light** uključuje osvetljeni materijalni pregled koji kombinuje Albedo, Roughness, Metallic, Normal, AO i Emission. Pregled se osvežava u pozadini posle poteza i za 4K koristi najviše 1024 px po mapi; izvoz i sačuvane mape ostaju u punoj rezoluciji. Ovi markeri i pregled ne ulaze u izvoz.
 
@@ -145,7 +145,7 @@ Ova verzija radi jedan UV atlas sa sedam opcionih mapa i do 32 sloja ukupno. UDI
 Sa postojećim Godot console izvršnim fajlom:
 
 ```powershell
-$engine = 'C:\Users\Dboja\Downloads\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.exe'
+$engine = 'D:\Godot\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.exe'
 & $engine --headless --editor --path . --import --quit
 & $engine --headless --path . --script res://tests/run_core.gd
 & $engine --headless --path . --script res://tests/run_ui.gd
@@ -156,7 +156,7 @@ $engine = 'C:\Users\Dboja\Downloads\Godot_v4.7-stable_win64.exe\Godot_v4.7-stabl
 & $engine --path . --script res://tests/render_smoke.gd
 & $engine --path . --script res://tests/render_features.gd
 & $engine --path . --script res://tests/render_workflow.gd
-& $engine --headless --path . --export-release 'Windows ARM64' build/RetroTexturePainter.exe
+& $engine --headless --path . --export-release 'Windows ARM64' build/PixelTexturePainter.exe
 ```
 
 Arhitektura, plan i izvori: [docs/architecture.md](docs/architecture.md).

@@ -35,7 +35,7 @@ theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
 [node name="AngleLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Pattern direction"
+text = "Texture direction"
 [node name="Angle" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 0.0
@@ -47,7 +47,7 @@ layout_mode = 2
 text = "Rotate 90°"
 [node name="ScaleLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Pattern scale · 100% = original pixels"
+text = "Texture scale · 100% = original pixels"
 [node name="Scale" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 100.0
@@ -56,7 +56,7 @@ maximum = 1600.0
 suffix = "%"
 [node name="OffsetLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Pattern offset"
+text = "Texture offset"
 [node name="OffsetX" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 0.0

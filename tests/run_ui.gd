@@ -30,7 +30,10 @@ func run() -> void:
 	var inspector: TabContainer = scene.get_node("%Inspector")
 	var tab_names: Array[String] = []
 	for index in inspector.get_tab_count(): tab_names.append(str(inspector.get_child(index).name))
-	check(tab_names == ["Layers","UV","Stamp","Pattern","Effects"], "Inspector tabs follow the requested order")
+	check(tab_names == ["Layers","UV","Stamp","Texture","Effects"], "Inspector tabs follow the requested order")
+	scene.get_node("%ToolBar").select("texture")
+	check(inspector.current_tab == 3 and inspector.get_tab_title(3) == "Texture", "Texture tool opens the Texture inspector tab")
+	scene.get_node("%ToolBar").select("brush")
 	var model_view: ModelView = scene.model_view
 	var zoom_point: Vector2 = model_view.display.size * 0.5
 	var zoom_hit: Dictionary = model_view._hit(zoom_point)
@@ -177,7 +180,7 @@ func run() -> void:
 		check(root.mode == mode_before_fullscreen, "Fullscreen menu and shortcut share the same restore state")
 	check(bar.get_node("Help").get_popup().get_item_text(0).begins_with("About") and bar.get_node("File").get_popup().get_theme_font_size("font_size") >= 14, "Help/About exists and menus use readable text")
 	bar.get_node("Help").get_popup().id_pressed.emit(0)
-	check(scene.get_node("%About").visible and scene.get_node("%About").dialog_text.contains("Retro Texture Painter"), "About menu opens editable scene dialog")
+	check(scene.get_node("%About").visible and scene.get_node("%About").dialog_text.contains("Pixel texture painter"), "About menu opens editable scene dialog")
 	scene.get_node("%About").hide()
 	check(scene.get_node("%Inspector").global_position.y < scene.model_view.global_position.y and scene.get_node("%Inspector").get_global_rect().end.y > scene.get_node("%PalettePanel").global_position.y, "Inspector spans the height beside the paint workspace")
 	check(scene.get_node("%MapSelector").global_position.y > scene.model_view.display.global_position.y and scene.get_node("%MapSelector").get_global_rect().end.x <= scene.model_view.get_global_rect().end.x, "Map selector sits in the model view's lower right corner")

@@ -1,4 +1,4 @@
-extends VBoxContainer
+extends VSplitContainer
 signal action_requested(action: String, value: Variant)
 var refreshing := false
 const ROW = preload("res://scenes/layer_row.tscn")
@@ -7,14 +7,14 @@ var _active_id := ""
 
 func _ready() -> void:
 	for action_name in ["Add", "Duplicate", "Delete", "Up", "Down"]:
-		get_node("Actions/" + action_name).pressed.connect(func(): action_requested.emit(action_name.to_lower(), null))
-	$ClearMap.pressed.connect(func(): action_requested.emit("clear_map",null))
-	$Opacity.value_changed.connect(func(v: float):
+		get_node("ListSection/Actions/" + action_name).pressed.connect(func(): action_requested.emit(action_name.to_lower(), null))
+	$Properties/ClearMap.pressed.connect(func(): action_requested.emit("clear_map",null))
+	$Properties/Opacity.value_changed.connect(func(v: float):
 		if not refreshing: action_requested.emit("opacity", v / 100.0))
-	$Blend.item_selected.connect(func(v: int):
+	$Properties/Blend.item_selected.connect(func(v: int):
 		if not refreshing: action_requested.emit("blend_mode", v))
-	$Name.text_submitted.connect(_rename_name)
-	$Name.focus_exited.connect(func(): _rename_name($Name.text))
+	$Properties/Name.text_submitted.connect(_rename_name)
+	$Properties/Name.focus_exited.connect(func(): _rename_name($Properties/Name.text))
 
 func refresh(doc: PaintDocument) -> void:
 	refreshing = true
@@ -24,22 +24,22 @@ func refresh(doc: PaintDocument) -> void:
 		ids.append(layer.id)
 		if not rows.has(layer.id):
 			var row = ROW.instantiate()
-			$List/Rows.add_child(row)
+			$ListSection/List/Rows.add_child(row)
 			rows[layer.id] = row
 			row.selected.connect(func(id: String): action_requested.emit("select_id",id))
 			row.visibility_requested.connect(func(id: String,on: bool): action_requested.emit("visibility_at",{"id":id,"visible":on}))
 			row.lock_requested.connect(func(id: String,on: bool): action_requested.emit("lock_at",{"id":id,"locked":on}))
 			row.rename_requested.connect(func(id: String,title: String): action_requested.emit("rename_at",{"id":id,"title":title}))
 		rows[layer.id].configure(layer,i == doc.active_layer)
-		$List/Rows.move_child(rows[layer.id],ids.size()-1)
+		$ListSection/List/Rows.move_child(rows[layer.id],ids.size()-1)
 	for id in rows.keys():
 		if not id in ids:
 			rows[id].queue_free()
 			rows.erase(id)
 	var active := doc.selected_layer()
-	$Opacity.set_value(active.opacity * 100, false)
-	$Blend.selected = active.blend_mode
-	if not $Name.has_focus() or _active_id != active.id: $Name.text = active.title
+	$Properties/Opacity.set_value(active.opacity * 100, false)
+	$Properties/Blend.selected = active.blend_mode
+	if not $Properties/Name.has_focus() or _active_id != active.id: $Properties/Name.text = active.title
 	_active_id = active.id
 	refreshing = false
 
