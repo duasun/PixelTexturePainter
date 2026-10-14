@@ -1,0 +1,126 @@
+[gd_scene load_steps=7 format=3]
+[ext_resource type="Script" path="res://ui/tool_options.gd" id="script"]
+[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="num"]
+[ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="small_theme"]
+[ext_resource type="Texture2D" path="res://assets/tools/round.svg" id="round_icon"]
+[ext_resource type="Texture2D" path="res://assets/tools/dither.svg" id="dither_icon"]
+[ext_resource type="Texture2D" path="res://assets/tools/mirror.svg" id="mirror_icon"]
+[node name="ToolOptions" type="HBoxContainer"]
+script = ExtResource("script")
+theme = ExtResource("small_theme")
+theme_override_constants/separation = 10
+[node name="Active" type="Label" parent="."]
+layout_mode = 2
+text = "BRUSH"
+custom_minimum_size = Vector2(80, 0)
+theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+[node name="SizeLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Size"
+
+[node name="Size" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 4.0
+minimum = 1.0
+maximum = 256.0
+suffix = " px"
+[node name="OpacityLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Opacity"
+
+[node name="Opacity" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="FalloffLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Soft edge"
+[node name="Falloff" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="Shape" type="Button" parent="."]
+layout_mode = 2
+icon = ExtResource("round_icon")
+toggle_mode = true
+custom_minimum_size = Vector2(34, 30)
+theme_override_constants/icon_max_width = 20
+tooltip_text = "Round brush · off: square brush"
+focus_mode = 0
+[node name="Dither" type="Button" parent="."]
+layout_mode = 2
+icon = ExtResource("dither_icon")
+toggle_mode = true
+custom_minimum_size = Vector2(34, 30)
+theme_override_constants/icon_max_width = 20
+tooltip_text = "Dither paint with a pixel pattern"
+focus_mode = 0
+[node name="Mirror" type="Button" parent="."]
+layout_mode = 2
+icon = ExtResource("mirror_icon")
+toggle_mode = true
+custom_minimum_size = Vector2(34, 30)
+theme_override_constants/icon_max_width = 20
+tooltip_text = "Mirror strokes across the center of the UV texture"
+focus_mode = 0
+[node name="SymmetryLabel" type="Label" parent="."]
+layout_mode = 2
+text = "3D Sym"
+tooltip_text = "Mirror 3D brush strokes across the model center"
+[node name="SymX" type="Button" parent="."]
+layout_mode = 2
+text = "X"
+toggle_mode = true
+focus_mode = 0
+custom_minimum_size = Vector2(28,30)
+tooltip_text = "Mirror 3D strokes across model X axis"
+[node name="SymY" type="Button" parent="."]
+layout_mode = 2
+text = "Y"
+toggle_mode = true
+focus_mode = 0
+custom_minimum_size = Vector2(28,30)
+tooltip_text = "Mirror 3D strokes across model Y axis"
+[node name="SymZ" type="Button" parent="."]
+layout_mode = 2
+text = "Z"
+toggle_mode = true
+focus_mode = 0
+custom_minimum_size = Vector2(28,30)
+tooltip_text = "Mirror 3D strokes across model Z axis"
+[node name="ToleranceLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Tolerance"
+visible = false
+[node name="Tolerance" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+visible = false
+[node name="Contiguous" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Contiguous"
+button_pressed = true
+visible = false
+tooltip_text = "Fill only neighboring matching pixels; turn off to replace all matching pixels in the target area"
+[node name="Spacer" type="Control" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+[node name="LengthLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Length"
+
+[node name="Length" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 7.0
+minimum = 1.0
+maximum = 4096.0
+suffix = " px"
+
+\n

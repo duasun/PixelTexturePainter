@@ -1,0 +1,10 @@
+.godot/
+.rpojects/
+.pallette/
+.tools/
+test_output/
+*.tmp
+*.bak
+*.rtpaint
+*.import
+build/

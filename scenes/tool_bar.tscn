@@ -1,0 +1,203 @@
+[gd_scene load_steps=18 format=3]
+[ext_resource type="Texture2D" path="res://assets/tools/smudge.svg" id="smudge"]
+[ext_resource type="Texture2D" path="res://assets/tools/blur.svg" id="blur"]
+[ext_resource type="Texture2D" path="res://assets/tools/compact.svg" id="compact"]
+[ext_resource type="Script" path="res://ui/tool_bar.gd" id="script"]
+[ext_resource type="Texture2D" path="res://assets/tools/brush.svg" id="brush"]
+[ext_resource type="Texture2D" path="res://assets/tools/eraser.svg" id="eraser"]
+[ext_resource type="Texture2D" path="res://assets/tools/picker.svg" id="picker"]
+[ext_resource type="Texture2D" path="res://assets/tools/fill.svg" id="fill"]
+[ext_resource type="Texture2D" path="res://assets/tools/select.svg" id="select"]
+[ext_resource type="Texture2D" path="res://assets/tools/line.svg" id="line"]
+[ext_resource type="Texture2D" path="res://assets/tools/rect.svg" id="rect"]
+[ext_resource type="Texture2D" path="res://assets/tools/ellipse.svg" id="ellipse"]
+[ext_resource type="Texture2D" path="res://assets/tools/gradient.svg" id="gradient"]
+[ext_resource type="Texture2D" path="res://assets/tools/stencil.svg" id="stencil"]
+[ext_resource type="Texture2D" path="res://assets/tools/texture.svg" id="texture"]
+[ext_resource type="Texture2D" path="res://assets/tools/clone.svg" id="clone"]
+[ext_resource type="Texture2D" path="res://assets/tools/spray.svg" id="spray"]
+[node name="ToolBar" type="VBoxContainer"]
+custom_minimum_size = Vector2(82, 0)
+script = ExtResource("script")
+theme_override_constants/separation = 5
+[node name="Heading" type="Label" parent="."]
+layout_mode = 2
+text = "TOOLS"
+theme_override_colors/font_color = Color(0.80,0.80,0.80,1)
+theme_override_font_sizes/font_size = 11
+[node name="Compact" type="Button" parent="."]
+layout_mode = 2
+icon = ExtResource("compact")
+tooltip_text = "Compact toolbar: icons only"
+toggle_mode = true
+button_pressed = true
+focus_mode = 0
+custom_minimum_size = Vector2(0, 30)
+theme_override_constants/icon_max_width = 20
+[node name="Tools" type="GridContainer" parent="."]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 5
+[node name="Brush" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Brush"
+icon = ExtResource("brush")
+tooltip_text = "Brush  [B]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = true
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Spray" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Spray"
+icon = ExtResource("spray")
+tooltip_text = "Spray  [A]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Smudge" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Smudge"
+icon = ExtResource("smudge")
+tooltip_text = "Smudge [U] · drag existing paint · opacity controls strength"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+alignment = 0
+custom_minimum_size = Vector2(0,34)
+focus_mode = 0
+[node name="Blur" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Blur"
+icon = ExtResource("blur")
+tooltip_text = "Blur [V] · smooth local texels · opacity controls strength"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+alignment = 0
+custom_minimum_size = Vector2(0,34)
+focus_mode = 0
+[node name="Eraser" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Eraser"
+icon = ExtResource("eraser")
+tooltip_text = "Eraser  [E]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Picker" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Pick"
+icon = ExtResource("picker")
+tooltip_text = "Pick  [I]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Fill" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Fill"
+icon = ExtResource("fill")
+tooltip_text = "Fill  [F]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Select" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Select"
+icon = ExtResource("select")
+tooltip_text = "Select  [S]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Line" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Line"
+icon = ExtResource("line")
+tooltip_text = "Line  [L]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Rect" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Rect"
+icon = ExtResource("rect")
+tooltip_text = "Rect  [R]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Ellipse" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Ellipse"
+icon = ExtResource("ellipse")
+tooltip_text = "Ellipse  [O]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Gradient" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Gradient"
+icon = ExtResource("gradient")
+tooltip_text = "Gradient  [G]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Stencil" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Stamp"
+icon = ExtResource("stencil")
+tooltip_text = "Stamp  [T]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+
+[node name="Texture" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Texture"
+icon = ExtResource("texture")
+tooltip_text = "Texture  [P]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+
+[node name="Clone" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Clone"
+icon = ExtResource("clone")
+tooltip_text = "Clone  [C]"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0

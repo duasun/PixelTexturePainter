@@ -1,0 +1,132 @@
+[gd_scene load_steps=15 format=3]
+[ext_resource type="Script" path="res://ui/model_view.gd" id="script"]
+[ext_resource type="Script" path="res://ui/cursor_marker.gd" id="cursor"]
+[ext_resource type="Script" path="res://ui/symmetry_preview.gd" id="symmetry_preview"]
+[ext_resource type="Shader" path="res://shaders/selection.gdshader" id="selection_shader"]
+[ext_resource type="Texture2D" path="res://assets/tools/frame.svg" id="frame_icon"]
+[ext_resource type="Texture2D" path="res://assets/tools/wires.svg" id="wires_icon"]
+[ext_resource type="Texture2D" path="res://assets/tools/ortho.svg" id="ortho_icon"]
+[ext_resource type="Texture2D" path="res://assets/tools/light.svg" id="light_icon"]
+[ext_resource type="Texture2D" path="res://assets/tools/undo.svg" id="undo_icon"]
+[ext_resource type="Texture2D" path="res://assets/tools/redo.svg" id="redo_icon"]
+[sub_resource type="Environment" id="env"]
+background_mode = 1
+background_color = Color(0.15,0.15,0.15,1)
+ambient_light_source = 3
+ambient_light_color = Color(1,1,1,1)
+[sub_resource type="ShaderMaterial" id="selection"]
+render_priority = 2
+shader = ExtResource("selection_shader")
+[sub_resource type="ShaderMaterial" id="wire"]
+shader = ExtResource("selection_shader")
+shader_parameter/overlay_mode = 1
+[sub_resource type="ShaderMaterial" id="hover"]
+render_priority = 1
+shader = ExtResource("selection_shader")
+shader_parameter/overlay_mode = 2
+[node name="ModelView" type="VBoxContainer"]
+custom_minimum_size = Vector2(360, 360)
+script = ExtResource("script")
+[node name="Header" type="HBoxContainer" parent="."]
+layout_mode = 2
+[node name="Title" type="Label" parent="Header"]
+layout_mode = 2
+text = "MODEL"
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+[node name="Undo" type="Button" parent="Header"]
+layout_mode = 2
+icon = ExtResource("undo_icon")
+tooltip_text = "Undo · Ctrl+Z"
+custom_minimum_size = Vector2(32, 32)
+theme_override_constants/icon_max_width = 20
+theme_override_colors/icon_disabled_color = Color(0.48, 0.59, 0.56, 1)
+focus_mode = 0
+disabled = true
+[node name="Redo" type="Button" parent="Header"]
+layout_mode = 2
+icon = ExtResource("redo_icon")
+tooltip_text = "Redo · Ctrl+Shift+Z / Ctrl+Y"
+custom_minimum_size = Vector2(32, 32)
+theme_override_constants/icon_max_width = 20
+theme_override_colors/icon_disabled_color = Color(0.48, 0.59, 0.56, 1)
+focus_mode = 0
+disabled = true
+[node name="Frame" type="Button" parent="Header"]
+layout_mode = 2
+icon = ExtResource("frame_icon")
+tooltip_text = "Frame the whole model"
+custom_minimum_size = Vector2(32, 32)
+theme_override_constants/icon_max_width = 20
+focus_mode = 0
+[node name="Wires" type="Button" parent="Header"]
+layout_mode = 2
+icon = ExtResource("wires_icon")
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "Show model triangle edges · Tab"
+custom_minimum_size = Vector2(32, 32)
+theme_override_constants/icon_max_width = 20
+
+[node name="Ortho" type="Button" parent="Header"]
+layout_mode = 2
+icon = ExtResource("ortho_icon")
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "Orthographic camera · parallel projection"
+custom_minimum_size = Vector2(32, 32)
+theme_override_constants/icon_max_width = 20
+[node name="Light" type="Button" parent="Header"]
+layout_mode = 2
+icon = ExtResource("light_icon")
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "Lit PBR material preview using Albedo, Roughness, Metallic, Normal, AO and Emission maps"
+custom_minimum_size = Vector2(32, 32)
+theme_override_constants/icon_max_width = 20
+[node name="Display" type="SubViewportContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+mouse_default_cursor_shape = 3
+[node name="Viewport" type="SubViewport" parent="Display"]
+handle_input_locally = false
+size = Vector2i(500,600)
+render_target_update_mode = 4
+own_world_3d = true
+[node name="World" type="Node3D" parent="Display/Viewport"]
+
+[node name="Environment" type="WorldEnvironment" parent="Display/Viewport/World"]
+environment = SubResource("env")
+[node name="Model" type="MeshInstance3D" parent="Display/Viewport/World"]
+
+[node name="Selection" type="MeshInstance3D" parent="Display/Viewport/World"]
+material_override = SubResource("selection")
+[node name="Wires" type="MeshInstance3D" parent="Display/Viewport/World"]
+visible = false
+material_override = SubResource("wire")
+[node name="Hover" type="MeshInstance3D" parent="Display/Viewport/World"]
+material_override = SubResource("hover")
+[node name="Camera" type="Camera3D" parent="Display/Viewport/World"]
+position = Vector3(3,2,4)
+current = true
+[node name="CursorMarker" type="Control" parent="Display"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+clip_contents = true
+script = ExtResource("cursor")
+[node name="SymmetryPreview" type="Control" parent="Display"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+clip_contents = true
+script = ExtResource("symmetry_preview")
+[node name="Navigation" type="Label" parent="."]
+layout_mode = 2
+text = "RMB orbit · MMB pan · wheel zoom"
+theme_override_font_sizes/font_size = 11

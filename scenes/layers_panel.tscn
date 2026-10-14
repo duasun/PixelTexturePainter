@@ -1,0 +1,118 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://ui/layers_panel.gd" id="script"]
+[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="num"]
+[node name="Layers" type="VBoxContainer"]
+script = ExtResource("script")
+theme_override_constants/separation = 8
+[node name="Hint" type="Label" parent="."]
+layout_mode = 2
+text = "Layers blend within their map. Double-click to rename."
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 11
+[node name="List" type="ScrollContainer" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 120)
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+[node name="Rows" type="VBoxContainer" parent="List"]
+layout_mode = 2
+size_flags_horizontal = 3
+[node name="Actions" type="HBoxContainer" parent="."]
+layout_mode = 2
+[node name="Add" type="Button" parent="Actions"]
+layout_mode = 2
+text = "+"
+size_flags_horizontal = 3
+[node name="Duplicate" type="Button" parent="Actions"]
+layout_mode = 2
+text = "Copy"
+size_flags_horizontal = 3
+[node name="Delete" type="Button" parent="Actions"]
+layout_mode = 2
+text = "−"
+size_flags_horizontal = 3
+[node name="Up" type="Button" parent="Actions"]
+layout_mode = 2
+text = "↑"
+size_flags_horizontal = 3
+[node name="Down" type="Button" parent="Actions"]
+layout_mode = 2
+text = "↓"
+size_flags_horizontal = 3
+[node name="SepName" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="SectionName" type="Label" parent="."]
+layout_mode = 2
+text = "LAYER PROPERTIES"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+[node name="Name" type="LineEdit" parent="."]
+layout_mode = 2
+placeholder_text = "Layer name · Enter to apply"
+[node name="OpacityLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Layer opacity"
+
+[node name="Opacity" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="Blend" type="OptionButton" parent="."]
+layout_mode = 2
+item_count = 3
+selected = 0
+popup/item_0/text = "Normal"
+popup/item_0/id = 0
+popup/item_1/text = "Multiply"
+popup/item_1/id = 1
+popup/item_2/text = "Add"
+popup/item_2/id = 2
+[node name="SepMask" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="SectionMask" type="Label" parent="."]
+layout_mode = 2
+text = "LAYER MASK"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+[node name="Mask" type="HBoxContainer" parent="."]
+layout_mode = 2
+[node name="Enable" type="CheckButton" parent="Mask"]
+layout_mode = 2
+text = "Mask"
+[node name="Edit" type="CheckButton" parent="Mask"]
+layout_mode = 2
+text = "Edit mask"
+[node name="MaskHint" type="Label" parent="."]
+layout_mode = 2
+text = ""
+theme_override_font_sizes/font_size = 11
+[node name="SepSelectionLabel" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="SelectionLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Selection"
+
+[node name="SelectionMode" type="OptionButton" parent="."]
+layout_mode = 2
+item_count = 4
+selected = 0
+popup/item_0/text = "UV island"
+popup/item_0/id = 0
+popup/item_1/text = "Face"
+popup/item_1/id = 1
+popup/item_2/text = "Object"
+popup/item_2/id = 2
+popup/item_3/text = "Material"
+popup/item_3/id = 3
+[node name="ClearSelection" type="Button" parent="."]
+layout_mode = 2
+text = "Clear selection   Esc"
+[node name="ClearMap" type="Button" parent="."]
+layout_mode = 2
+text = "Reset current map"
+tooltip_text = "Erase all paint and masks on the selected map; Undo restores them"
+
+
+\n

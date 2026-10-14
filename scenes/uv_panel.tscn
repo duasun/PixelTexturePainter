@@ -1,0 +1,121 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="num"]
+[ext_resource type="Script" path="res://ui/uv_panel.gd" id="script"]
+[node name="UV" type="VBoxContainer"]
+script = ExtResource("script")
+theme_override_constants/separation = 8
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+text = "GENERATE UV"
+theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+[node name="Hint" type="Label" parent="."]
+layout_mode = 2
+text = "Angle-based charts + MaxRects packing.\nRuns in the background."
+theme_override_font_sizes/font_size = 11
+[node name="AngleLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Maximum chart angle"
+
+[node name="Angle" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 45.0
+minimum = 1.0
+maximum = 80.0
+suffix = "°"
+[node name="PaddingLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Island padding"
+
+[node name="Padding" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 2.0
+minimum = 0.0
+maximum = 16.0
+suffix = " px"
+[node name="Generate" type="Button" parent="."]
+theme_type_variation = &"AccentButton"
+layout_mode = 2
+text = "Generate UV layout"
+
+[node name="Info" type="Label" parent="."]
+layout_mode = 2
+text = ""
+autowrap_mode = 2
+custom_minimum_size = Vector2(220,50)
+[node name="Inspect" type="Button" parent="."]
+layout_mode = 2
+text = "Inspect UV coverage"
+tooltip_text = "Find faces without texels, tiny faces, and collisions between islands"
+[node name="ExportPaddingLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Export seam padding"
+[node name="ExportPadding" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 2.0
+minimum = 0.0
+maximum = 16.0
+suffix = " px"
+[node name="Sep" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="EditTitle" type="Label" parent="."]
+layout_mode = 2
+text = "SELECTED ISLANDS"
+
+[node name="Rotate" type="Button" parent="."]
+layout_mode = 2
+text = "Rotate 90°"
+
+[node name="SepMoveLabel" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="MoveLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Move distance"
+
+[node name="MoveStep" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 1.0
+minimum = 1.0
+maximum = 4096.0
+suffix = " px"
+[node name="Move" type="HBoxContainer" parent="."]
+layout_mode = 2
+[node name="Left" type="Button" parent="Move"]
+layout_mode = 2
+text = "←"
+size_flags_horizontal = 3
+[node name="Right" type="Button" parent="Move"]
+layout_mode = 2
+text = "→"
+size_flags_horizontal = 3
+[node name="Up" type="Button" parent="Move"]
+layout_mode = 2
+text = "↑"
+size_flags_horizontal = 3
+[node name="Down" type="Button" parent="Move"]
+layout_mode = 2
+text = "↓"
+size_flags_horizontal = 3
+[node name="SepScaleLabel" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="ScaleLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Scale around selection center"
+
+[node name="Scale" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 10.0
+maximum = 400.0
+suffix = "%"
+[node name="ApplyScale" type="Button" parent="."]
+layout_mode = 2
+text = "Apply scale"
+
+[node name="Snap" type="Button" parent="."]
+layout_mode = 2
+text = "Snap vertices to pixel grid"
+
+[node name="Note" type="Label" parent="."]
+layout_mode = 2
+text = "Select an island in 3D or UV view.\nUV edits are undoable.\nExport OBJ to keep the new UV layout."
+theme_override_font_sizes/font_size = 11

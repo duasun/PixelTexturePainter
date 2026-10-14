@@ -1,0 +1,74 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://ui/palette_panel.gd" id="script"]
+[ext_resource type="PackedScene" path="res://scenes/palette_swatch.tscn" id="swatch"]
+[node name="PalettePanel" type="VBoxContainer"]
+script = ExtResource("script")
+theme_override_constants/separation = 6
+[node name="Header" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+[node name="Label" type="Label" parent="Header"]
+layout_mode = 2
+text = "PALETTE"
+theme_override_font_sizes/font_size = 11
+[node name="Load" type="Button" parent="Header"]
+layout_mode = 2
+text = "Load palette…"
+focus_mode = 0
+theme_type_variation = &"AccentButton"
+tooltip_text = "PNG (1px colors or enlarged swatches), HEX, GPL, JASC PAL, Paint.NET TXT, RGB ASE, JSON or CSV"
+[node name="Name" type="Label" parent="Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+clip_text = true
+text = "Retro 16"
+theme_override_font_sizes/font_size = 11
+[node name="Hint" type="Label" parent="Header"]
+layout_mode = 2
+text = "Left click: 1   /   Right click: 2"
+theme_override_font_sizes/font_size = 11
+[node name="Primary" parent="Header" instance=ExtResource("swatch")]
+layout_mode = 2
+mouse_filter = 2
+[node name="PrimaryHex" type="Label" parent="Header"]
+layout_mode = 2
+custom_minimum_size = Vector2(90,0)
+text = "#EEA765"
+[node name="Secondary" parent="Header" instance=ExtResource("swatch")]
+layout_mode = 2
+mouse_filter = 2
+[node name="SecondaryHex" type="Label" parent="Header"]
+layout_mode = 2
+custom_minimum_size = Vector2(90,0)
+text = "#000000"
+[node name="Scroll" type="ScrollContainer" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(0,40)
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+[node name="Grid" type="GridContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 32
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+[node name="EditActions" type="HBoxContainer" parent="."]
+layout_mode = 2
+[node name="Add" type="Button" parent="EditActions"]
+layout_mode = 2
+text = "+"
+tooltip_text = "Add a color to the palette"
+theme_type_variation = &"AccentButton"
+[node name="Edit" type="Button" parent="EditActions"]
+layout_mode = 2
+text = "Edit selected color…"
+tooltip_text = "Change the primary selected palette color"
+[node name="Remove" type="Button" parent="EditActions"]
+layout_mode = 2
+text = "Remove color"
+tooltip_text = "Remove the primary selected palette color"
+[node name="ColorDialog" type="ConfirmationDialog" parent="."]
+title = "Palette color"
+initial_position = 1
+[node name="Picker" type="ColorPicker" parent="ColorDialog"]
+layout_mode = 2

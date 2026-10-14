@@ -1,0 +1,39 @@
+[gd_scene load_steps=5 format=3]
+[ext_resource type="Script" path="res://ui/layer_row.gd" id="script"]
+[ext_resource type="Texture2D" path="res://assets/tools/eye.svg" id="eye"]
+[ext_resource type="Texture2D" path="res://assets/tools/lock.svg" id="lock"]
+[ext_resource type="Texture2D" path="res://assets/tools/lock_open.svg" id="lock_open"]
+[node name="LayerRow" type="HBoxContainer"]
+script = ExtResource("script")
+size_flags_horizontal = 3
+[node name="Eye" type="Button" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(30,28)
+icon = ExtResource("eye")
+toggle_mode = true
+focus_mode = 0
+theme_override_constants/icon_max_width = 18
+[node name="Lock" type="Button" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(30,28)
+icon = ExtResource("lock_open")
+toggle_mode = true
+focus_mode = 0
+theme_override_constants/icon_max_width = 18
+[node name="Title" type="Button" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+clip_text = true
+toggle_mode = true
+focus_mode = 0
+alignment = 0
+[node name="Name" type="LineEdit" parent="."]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+expand_to_text_length = false
+[node name="Channel" type="Label" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(42,0)
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.80,0.80,0.80,1)

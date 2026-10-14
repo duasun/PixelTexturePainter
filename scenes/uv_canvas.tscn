@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://ui/uv_canvas.gd" id="script"]
+[node name="UVCanvas" type="Control"]
+custom_minimum_size = Vector2(240, 200)
+clip_contents = true
+texture_filter = 1
+mouse_default_cursor_shape = 3
+script = ExtResource("script")
+[node name="Background" type="ColorRect" parent="."]
+show_behind_parent = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.15,0.15,0.15,1)
+[node name="Texture" type="TextureRect" parent="."]
+show_behind_parent = true
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+texture_filter = 1

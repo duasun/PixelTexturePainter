@@ -1,0 +1,241 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://ui/effects_panel.gd" id="script"]
+[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="num"]
+[node name="Effects" type="VBoxContainer"]
+script = ExtResource("script")
+theme_override_constants/separation = 7
+[node name="Hint" type="Label" parent="."]
+layout_mode = 2
+text = "Live preview · included in PNG export"
+theme_override_font_sizes/font_size = 11
+[node name="SepStepsLabel" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="SectionStepsLabel" type="Button" parent="."]
+layout_mode = 2
+text = "▶ PIXEL STYLE"
+toggle_mode = true
+alignment = 0
+[node name="StepsLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Levels per channel · 0 = off"
+
+[node name="Steps" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = 0.0
+maximum = 256.0
+suffix = ""
+[node name="DitherLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Ordered dithering"
+
+[node name="Dither" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="SepBrightnessLabel" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="SectionBrightnessLabel" type="Button" parent="."]
+layout_mode = 2
+text = "▶ COLOR ADJUSTMENTS"
+toggle_mode = true
+alignment = 0
+[node name="BrightnessLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Brightness"
+
+[node name="Brightness" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = -100.0
+maximum = 100.0
+suffix = "%"
+[node name="ContrastLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Contrast"
+
+[node name="Contrast" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 0.0
+maximum = 200.0
+suffix = "%"
+[node name="SaturationLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Saturation"
+
+[node name="Saturation" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 0.0
+maximum = 200.0
+suffix = "%"
+[node name="SepNoiseLabel" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="SectionNoiseLabel" type="Button" parent="."]
+layout_mode = 2
+text = "▶ TEXTURE FINISH"
+toggle_mode = true
+alignment = 0
+[node name="NoiseLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Pixel noise"
+
+[node name="Noise" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="Palette" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Limit to palette"
+[node name="Reset" type="Button" parent="."]
+layout_mode = 2
+text = "Reset effects"
+
+[node name="Sep" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="EdgeSection" type="Button" parent="."]
+layout_mode = 2
+text = "▶ GEOMETRY EDGES"
+toggle_mode = true
+alignment = 0
+[node name="EdgeLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Geometry edges → new paint layer"
+
+[node name="EdgeWidth" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 2.0
+minimum = 1.0
+maximum = 32.0
+suffix = " px"
+[node name="Edges" type="Button" parent="."]
+theme_type_variation = &"AccentButton"
+layout_mode = 2
+text = "Generate edge highlights"
+[node name="EdgeMaskInvert" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Invert edge mask"
+[node name="EdgeMask" type="Button" parent="."]
+layout_mode = 2
+text = "Use edges as layer mask"
+[node name="AOSep" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="AOSection" type="Button" parent="."]
+layout_mode = 2
+text = "▶ GEOMETRY AMBIENT OCCLUSION"
+toggle_mode = true
+alignment = 0
+[node name="AOInfo" type="Label" parent="."]
+layout_mode = 2
+text = "Darken inward corners on a new Albedo layer"
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 11
+[node name="AOStrengthLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Strength"
+[node name="AOStrength" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 65.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="AORadiusLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Reach from corner"
+[node name="AORadius" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 7.0
+minimum = 1.0
+maximum = 64.0
+suffix = " px"
+[node name="AODepthLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Depth focus"
+[node name="AODepth" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 50.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="AOFalloffLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Falloff"
+[node name="AOFalloff" type="OptionButton" parent="."]
+layout_mode = 2
+item_count = 3
+selected = 1
+popup/item_0/text = "Linear"
+popup/item_0/id = 0
+popup/item_1/text = "Smooth"
+popup/item_1/id = 1
+popup/item_2/text = "Sharp"
+popup/item_2/id = 2
+[node name="AOGenerate" type="Button" parent="."]
+theme_type_variation = &"AccentButton"
+layout_mode = 2
+text = "Bake cavity AO"
+[node name="AOMaskInvert" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Invert cavity mask"
+[node name="AOMask" type="Button" parent="."]
+layout_mode = 2
+text = "Use cavities as layer mask"
+[node name="NormalSep" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="NormalSection" type="Button" parent="."]
+layout_mode = 2
+text = "▶ NORMAL FROM HEIGHT"
+toggle_mode = true
+alignment = 0
+[node name="NormalInfo" type="Label" parent="."]
+layout_mode = 2
+text = "Uses the painted Height map; adds an editable Normal layer."
+autowrap_mode = 3
+[node name="NormalStrengthLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Height strength"
+[node name="NormalStrength" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 1.0
+maximum = 500.0
+suffix = "%"
+[node name="NormalGenerate" type="Button" parent="."]
+theme_type_variation = &"AccentButton"
+layout_mode = 2
+text = "Generate Normal map"
+[node name="BlurSep" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="BlurSection" type="Button" parent="."]
+layout_mode = 2
+text = "▶ BLUR SELECTED LAYER"
+toggle_mode = true
+alignment = 0
+[node name="BlurInfo" type="Label" parent="."]
+layout_mode = 2
+text = "Preview appears after adjusting radius. Apply writes one Undo step."
+autowrap_mode = 3
+[node name="BlurRadiusLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Radius"
+[node name="BlurRadius" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 3.0
+minimum = 1.0
+maximum = 32.0
+suffix = " px"
+[node name="BlurPreview" type="Button" parent="."]
+layout_mode = 2
+text = "Preview blur"
+[node name="BlurApply" type="Button" parent="."]
+theme_type_variation = &"AccentButton"
+layout_mode = 2
+text = "Apply blur to layer"
+[node name="BlurCancel" type="Button" parent="."]
+layout_mode = 2
+text = "Cancel preview"

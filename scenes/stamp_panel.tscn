@@ -1,0 +1,96 @@
+[gd_scene load_steps=4 format=3]
+[ext_resource type="Script" path="res://ui/stamp_panel.gd" id="panel_script"]
+[ext_resource type="Script" path="res://ui/stamp_crop_preview.gd" id="preview_script"]
+[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="number"]
+[node name="StampPanel" type="VBoxContainer"]
+script = ExtResource("panel_script")
+theme_override_constants/separation = 9
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+text = "STAMP / SOURCE"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+[node name="Description" type="Label" parent="."]
+layout_mode = 2
+text = "Left drag: select stamp area · Wheel: zoom · Middle drag: pan"
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 11
+[node name="Actions" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+[node name="Load" type="Button" parent="Actions"]
+layout_mode = 2
+text = "Load image…"
+size_flags_horizontal = 3
+tooltip_text = "Load PNG, JPG or WebP up to 4096 × 4096"
+[node name="Full" type="Button" parent="."]
+layout_mode = 2
+text = "Use full image"
+tooltip_text = "Reset the crop to use the entire stamp image"
+[node name="SourceName" type="Label" parent="."]
+layout_mode = 2
+text = "No stamp image loaded"
+clip_text = true
+theme_override_font_sizes/font_size = 11
+[node name="Preview" type="Control" parent="."]
+custom_minimum_size = Vector2(250,230)
+layout_mode = 2
+clip_contents = true
+mouse_default_cursor_shape = 3
+texture_filter = 1
+tooltip_text = "Wheel to zoom around the cursor; middle drag to pan; left drag to crop"
+script = ExtResource("preview_script")
+[node name="CropLabel" type="Label" parent="."]
+layout_mode = 2
+text = "CROP IN SOURCE PIXELS"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+[node name="Fields" type="GridContainer" parent="."]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 6
+[node name="XLabel" type="Label" parent="Fields"]
+layout_mode = 2
+text = "X"
+[node name="X" parent="Fields" instance=ExtResource("number")]
+layout_mode = 2
+minimum = 0.0
+maximum = 4095.0
+[node name="YLabel" type="Label" parent="Fields"]
+layout_mode = 2
+text = "Y"
+[node name="Y" parent="Fields" instance=ExtResource("number")]
+layout_mode = 2
+minimum = 0.0
+maximum = 4095.0
+[node name="WLabel" type="Label" parent="Fields"]
+layout_mode = 2
+text = "Width"
+[node name="W" parent="Fields" instance=ExtResource("number")]
+layout_mode = 2
+minimum = 1.0
+maximum = 4096.0
+[node name="HLabel" type="Label" parent="Fields"]
+layout_mode = 2
+text = "Height"
+[node name="H" parent="Fields" instance=ExtResource("number")]
+layout_mode = 2
+minimum = 1.0
+maximum = 4096.0
+[node name="CropSummary" type="Label" parent="."]
+layout_mode = 2
+text = "Load an image, then drag on its preview to choose the stamp area."
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 11
+[node name="SelectedLabel" type="Label" parent="."]
+layout_mode = 2
+text = "STAMP RESULT"
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+[node name="SelectedPreview" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(240,128)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+texture_filter = 1
