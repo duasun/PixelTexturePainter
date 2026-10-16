@@ -159,4 +159,4 @@ $engine = 'D:\Godot\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.
 & $engine --headless --path . --export-release 'Windows ARM64' build/PixelTexturePainter.exe
 ```
 
-Arhitektura, plan i izvori: [docs/architecture.md](docs/architecture.md).
+Arhitektura, plan i izvori: [docs/architecture.md](docs/architecture.md). Planirane funkcije: [TODO.md](TODO.md).
