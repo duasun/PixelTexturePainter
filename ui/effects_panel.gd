@@ -11,7 +11,8 @@ const SECTIONS := {
 	"EdgeSection": ["EdgeLabel","EdgeWidthLabel","EdgeWidth","EdgeScatterLabel","EdgeScatter","EdgeNoiseLabel","EdgeNoise","EdgeFalloffLabel","EdgeFalloff","Edges"],
 	"AOSection": ["AOInfo","AOStrengthLabel","AOStrength","AORadiusLabel","AORadius","AODepthLabel","AODepth","AOFalloffLabel","AOFalloff","AOGenerate"],
 	"NormalSection": ["NormalInfo","NormalStrengthLabel","NormalStrength","NormalGenerate"],
-	"BlurSection": ["BlurInfo","BlurRadiusLabel","BlurRadius","BlurPreview","BlurApply","BlurCancel"]}
+	"BlurSection": ["BlurInfo","BlurRadiusLabel","BlurRadius","BlurPreview","BlurApply","BlurCancel"],
+	"DirectionalSection": ["DirectionalInfo","DirectionalLengthLabel","DirectionalLength","DirectionalAngleLabel","DirectionalAngle","DirectionalStrengthLabel","DirectionalStrength","DirectionalPreview","DirectionalApply","DirectionalCancel"]}
 
 func _ready() -> void:
 	for node_name in PERCENT_SETTINGS:

@@ -6,7 +6,7 @@ Samostalni alat za bojenje low-poly modela. Projekat koristi Godot 4.7, GDScript
 
 - Dvoklik na **Pokreni Painter.cmd**. Ako postoji izvezeni program u `build`, pokreće njega; u suprotnom koristi postojeći Godot.
 - Za uređivanje: otvori **project.godot** u Godotu, zatim F6 za pojedinačnu scenu ili F5 za program.
-- Izvoz u `build/PixelTexturePainter.exe` je za Windows ARM64, za ovaj Snapdragon računar. Za x64 računar promeni arhitekturu export preseta i izvezi odgovarajući build.
+- Trenutni export preset **Windows Desktop** pravi x64 program u `build/PixelTexturePainter.exe`. Izvorni projekat možeš pokrenuti postojećim Godotom na ovom računaru.
 
 UI je u `.tscn` scenama. Font je instalirana **Verdana**, preko SystemFont resursa. Font nije kopiran iz Windowsa u projekat.
 
@@ -15,7 +15,7 @@ UI je u `.tscn` scenama. Font je instalirana **Verdana**, preko SystemFont resur
 1. Program pri pokretanju otvara poslednji uspešno otvoren ili snimljen projekat. Ako ga nema, prikazuje primer obojenog sanduka. **File → New project**: izaberi rezoluciju ili posebno širinu i visinu, od 16 do 4096 px. Novi projekat dobija praznu teksturu i kocku kao početni model.
 2. **File → Import model** učitava GLB, glTF ili OBJ. Novi model zamenjuje prethodnu geometriju, UV mrežu i stare slojeve boje; **Undo** ih vraća. Postojeće UV koordinate iz GLB/glTF se koriste bez novog odmotavanja (sitne greške zaokruživanja na ivici 0–1 se poravnaju sa ivicom). Albedo, Roughness, Metallic, Normal, AO i Emission materijalne teksture prenose se na te koordinate kao slojevi koje možeš dalje da slikaš; novi prazan Paint sloj je iznad njih. Ako različiti materijali koriste ista UV polja, program čuva prvu teksturu na preklopljenim pikselima i prijavljuje broj preklopa. OBJ učitava geometriju i UV, ali trenutno ne čita MTL teksture. Model bez UV pripremi u tabu **UV → Generate UV layout**. UV Info pokazuje broj sitnih/nepokrivenih trouglova i preklapanja.
 3. **S / Select**: klik na model ili UV teksturu bira UV ostrvo; u Layers izaberi Face, Object ili Material za drugačiji izbor. Shift dodaje, Ctrl oduzima, Esc čisti izbor. **Ctrl+.** dodaje jedan prsten susednih trouglova preko zajedničkih ivica; **Ctrl+,** vraća po jedan korak do početnog izbora. Novi ručni izbor postavlja novu početnu selekciju. Žuta ivica sa tamnim obrisom i obojena površina pokazuju izbor u oba prikaza.
-4. **B / Brush** crta direktno na modelu ili UV teksturi. Na modelu potez ostaje unutar pogođenog UV ostrva i ručnog izbora. U 2D možeš crtati i u praznim delovima atlasa.
+4. **B / Brush** crta direktno na modelu ili UV teksturi. Na modelu potez ostaje unutar pogođenog UV ostrva i ručnog izbora. Možeš pritisnuti levi klik na praznoj pozadini 3D pregleda i ući na model uz držanje: potez počinje na prvom pogođenom delu. U 2D možeš crtati i u praznim delovima atlasa.
 5. **File → Save / Save as** čuva `.rtpaint` projekat. **Export current map PNG** izvozi izabranu mapu, a **Export all maps PNG** sve napravljene mape. **Export model** nudi **GLB**, **glTF** i OBJ; po uspešnom izvozu otvara odredišni folder u Windows Exploreru. GLB čuva geometriju, trenutni UV, Albedo sa efektima i podržane materijalne mape u jednom fajlu. Uz glTF sačuvaj i prateće `.bin`/slikovne fajlove koje izvoz napravi. Materijal koristi nearest filtriranje; projekat samo sa Albedom izvozi se kao unshaded, a sa dodatnim podržanim mapama kao PBR materijal. OBJ čuva geometriju i UV; teksture za njega izvezi posebno.
 
 **UV view** uz izbor mape dole desno u prozoru modela, ili **View → Show / hide UV panel**, skriva i vraća ceo UV panel. UV podaci ostaju u projektu. **Compact** na bočnom toolbaru slaže ikonice u **dve kolone**; naziv i prečica alata vide se u tooltipu. Ponovni klik vraća tekst. Model, UV, paleta i inspektor imaju odvojene sive panele. Inspektor zauzima celu desnu visinu radnog prostora, a paleta je ispod prikaza levo. Visina palete i širina inspektora menjaju se povlačenjem njihovih razdelnika i pamte se između pokretanja. U Layers tabu razdelnik između liste i svojstava menja visinu liste slojeva i pamti se između pokretanja. Promena alata, sadržaja i taba ne menja njihovu veličinu.
@@ -53,6 +53,8 @@ Ispod menija je razmak, zatim podešavanja izabranog alata u jednom redu neposre
 | Ctrl+S / Ctrl+Shift+S | Save / Save as |
 | Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / redo |
 | Ctrl+E | Export PNG |
+| Z | Fokus na izabrane površine, površinu pod kursorom ili ceo model |
+| H | Prikaži / sakrij referentnu sliku preko 3D pregleda |
 
 Prečice sa povlačenjem rade u 3D i UV prikazu. Pomeraj od najmanje 4 px razdvaja povlačenje od kratkog klika; Alt+klik i dalje uzima boju, a Ctrl+klik zadržava radnje kao što su clone izvor i oduzimanje selekcije. Podešavanje samo menja vrednost, bez poteza boje ili Undo stavke. U 3D prikazu drži desni klik i koristi **WASD** za kretanje, **E/Q** za gore/dole i **Shift** za brže kretanje. Dok držiš desni klik, pokret miša okreće kameru; srednji klik je pomera, a točkić sporije zumira ka površini ispod kursora i dopušta veoma blizak pregled bez prolaska kroz tu površinu. Prečice alata, uključujući A i E, rade čim pustiš desni klik. U UV prikazu srednji/desni klik pomera sliku. Numerička polja podržavaju unos klikom, horizontalno povlačenje, Shift za finije korake i točkić; šira polja van trake imaju i dugmad +/−.
 
@@ -92,6 +94,8 @@ Skraćeni natpisi u traci su **Op** (Opacity), **Dots** (Density), **Step** (Spa
 
 Svetle tačkice unutar kursora pokazuju položaje **sledećeg naleta** u oba prikaza, uz ograničenje selekcijom i pogođenim UV ostrvom. Posle naleta prikaz prelazi na naredni raspored; svetlina markera ne predstavlja jačinu boje. Jedno držanje klika je jedna undo akcija. Redo vraća iste čestice, bez novog nasumičnog rasporeda. Podešavanja izmenjena tokom poteza važe za sledeći potez.
 
+Kada kursor napusti model ili pređe na drugo UV ostrvo, sprej prekida staru putanju, odbacuje zaostale nalete i nastavlja na novoj površini. Tako ne prska kasnije na ranijoj poziciji.
+
 ### Smudge i Blur
 
 **U / Smudge** preuzima boju na početku poteza i razmazuje je povlačenjem. **V / Blur** lokalno omekšava postojeće texele. Oba alata čitaju kompozit trenutne mape, pišu u aktivni sloj i podržavaju selekciju i Undo/Redo. **Opacity** određuje jačinu; maksimalna veličina je 64 px radi odziva na 4K teksturama. Uzorkovanje je u UV prostoru; smudge prekida prenos boje pri prelasku na drugo UV ostrvo.
@@ -112,6 +116,10 @@ Tab **Effects** radi sa sklopivim sekcijama. Na početku su sve zatvorene; progr
 
 **Blur selected layer** u Effects omekšava celu izabranu boju sloja, sa Radius 1–32 px. Puštanje kontrole ili **Preview blur** prikazuje rezultat bez izmene istorije; **Apply blur to layer** snima ga kao jedan Undo korak, a **Cancel preview** vraća original. Računanje ide u pozadini i zahvata samo naslikane tileove i njihove susede; crtanje je privremeno zaključano dok se pregled računa.
 
+**Directional Blur** u Effects razmazuje aktivni sloj duž zadatog ugla, sa Length 2–64 px i Strength 0–100%. Ako su površine izabrane, menja samo njihovu UV oblast. Puštanje polja ili **Preview directional blur** računa privremeni rezultat u pozadini; **Apply** ga snima kao jednu Undo radnju, a **Cancel** vraća sloj. Na 4K teksturi obrađuju se samo naslikani tileovi i susedi.
+
+**File → Import reference image** postavlja sliku preko 3D pregleda, odvojeno od teksture. Povuci zaglavlje da je pomeriš, točkić iznad slike da je uvećaš/smanjiš, sliderom podesi prozirnost i dugmetom Lock zaključaš položaj. **H** je skriva ili vraća. Slika, vidljivost, položaj, veličina, prozirnost i zaključavanje čuvaju se u `.rtpaint` fajlu. Referenca se ne izvozi u PNG/GLB. **Z** fokusira kameru na izabrane faceove, inače na površinu ispod kursora ili na ceo model. Klik na **+X/−X, +Y/−Y, +Z/−Z** u uglu 3D prikaza okreće kameru na tu osu i uključuje ortografski pogled; desni klik ponovo slobodno orbitira.
+
 ### Dodatne mape
 
 Izbor **Map** dole desno u prozoru modela nudi **Albedo, Roughness, Metallic, Normal, Height, AO i Emission**. Prvi izbor nove mape pravi njen sloj; naredni slojevi pripadaju trenutno izabranoj mapi. Oznaka pored naziva sloja pokazuje kojoj mapi pripada, a izbor sloja automatski prikazuje tu mapu. Sve dele iste UV koordinate i rezoluciju, sa najviše 32 sloja ukupno.
@@ -122,7 +130,7 @@ GLB/glTF uključuje Albedo, Roughness, Metallic, Normal, AO i Emission kada njih
 
 ## Snimanje i oporavak
 
-`.rtpaint` sadrži geometriju, UV, slojeve svih mapa, paletu, efekte i izvorne slike za pattern/stamp. Stariji projekti koji imaju maske zadržavaju njihove podatke i izgled pri učitavanju. Novi format je verzija 2; učitavanje prethodnog formata verzije 1 ostaje podržano. Snimanje prvo pravi privremenu arhivu, a prethodna verzija ostaje u `.bak`. Undo istorija važi za otvorenu sesiju i ne čuva se u fajlu.
+`.rtpaint` sadrži geometriju, UV, slojeve svih mapa, paletu, efekte i izvorne slike za pattern/stamp i referentni prikaz. Stariji projekti koji imaju maske zadržavaju njihove podatke i izgled pri učitavanju. Novi format je verzija 2; učitavanje prethodnog formata verzije 1 ostaje podržano. Snimanje prvo pravi privremenu arhivu, a prethodna verzija ostaje u `.bak`. Undo istorija važi za otvorenu sesiju i ne čuva se u fajlu.
 
 Posle izmena, automatski recovery se pravi približno svaka dva minuta kada nema aktivnog poteza/posla. **File → Recover autosave** otvara poslednju kopiju. To je jedna zajednička recovery kopija, nije istorija projekata. Exit i zamena nesnimljenog projekta traže potvrdu odbacivanja. Koristi Save pre potvrde ako želiš da sačuvaš izmene.
 
@@ -145,7 +153,7 @@ Ova verzija radi jedan UV atlas sa sedam opcionih mapa i do 32 sloja ukupno. UDI
 Sa postojećim Godot console izvršnim fajlom:
 
 ```powershell
-$engine = 'D:\Godot\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.exe'
+$engine = 'C:\Users\Dboja\Downloads\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.exe'
 & $engine --headless --editor --path . --import --quit
 & $engine --headless --path . --script res://tests/run_core.gd
 & $engine --headless --path . --script res://tests/run_ui.gd
@@ -156,7 +164,7 @@ $engine = 'D:\Godot\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.
 & $engine --path . --script res://tests/render_smoke.gd
 & $engine --path . --script res://tests/render_features.gd
 & $engine --path . --script res://tests/render_workflow.gd
-& $engine --headless --path . --export-release 'Windows ARM64' build/PixelTexturePainter.exe
+& $engine --headless --path . --export-release 'Windows Desktop' build/PixelTexturePainter.exe
 ```
 
-Arhitektura, plan i izvori: [docs/architecture.md](docs/architecture.md). Planirane funkcije: [TODO.md](TODO.md).
+Arhitektura, plan i izvori: [docs/architecture.md](docs/architecture.md). Evidencija završenih funkcija: [TODO.md](TODO.md).

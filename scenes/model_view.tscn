@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 [ext_resource type="Script" path="res://ui/model_view.gd" id="script"]
 [ext_resource type="Script" path="res://ui/cursor_marker.gd" id="cursor"]
 [ext_resource type="Script" path="res://ui/symmetry_preview.gd" id="symmetry_preview"]
@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" path="res://assets/tools/light.svg" id="light_icon"]
 [ext_resource type="Texture2D" path="res://assets/tools/undo.svg" id="undo_icon"]
 [ext_resource type="Texture2D" path="res://assets/tools/redo.svg" id="redo_icon"]
+[ext_resource type="PackedScene" path="res://scenes/reference_overlay.tscn" id="reference"]
 [sub_resource type="Environment" id="env"]
 background_mode = 1
 background_color = Color(0.15,0.15,0.15,1)
@@ -142,6 +143,76 @@ focus_mode = 0
 tooltip_text = "Change model preview background"
 color = Color(0.15, 0.15, 0.15, 1)
 edit_alpha = false
+
+[node name="Axes" type="PanelContainer" parent="Display"]
+layout_mode = 1
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 118.0
+offset_bottom = 79.0
+mouse_filter = 1
+tooltip_text = "Click an axis for an orthographic view"
+
+[node name="Grid" type="GridContainer" parent="Display/Axes"]
+layout_mode = 2
+columns = 3
+
+[node name="PosX" type="Button" parent="Display/Axes/Grid"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 27)
+text = "+X"
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "View from +X"
+theme_override_colors/font_color = Color(0.96, 0.52, 0.48, 1)
+
+[node name="PosY" type="Button" parent="Display/Axes/Grid"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 27)
+text = "+Y"
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "View from +Y"
+theme_override_colors/font_color = Color(0.55, 0.91, 0.55, 1)
+
+[node name="PosZ" type="Button" parent="Display/Axes/Grid"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 27)
+text = "+Z"
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "View from +Z"
+theme_override_colors/font_color = Color(0.52, 0.75, 1, 1)
+
+[node name="NegX" type="Button" parent="Display/Axes/Grid"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 27)
+text = "−X"
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "View from -X"
+theme_override_colors/font_color = Color(0.96, 0.52, 0.48, 1)
+
+[node name="NegY" type="Button" parent="Display/Axes/Grid"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 27)
+text = "−Y"
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "View from -Y"
+theme_override_colors/font_color = Color(0.55, 0.91, 0.55, 1)
+
+[node name="NegZ" type="Button" parent="Display/Axes/Grid"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 27)
+text = "−Z"
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "View from -Z"
+theme_override_colors/font_color = Color(0.52, 0.75, 1, 1)
+
+[node name="ReferenceOverlay" parent="Display" instance=ExtResource("reference")]
+
 [node name="Navigation" type="Label" parent="."]
 layout_mode = 2
 text = "RMB orbit + WASD move · Q/E down/up · Shift faster · MMB pan · wheel zoom"

@@ -9,7 +9,7 @@ if not errorlevel 1 (
     start "" godot --path "%~dp0."
     exit /b
 )
-set "PAINTER_GODOT=D:\Godot\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64.exe"
+set "PAINTER_GODOT=%USERPROFILE%\Downloads\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64.exe"
 if not exist "%PAINTER_GODOT%" (
     echo Godot nije pronadjen. Otvori project.godot kroz Godot Project Manager.
     pause

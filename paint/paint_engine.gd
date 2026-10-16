@@ -168,7 +168,14 @@ func append(uv: Vector2, island := -1, face := -1) -> void:
 		return
 	var p := _pixel(uv)
 	if _stroke_tool == "spray":
-		if _spray_anchor.x < -90000 or island != _last_island:
+		# A new surface sample owns the live spray paths. Old mirrored/wrapped
+		# positions must never keep receiving timed bursts after an island jump.
+		_symmetry_paths.clear()
+		var disconnected := _spray_anchor.x < -90000 or island != _last_island
+		if not disconnected:
+			disconnected = _spray_anchor.distance_to(Vector2(p)) >= maxf(document.width, document.height) * 0.25
+		if disconnected:
+			if island != _last_island: _discard_pending_spray()
 			_enqueue(p, island)
 			_spray_anchor = Vector2(p)
 			_spray_elapsed = 0.0
@@ -223,11 +230,17 @@ func end() -> void:
 	finishing = true
 
 func break_path() -> void:
+	if active and _stroke_tool == "spray" and not finishing: _discard_pending_spray()
 	_drag_buffers.clear()
 	_symmetry_paths.clear()
 	_last = Vector2i(-99999, -99999)
+	_last_island = -1
 	_spray_anchor = Vector2(-99999, -99999)
 	_spray_elapsed = 0.0
+
+func _discard_pending_spray() -> void:
+	# Keep already applied paint, but do not drain stale queued bursts later.
+	_points.resize(_read)
 
 func append_symmetry(uv: Vector2, island: int, path_id: int) -> void:
 	if not active or finishing or _stroke_tool not in ["brush","eraser","stencil","spray","smudge","blur","clone","line","rect","ellipse"]: return

@@ -40,7 +40,8 @@ static func save_project(progress: BackgroundJob.JobProgress, doc: PaintDocument
 		"primary_color": doc.primary_color.to_html(true), "secondary_color": doc.secondary_color.to_html(true),
 		"revision": doc.revision, "pattern_settings": doc.pattern_settings, "uv_export_padding":doc.uv_export_padding,
 		"stamp_region": [doc.stamp_region.position.x, doc.stamp_region.position.y, doc.stamp_region.size.x, doc.stamp_region.size.y],
-		"stamp_name": doc.stamp_name, "stamp_rotation": doc.stamp_rotation}
+		"stamp_name": doc.stamp_name, "stamp_rotation": doc.stamp_rotation,
+		"reference_name": doc.reference_name, "reference_state":doc.reference_state}
 	if _write(zip, "manifest.json", JSON.stringify(manifest, "\t").to_utf8_buffer()) != OK:
 		return _archive_error(zip)
 	if doc.geometry != null:
@@ -51,6 +52,9 @@ static func save_project(progress: BackgroundJob.JobProgress, doc: PaintDocument
 			return _archive_error(zip)
 	if doc.pattern_image != null:
 		if _write(zip, "pattern.png", doc.pattern_image.save_png_to_buffer()) != OK:
+			return _archive_error(zip)
+	if doc.reference_image != null:
+		if _write(zip,"reference.png",doc.reference_image.save_png_to_buffer()) != OK:
 			return _archive_error(zip)
 	err = zip.close()
 	if err != OK:
@@ -112,7 +116,17 @@ static func load_project(progress: BackgroundJob.JobProgress, path: String) -> D
 		doc.stamp_region = Rect2i(int(stamp_bounds[0]), int(stamp_bounds[1]), int(stamp_bounds[2]), int(stamp_bounds[3]))
 	doc.stamp_name = str(data.get("stamp_name", "Embedded stamp")).left(128)
 	doc.stamp_rotation = clampf(float(data.get("stamp_rotation",0.0)),-180.0,180.0)
-	for asset in ["stamp", "pattern"]:
+	doc.reference_name = str(data.get("reference_name", "Reference")).left(128)
+	var reference_settings: Variant = data.get("reference_state",{})
+	if reference_settings is Dictionary:
+		for key in ["x","y","width","height","opacity","locked","visible"]:
+			if reference_settings.has(key): doc.reference_state[key] = reference_settings[key]
+		doc.reference_state["width"] = clampf(float(doc.reference_state.width),160.0,900.0)
+		doc.reference_state["height"] = clampf(float(doc.reference_state.height),150.0,900.0)
+		doc.reference_state["opacity"] = clampf(float(doc.reference_state.opacity),0.1,1.0)
+		doc.reference_state["x"] = clampf(float(doc.reference_state.x),0.0,10000.0)
+		doc.reference_state["y"] = clampf(float(doc.reference_state.y),0.0,10000.0)
+	for asset in ["stamp", "pattern", "reference"]:
 		if zip.file_exists(asset + ".png"):
 			var image := Image.new()
 			if image.load_png_from_buffer(zip.read_file(asset + ".png")) != OK or image.get_width() > 4096 or image.get_height() > 4096:

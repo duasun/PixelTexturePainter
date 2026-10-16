@@ -1,9 +1,9 @@
 extends HBoxContainer
 signal action_requested(action: String)
 
-const FILE_ACTIONS := {0: "New", 1: "Open", 16:"OpenRecent", 3: "Save", 4: "SaveAs", 5: "Recover", 7: "Import", 8: "Pattern", 9: "Stamp", 11: "Export", 12: "ExportModel", 14: "Quit", 15:"ExportMaps", 17:"ToggleRestoreLast"}
+const FILE_ACTIONS := {0: "New", 1: "Open", 16:"OpenRecent", 3: "Save", 4: "SaveAs", 5: "Recover", 7: "Import", 8: "Pattern", 9: "Stamp", 18:"Reference", 11: "Export", 12: "ExportModel", 14: "Quit", 15:"ExportMaps", 17:"ToggleRestoreLast"}
 const EDIT_ACTIONS := {0: "Undo", 1: "Redo", 3: "ClearSelection", 4: "GrowSelection", 5: "ShrinkSelection", 7: "ResetMap", 9:"ResizeTexture", 10:"ReplaceColor"}
-const VIEW_ACTIONS := {0: "Frame", 1: "FitUV", 2: "WireUV", 3: "ToggleUV", 4: "WireModel", 6: "ToggleFullscreen"}
+const VIEW_ACTIONS := {0: "Frame", 1:"Focus", 2: "FitUV", 3: "WireUV", 4: "ToggleUV", 5: "WireModel", 7: "ToggleFullscreen", 8:"ToggleReference"}
 
 func _ready() -> void:
 	$File.get_popup().id_pressed.connect(func(id: int):
@@ -21,5 +21,5 @@ func refresh(can_undo: bool, can_redo: bool, can_recover: bool, recent_path := "
 	$File.get_popup().set_item_disabled(2, recent_path.is_empty())
 	$File.get_popup().set_item_text(2, "Open last project…   " + recent_path.get_file() if not recent_path.is_empty() else "Open last project…")
 	$File.get_popup().set_item_disabled(6, not can_recover)
-	$File.get_popup().set_item_checked(16, restore_last)
-	$File.get_popup().set_item_text(12, "Export " + channel + " PNG…   ·   Ctrl+E")
+	$File.get_popup().set_item_checked(17, restore_last)
+	$File.get_popup().set_item_text(13, "Export " + channel + " PNG…   ·   Ctrl+E")

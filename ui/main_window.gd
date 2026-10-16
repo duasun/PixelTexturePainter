@@ -27,7 +27,9 @@ var _blur_preview_layer_id := ""
 var _blur_original_tiles: Dictionary = {}
 var _blur_changed: Array[Vector2i] = []
 var _blur_job_layer_id := ""
-var _blur_wanted_radius := 0
+var _blur_requested_signature: Array = []
+var _blur_job_signature: Array = []
+var _blur_preview_signature: Array = []
 var _blur_apply_when_ready := false
 var _geometry_preview_layer: PaintLayer
 var _geometry_preview_kind := ""
@@ -98,6 +100,7 @@ func _ready() -> void:
 	model_view.surface_event.connect(_surface_input.bind(true))
 	model_view.history_requested.connect(_action)
 	model_view.background_color_changed.connect(func(_color: Color): _queue_preferences_save())
+	model_view.reference_state_changed.connect(_reference_state_changed)
 	uv_canvas.surface_event.connect(_surface_input.bind(false))
 	model_view.gesture_motion.connect(_gesture_motion)
 	model_view.stamp_rotation_event.connect(_stamp_rotation_drag)
@@ -126,15 +129,21 @@ func _ready() -> void:
 	%Effects.get_node("AOGenerate").pressed.connect(_ambient_occlusion)
 	%Effects.get_node("NormalGenerate").pressed.connect(_generate_normal_map)
 	%Effects.get_node("BlurRadius").value_changed.connect(func(_value: float): _cancel_blur_preview())
-	%Effects.get_node("BlurRadius").value_committed.connect(func(_value: float): _preview_layer_blur())
-	%Effects.get_node("BlurPreview").pressed.connect(_preview_layer_blur)
-	%Effects.get_node("BlurApply").pressed.connect(func(): _blur_apply_when_ready = true; _preview_layer_blur())
+	%Effects.get_node("BlurRadius").value_committed.connect(func(_value: float): _preview_layer_blur("blur"))
+	%Effects.get_node("BlurPreview").pressed.connect(func(): _preview_layer_blur("blur"))
+	%Effects.get_node("BlurApply").pressed.connect(func(): _blur_apply_when_ready = true; _preview_layer_blur("blur"))
 	%Effects.get_node("BlurCancel").pressed.connect(_cancel_blur_preview)
+	for field in ["DirectionalLength","DirectionalAngle","DirectionalStrength"]:
+		%Effects.get_node(field).value_changed.connect(func(_value: float): _cancel_blur_preview())
+		%Effects.get_node(field).value_committed.connect(func(_value: float): _preview_layer_blur("directional"))
+	%Effects.get_node("DirectionalPreview").pressed.connect(func(): _preview_layer_blur("directional"))
+	%Effects.get_node("DirectionalApply").pressed.connect(func(): _blur_apply_when_ready = true; _preview_layer_blur("directional"))
+	%Effects.get_node("DirectionalCancel").pressed.connect(_cancel_blur_preview)
 	for field in ["EdgeWidth","EdgeScatter","EdgeNoise","EdgeFalloff","AOStrength","AORadius","AODepth"]:
 		%Effects.get_node(field).value_changed.connect(func(_value: float): _geometry_requested_kind = ""; _cancel_geometry_preview())
 		%Effects.get_node(field).value_committed.connect(func(_value: float): _preview_geometry_effect("edges" if field.begins_with("Edge") else "ao"))
 	%Effects.get_node("AOFalloff").item_selected.connect(func(_index: int): _preview_geometry_effect("ao"))
-	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
+	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius", "DirectionalLength", "DirectionalAngle", "DirectionalStrength"]:
 		%Effects.get_node(field).value_changed.connect(func(_value: float): _queue_preferences_save())
 	%Effects.get_node("AOFalloff").item_selected.connect(func(_index: int): _queue_preferences_save())
 	for field in ["Angle", "Padding", "MoveStep"]:
@@ -232,6 +241,7 @@ func _set_document(doc: PaintDocument) -> void:
 	%UV.get_node("ExportPadding").set_value(doc.uv_export_padding,false)
 	%StampPanel.set_source(doc.stamp_image, doc.stamp_name, doc.stamp_region)
 	%StampPanel.set_stamp_rotation(doc.stamp_rotation)
+	model_view.set_reference(doc.reference_image,doc.reference_name,doc.reference_state)
 	if not doc.path.is_empty() and doc.path == _saved_stamp_view_path:
 		%StampPanel.restore_view_state(_saved_stamp_view)
 	_refresh_metadata()
@@ -998,9 +1008,19 @@ func _find_layer(id: String) -> PaintLayer:
 		if layer.id == id: return layer
 	return null
 
+func _reference_state_changed(state: Dictionary) -> void:
+	if document == null or document.reference_image == null or document.reference_state == state: return
+	history.push(document,{"kind":"reference","label":"Change reference view",
+		"before":{"image":document.reference_image,"name":document.reference_name,"settings":document.reference_state.duplicate(true)},
+		"after":{"image":document.reference_image,"name":document.reference_name,"settings":state.duplicate(true)}})
+	document.reference_state = state.duplicate(true)
+	_refresh_metadata()
+
 func _cancel_blur_preview() -> void:
 	_blur_job_layer_id = ""
-	_blur_wanted_radius = 0
+	_blur_requested_signature.clear()
+	_blur_job_signature.clear()
+	_blur_preview_signature.clear()
 	_blur_apply_when_ready = false
 	if _blur_preview_layer_id.is_empty(): return
 	var layer := _find_layer(_blur_preview_layer_id)
@@ -1012,26 +1032,36 @@ func _cancel_blur_preview() -> void:
 	_blur_original_tiles = {}
 	_blur_changed.clear()
 
-func _preview_layer_blur() -> void:
+func _blur_signature(kind: String, layer: PaintLayer) -> Array:
+	if kind == "directional":
+		return [kind,layer.id,int(%Effects.get_node("DirectionalLength").value),
+			float(%Effects.get_node("DirectionalAngle").value),float(%Effects.get_node("DirectionalStrength").value)/100.0,selected_faces.duplicate()]
+	return [kind,layer.id,int(%Effects.get_node("BlurRadius").value)]
+
+func _preview_layer_blur(kind := "blur") -> void:
 	if document == null or painter.active: return
 	var layer := document.selected_layer()
 	if layer.locked:
 		_status("Unlock this layer before applying Blur.")
 		_blur_apply_when_ready = false
 		return
-	_blur_wanted_radius = int(%Effects.get_node("BlurRadius").value)
-	if _blur_preview_layer_id == layer.id and not _blur_apply_when_ready and not jobs.busy():
-		return
-	if _blur_preview_layer_id == layer.id and _blur_apply_when_ready:
-		_apply_layer_blur()
+	var requested := _blur_signature(kind,layer)
+	_blur_requested_signature = requested.duplicate(true)
+	if _blur_preview_layer_id == layer.id and _blur_preview_signature == requested:
+		if _blur_apply_when_ready: _apply_layer_blur()
 		return
 	if jobs.busy(): return
 	var apply_when_ready := _blur_apply_when_ready
 	_cancel_blur_preview()
 	_blur_apply_when_ready = apply_when_ready
-	_blur_wanted_radius = int(%Effects.get_node("BlurRadius").value)
+	_blur_requested_signature = requested.duplicate(true)
+	_blur_job_signature = requested.duplicate(true)
 	_blur_job_layer_id = layer.id
-	jobs.start("layer_blur_preview",PaintOperations.blur_layer.bind(document.read_copy(),layer.id,_blur_wanted_radius))
+	if kind == "directional":
+		var selection := painter.selection.duplicate() if not selected_faces.is_empty() else {}
+		jobs.start("layer_blur_preview",PaintOperations.directional_blur_layer.bind(document.read_copy(),layer.id,int(requested[2]),float(requested[3]),float(requested[4]),selection))
+	else:
+		jobs.start("layer_blur_preview",PaintOperations.blur_layer.bind(document.read_copy(),layer.id,int(requested[2])))
 
 func _apply_layer_blur() -> void:
 	var layer := _find_layer(_blur_preview_layer_id)
@@ -1044,13 +1074,16 @@ func _apply_layer_blur() -> void:
 	for key in _blur_changed:
 		before[key] = _blur_original_tiles[key] if _blur_original_tiles.has(key) else null
 		after[key] = layer.tiles[key] if layer.tiles.has(key) else null
-	history.push(document,{"kind":"tiles","label":"Blur layer %d px" % _blur_wanted_radius,"layer":layer,"mask":false,"before":before,"after":after,"bytes":_blur_changed.size()*64*64*4*2})
+	var label := "Directional blur %d px" % int(_blur_preview_signature[2]) if _blur_preview_signature[0] == "directional" else "Blur layer %d px" % int(_blur_preview_signature[2])
+	history.push(document,{"kind":"tiles","label":label,"layer":layer,"mask":false,"before":before,"after":after,"bytes":_blur_changed.size()*64*64*4*2})
 	_blur_preview_layer_id = ""
 	_blur_original_tiles = {}
 	_blur_changed.clear()
 	_blur_apply_when_ready = false
+	_blur_preview_signature.clear()
+	_blur_requested_signature.clear()
 	_refresh_metadata()
-	_status("Blur applied to selected layer · Undo restores it")
+	_status(label + " applied · Undo restores it")
 
 func _action(action: String) -> void:
 	if action == "About":
@@ -1058,6 +1091,13 @@ func _action(action: String) -> void:
 		return
 	if action == "ToggleFullscreen":
 		_toggle_fullscreen()
+		return
+	if action == "ToggleReference":
+		if document != null and document.reference_image != null: model_view.toggle_reference()
+		else: _file_dialog("reference")
+		return
+	if action == "Focus":
+		if document != null: model_view.focus_on(selected_faces,_cursor_hit if _cursor_from_model else {})
 		return
 	if jobs.busy() or painter.active:
 		_status("Wait for the current operation to finish.")
@@ -1089,6 +1129,7 @@ func _action(action: String) -> void:
 			_refresh_metadata()
 		"Pattern": _file_dialog("pattern")
 		"Stamp": _file_dialog("stencil")
+		"Reference": _file_dialog("reference")
 		"ClearSelection": _clear_selection()
 		"ResetMap": _clear_current_map()
 		"ResizeTexture":
@@ -1130,6 +1171,7 @@ func _action(action: String) -> void:
 			%UV.get_node("ExportPadding").set_value(document.uv_export_padding,false)
 			%StampPanel.set_source(document.stamp_image, document.stamp_name, document.stamp_region)
 			%StampPanel.set_stamp_rotation(document.stamp_rotation)
+			model_view.set_reference(document.reference_image,document.reference_name,document.reference_state)
 			_stamp_rotation_editing = false
 			_refresh_metadata()
 
@@ -1161,7 +1203,7 @@ func _file_dialog(action: String) -> void:
 	match action:
 		"save", "open": dialog.filters = PackedStringArray(["*.rtpaint ; Pixel texture painter project"])
 		"import": dialog.filters = PackedStringArray(["*.glb, *.gltf, *.obj ; 3D models"])
-		"stencil", "pattern": dialog.filters = PackedStringArray(["*.png, *.jpg, *.webp ; Texture image"])
+		"stencil", "pattern", "reference": dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Texture image"])
 		"palette": dialog.filters = PackedStringArray(["*.png, *.hex, *.gpl, *.pal, *.txt, *.ase, *.json, *.csv ; Color palettes"])
 		"export", "export_maps": dialog.filters = PackedStringArray(["*.png ; PNG texture"])
 		"export_model": dialog.filters = PackedStringArray(["*.glb ; GLB model with embedded texture", "*.gltf ; glTF model with texture files", "*.obj ; OBJ with current UV coordinates"])
@@ -1200,6 +1242,23 @@ func _file_selected(path: String) -> void:
 				%ToolBar.select("stencil")
 				_refresh_metadata()
 				_status("Stamp loaded · drag on its preview to choose a crop")
+		"reference":
+			var image := Image.load_from_file(path)
+			if image == null or image.get_width() > 4096 or image.get_height() > 4096:
+				_message("Choose a valid reference image up to 4096 × 4096.")
+			else:
+				image.convert(Image.FORMAT_RGBA8)
+				var state := document.reference_state.duplicate(true)
+				state["visible"] = true
+				history.push(document,{"kind":"reference","label":"Import reference image",
+					"before":{"image":document.reference_image,"name":document.reference_name,"settings":document.reference_state.duplicate(true)},
+					"after":{"image":image,"name":path.get_file(),"settings":state.duplicate(true)}})
+				document.reference_image = image
+				document.reference_name = path.get_file()
+				document.reference_state = state
+				model_view.set_reference(image,document.reference_name,state)
+				_refresh_metadata()
+				_status("Reference loaded · H shows or hides it; drag the header to move, wheel to zoom")
 		"pattern":
 			var image := Image.load_from_file(path)
 			if image == null or image.get_width() > 4096 or image.get_height() > 4096:
@@ -1470,28 +1529,24 @@ func _job_completed(kind: String, value: Variant) -> void:
 			_refresh_metadata()
 			_status("Normal map generated from Height · %d affected texels" % int(result.pixels))
 		"layer_blur_preview":
-			if result.get("cancelled",false) or result.has("error"):
-				_blur_apply_when_ready = false
+			if _blur_requested_signature != _blur_job_signature:
+				if not _blur_requested_signature.is_empty(): _preview_layer_blur(str(_blur_requested_signature[0]))
 				return
-			if _blur_job_layer_id != document.selected_layer().id:
-				_blur_apply_when_ready = false
-				if _blur_wanted_radius > 0: _preview_layer_blur()
-				return
-			if int(result.radius) != int(%Effects.get_node("BlurRadius").value):
-				_preview_layer_blur()
-				return
+			if _blur_job_layer_id != document.selected_layer().id: return
 			if result.changed.is_empty():
 				_blur_apply_when_ready = false
 				_status("Blur did not change this layer.")
 				return
 			var target := _find_layer(result.layer_id)
+			if target == null: return
 			_blur_original_tiles = target.tiles.duplicate()
 			_blur_changed = result.changed
 			_blur_preview_layer_id = target.id
+			_blur_preview_signature = _blur_job_signature.duplicate(true)
 			target.tiles = result.tiles
 			target._prepared.clear()
 			tiles.mark(_blur_changed,false)
-			_status("Blur preview · adjust Radius, Apply, or Cancel")
+			_status("Directional blur preview · adjust controls, Apply, or Cancel" if _blur_preview_signature[0] == "directional" else "Blur preview · adjust Radius, Apply, or Cancel")
 			if _blur_apply_when_ready: _apply_layer_blur()
 		"ao_preview", "edges_preview":
 			var effect_kind := "ao" if kind == "ao_preview" else "edges"
@@ -1632,6 +1687,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_ESCAPE:
 			_clear_selection()
 		elif event.keycode == KEY_F2: %Layers.rename_active()
+		elif event.keycode == KEY_H: _action("ToggleReference")
+		elif event.keycode == KEY_Z: _action("Focus")
 		elif event.keycode == KEY_BRACKETLEFT:
 			%ToolOptions.get_node("Size").set_value(painter.brush_size - 1)
 		elif event.keycode == KEY_BRACKETRIGHT:
@@ -1727,7 +1784,7 @@ func _restore_preferences() -> void:
 	painter.spray_distance = %SprayOptions.get_node("Distance").value/100.0
 	var last_tool := str(_preferences.get_setting("brush","tool","brush"))
 	%ToolBar.select(last_tool if last_tool in %ToolBar.TOOLS else "brush")
-	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
+	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius", "DirectionalLength", "DirectionalAngle", "DirectionalStrength"]:
 		var control: NumberField = %Effects.get_node(field)
 		control.set_value(float(_preferences.get_setting("inspector",field,control.value)),false)
 	%Effects.get_node("AOFalloff").select(clampi(int(_preferences.get_setting("inspector","AOFalloff",1)),0,2))
@@ -1797,7 +1854,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("spray","spacing",painter.spray_spacing)
 	_preferences.set_setting("spray","rate",painter.spray_rate)
 	_preferences.set_setting("spray","distance",%SprayOptions.get_node("Distance").value)
-	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius"]:
+	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius", "DirectionalLength", "DirectionalAngle", "DirectionalStrength"]:
 		_preferences.set_setting("inspector",field,%Effects.get_node(field).value)
 	_preferences.set_setting("inspector","AOFalloff",%Effects.get_node("AOFalloff").selected)
 	_preferences.set_setting("inspector","expanded_effects",%Effects.open_sections())

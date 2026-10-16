@@ -290,3 +290,53 @@ text = "Apply blur to layer"
 [node name="BlurCancel" type="Button" parent="."]
 layout_mode = 2
 text = "Cancel preview"
+
+[node name="DirectionalSep" type="HSeparator" parent="."]
+layout_mode = 2
+[node name="DirectionalSection" type="Button" parent="."]
+layout_mode = 2
+text = "▶ DIRECTIONAL BLUR"
+toggle_mode = true
+alignment = 0
+[node name="DirectionalInfo" type="Label" parent="."]
+layout_mode = 2
+text = "Blur the selected layer along an angle. The face selection limits the effect."
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 11
+[node name="DirectionalLengthLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Length"
+[node name="DirectionalLength" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 12.0
+minimum = 2.0
+maximum = 64.0
+suffix = " px"
+[node name="DirectionalAngleLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Angle"
+[node name="DirectionalAngle" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = -180.0
+maximum = 180.0
+suffix = "°"
+[node name="DirectionalStrengthLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Strength"
+[node name="DirectionalStrength" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 100.0
+minimum = 0.0
+maximum = 100.0
+suffix = "%"
+[node name="DirectionalPreview" type="Button" parent="."]
+layout_mode = 2
+text = "Preview directional blur"
+[node name="DirectionalApply" type="Button" parent="."]
+theme_type_variation = &"AccentButton"
+layout_mode = 2
+text = "Apply directional blur"
+[node name="DirectionalCancel" type="Button" parent="."]
+layout_mode = 2
+text = "Cancel preview"

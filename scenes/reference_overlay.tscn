@@ -1,0 +1,69 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://ui/reference_overlay.gd" id="script"]
+
+[node name="ReferenceOverlay" type="Control"]
+offset_left = 12.0
+offset_top = 90.0
+offset_right = 312.0
+offset_bottom = 390.0
+mouse_filter = 1
+visible = false
+script = ExtResource("script")
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 1
+
+[node name="Body" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="Panel/Body"]
+layout_mode = 2
+mouse_filter = 1
+
+[node name="Title" type="Label" parent="Panel/Body/Header"]
+layout_mode = 2
+text = "REFERENCE"
+size_flags_horizontal = 3
+mouse_filter = 1
+theme_override_font_sizes/font_size = 11
+
+[node name="Lock" type="Button" parent="Panel/Body/Header"]
+layout_mode = 2
+text = "Lock"
+toggle_mode = true
+focus_mode = 0
+tooltip_text = "Lock reference position and zoom"
+
+[node name="Hide" type="Button" parent="Panel/Body/Header"]
+layout_mode = 2
+text = "×"
+focus_mode = 0
+tooltip_text = "Hide reference image · H to show again"
+
+[node name="Image" type="TextureRect" parent="Panel/Body"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 1
+expand_mode = 1
+stretch_mode = 5
+
+[node name="OpacityRow" type="HBoxContainer" parent="Panel/Body"]
+layout_mode = 2
+
+[node name="OpacityLabel" type="Label" parent="Panel/Body/OpacityRow"]
+layout_mode = 2
+text = "Opacity"
+theme_override_font_sizes/font_size = 11
+
+[node name="Opacity" type="HSlider" parent="Panel/Body/OpacityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 10.0
+max_value = 100.0
+step = 1.0
+value = 100.0
+tooltip_text = "Reference transparency"

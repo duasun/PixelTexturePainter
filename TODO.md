@@ -1,8 +1,8 @@
 # TODO
 
-Ovo su planirane funkcije; još nisu implementirane. Prečice su rezervisane kao predlog i treba ih proveriti u aplikaciji pre objave.
+Stavke koje su zatražene za 3D pregled i efekte. Implementacija i automatske provere su u projektu.
 
-- [ ] **Directional Blur.** Dodati zaseban efekat za aktivni sloj/izabranu oblast: ugao, dužina u texelima i jačina. Promena vrednosti prikazuje privremeni rezultat; Apply je jedna Undo radnja, Cancel vraća prethodni prikaz. Obrada treba da ostane u pozadini i da ne blokira crtanje na 4K teksturi.
-- [ ] **Referentna slika u radnom prostoru.** Učitati sliku kao pomerljiv i skalabilan prikaz pored ili preko 3D modela, sa podešavanjem opacity i zaključavanjem položaja. Taster **H** prikazuje/sakriva sliku jednim pritiskom bez gubitka položaja i podešavanja. Slika i njen raspored čuvaju se u `.rtpaint` projektu, ali ne ulaze u teksturu ni GLB/PNG izvoz.
-- [ ] **Fokus kamere na predmet jednim tasterom.** Taster **Z** približava i centrira kameru na izabrane površine; bez selekcije koristi površinu pod kursorom, a ako je nema, ceo model. Sačuvati postojeći **Frame whole model** kao poseban brzi povratak. Fokus treba da radi i u perspektivnom i u ortografskom prikazu bez prolaska kroz geometriju.
-- [ ] **Klikabilne ose u 3D pregledu.** Mali orijentacioni widget u uglu prikaza sa +X/−X, +Y/−Y i +Z/−Z. Klik postavlja pogled tačno duž izabrane ose i uključuje ortografski pogled; trenutno središte fokusa ostaje isto. Jasno označiti aktivnu osu i omogućiti povratak na slobodno orbitiranje desnim klikom.
+- [x] **Directional Blur.** Zaseban efekat za aktivni sloj/izabranu oblast: ugao, dužina u texelima i jačina. Promena vrednosti prikazuje privremeni rezultat; Apply je jedna Undo radnja, Cancel vraća prethodni prikaz. Obrada radi u pozadini i koristi samo pogođene tileove i susede na 4K teksturi.
+- [x] **Referentna slika u radnom prostoru.** Slika se učitava kao pomerljiv i skalabilan prikaz preko 3D modela, sa podešavanjem opacity i zaključavanjem položaja. Taster **H** je prikazuje/sakriva bez gubitka položaja i podešavanja. Slika i raspored čuvaju se u `.rtpaint` projektu, ali ne ulaze u teksturu ni GLB/PNG izvoz.
+- [x] **Fokus kamere na predmet jednim tasterom.** Taster **Z** približava i centrira kameru na izabrane površine; bez selekcije koristi površinu pod kursorom, a ako je nema, ceo model. **Frame whole model** ostaje poseban brzi povratak. Fokus radi u perspektivnom i ortografskom prikazu.
+- [x] **Klikabilne ose u 3D pregledu.** Mali orijentacioni widget u uglu prikaza sa +X/−X, +Y/−Y i +Z/−Z. Klik postavlja pogled tačno duž izabrane ose i uključuje ortografski pogled; trenutno središte fokusa ostaje isto. Aktivna osa je označena i desni klik nastavlja orbitiranje.

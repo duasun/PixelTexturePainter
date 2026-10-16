@@ -26,6 +26,9 @@ var stamp_image: Image
 var stamp_region := Rect2i()
 var stamp_name := ""
 var stamp_rotation := 0.0
+var reference_image: Image
+var reference_name := ""
+var reference_state: Dictionary = {"x":12.0,"y":90.0,"width":300.0,"height":325.0,"opacity":1.0,"locked":false,"visible":true}
 var pattern_image: Image
 var pattern_settings: Dictionary = {"angle": 0.0, "scale": 1.0, "offset_x": 0.0, "offset_y": 0.0}
 var uv_export_padding := 2
@@ -146,6 +149,9 @@ func snapshot() -> PaintDocument:
 	result.stamp_region = stamp_region
 	result.stamp_name = stamp_name
 	result.stamp_rotation = stamp_rotation
+	result.reference_image = reference_image
+	result.reference_name = reference_name
+	result.reference_state = reference_state.duplicate(true)
 	result.pattern_image = pattern_image
 	result.pattern_settings = pattern_settings.duplicate(true)
 	for layer in layers:

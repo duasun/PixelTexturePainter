@@ -158,7 +158,7 @@ func run() -> void:
 	var redo_button: Button = scene.model_view.get_node("Header/Redo")
 	check(undo_button.icon != null and redo_button.icon != null and not undo_button.tooltip_text.is_empty() and not redo_button.tooltip_text.is_empty(), "Visible Undo/Redo buttons have icons and shortcuts in tooltips")
 	check(undo_button.get_global_rect().end.x <= redo_button.global_position.x and redo_button.get_global_rect().end.x <= scene.model_view.get_node("Header/Frame").global_position.x and undo_button.disabled and redo_button.disabled, "Undo/Redo sit left of Frame and start disabled")
-	check(bar.get_node("File").get_popup().item_count == 18, "File menu contains project/import/export/exit and recent project actions")
+	check(bar.get_node("File").get_popup().item_count == 19, "File menu contains project/import/reference/export/exit and recent project actions")
 	if DisplayServer.get_name() != "headless":
 		var mode_before_fullscreen: Window.Mode = root.mode
 		var started_fullscreen: bool = mode_before_fullscreen in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN]
@@ -679,6 +679,69 @@ func run() -> void:
 	check(scene._blur_preview_layer_id.is_empty() and scene.document.revision > preview_revision,"Apply commits blur as one action")
 	scene._action("Undo")
 	check(scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(29,30).a == 0.0 and scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(30,30).a == 1.0,"Undo restores sharp layer paint")
+	effects.get_node("DirectionalLength").set_value(16)
+	effects.get_node("DirectionalAngle").set_value(0)
+	effects.get_node("DirectionalStrength").set_value(100)
+	preview_revision = scene.document.revision
+	effects.get_node("DirectionalPreview").pressed.emit()
+	await ready_document(scene)
+	check(scene._blur_preview_layer_id == scene.document.selected_layer().id and scene.document.revision == preview_revision and scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(26,30).a > 0.0,"Directional blur previews on the selected layer without history")
+	effects.get_node("DirectionalCancel").pressed.emit()
+	check(scene._blur_preview_layer_id.is_empty() and scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(26,30).a == 0.0,"Directional blur Cancel restores the original layer")
+	# The view widget changes orientation without shifting focus, and Z uses the hovered surface.
+	model_view.frame_model()
+	var focus_hit: Dictionary = model_view._hit(model_view.display.size*0.5)
+	if not focus_hit.is_empty():
+		scene._hover(focus_hit,true)
+		var focus_key := InputEventKey.new()
+		focus_key.keycode = KEY_Z
+		focus_key.pressed = true
+		scene._unhandled_key_input(focus_key)
+		check(model_view.target.distance_to(focus_hit.position) < 0.0001,"Z focuses the surface under the cursor")
+	var focus_before_axis: Vector3 = model_view.target
+	model_view.get_node("Display/Axes/Grid/PosX").pressed.emit()
+	check(model_view.camera.projection == Camera3D.PROJECTION_ORTHOGONAL and model_view.camera.position.x > model_view.target.x and model_view.target == focus_before_axis,"+X axis gives an orthographic side view around the current focus")
+	model_view.get_node("Display/Axes/Grid/NegY").pressed.emit()
+	check(model_view.camera.position.y < model_view.target.y and model_view.get_node("Display/Axes/Grid/NegY").button_pressed,"-Y axis looks up at the model")
+	model_view.frame_model()
+	var reference := Image.create(2,2,false,Image.FORMAT_RGBA8)
+	reference.fill(Color.CYAN)
+	var reference_path := ProjectSettings.globalize_path("res://test_output/ui_reference.png")
+	reference.save_png(reference_path)
+	scene._file_action = "reference"
+	scene._file_selected(reference_path)
+	var reference_overlay: Control = model_view.get_node("Display/ReferenceOverlay")
+	check(reference_overlay.visible and scene.document.reference_image != null,"Imported reference appears over the model view")
+	reference_overlay.get_node("Panel/Body/OpacityRow/Opacity").value = 45
+	check(is_equal_approx(scene.document.reference_state.opacity,0.45),"Reference opacity changes are stored in the project state")
+	var reference_key := InputEventKey.new()
+	reference_key.keycode = KEY_H
+	reference_key.pressed = true
+	scene._unhandled_key_input(reference_key)
+	check(not reference_overlay.visible and not scene.document.reference_state.visible,"H action hides and stores reference visibility")
+	scene._unhandled_key_input(reference_key)
+	check(reference_overlay.visible,"H action shows the reference again")
+	# Start a stroke on empty viewport background, then enter the model while held.
+	scene.get_node("%ToolBar").select("brush")
+	var empty_point := Vector2(3,model_view.display.size.y-3)
+	var paint_point := model_view.display.size*0.5
+	check(model_view._hit(empty_point).is_empty() and not model_view._hit(paint_point).is_empty(),"Drag test crosses from viewport background onto the model")
+	if model_view._hit(empty_point).is_empty() and not model_view._hit(paint_point).is_empty():
+		var background_press := InputEventMouseButton.new()
+		background_press.button_index = MOUSE_BUTTON_LEFT
+		background_press.position = empty_point
+		background_press.pressed = true
+		model_view._input_display(background_press)
+		check(not scene.painter.active,"Background press waits for a model hit")
+		var move_onto_model := InputEventMouseMotion.new()
+		move_onto_model.position = paint_point
+		move_onto_model.relative = paint_point-empty_point
+		model_view._input_display(move_onto_model)
+		check(scene.painter.active,"Held brush begins as soon as the cursor enters the model")
+		background_press.pressed = false
+		background_press.position = paint_point
+		model_view._input_display(background_press)
+		while scene.painter.active: scene.painter._process(0.0)
 	var report := {"checks": checks,"failures": failures}
 	var output := FileAccess.open("res://test_output/ui_results.json",FileAccess.WRITE)
 	output.store_string(JSON.stringify(report,"\t"))

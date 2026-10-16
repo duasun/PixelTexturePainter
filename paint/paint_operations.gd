@@ -649,6 +649,84 @@ static func _blur_tile(layer: PaintLayer, key: Vector2i, radius: int) -> Image:
 			output[dst+3] = clampi(roundi(float(sum_a)/area),0,255)
 	return Image.create_from_data(64,64,false,Image.FORMAT_RGBA8,output)
 
+## A sparse, bounded line kernel. Nine or fewer samples keep the 4K worker
+## predictable while premultiplied color avoids dark fringes on transparent paint.
+static func directional_blur_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, layer_id: String, length: int, angle: float, strength: float, selection: Dictionary = {}) -> Dictionary:
+	var source: PaintLayer
+	for layer in doc.layers:
+		if layer.id == layer_id: source = layer; break
+	if source == null: return {"error":"The selected layer no longer exists."}
+	length = clampi(length,2,64)
+	strength = clampf(strength,0.0,1.0)
+	var radius := maxi(1,roundi(length*0.5))
+	var direction := Vector2.from_angle(deg_to_rad(angle))
+	var offsets: Array[Vector2i] = []
+	for i in 9:
+		var position := Vector2i((direction*lerpf(-radius,radius,float(i)/8.0)).round())
+		if not offsets.has(position): offsets.append(position)
+	var extent := doc.tile_extent()
+	var candidates: Dictionary = {}
+	for key in source.tiles:
+		for oy in range(-1,2):
+			for ox in range(-1,2):
+				var neighbor: Vector2i = key+Vector2i(ox,oy)
+				if neighbor.x >= 0 and neighbor.y >= 0 and neighbor.x < extent.x and neighbor.y < extent.y:
+					if selection.is_empty() or selection.has(neighbor): candidates[neighbor] = true
+	var keys := candidates.keys()
+	var result_tiles := source.tiles.duplicate()
+	var changed: Array[Vector2i] = []
+	for index in keys.size():
+		if progress.report(float(index)/maxi(1,keys.size()),"Previewing directional blur…"):
+			return {"cancelled":true}
+		var key: Vector2i = keys[index]
+		var original := source.tile_at(key,false,false)
+		var mask: Image = selection.get(key)
+		var output := _directional_tile(source,key,radius,offsets,strength,mask)
+		if output.get_data() != original.get_data():
+			result_tiles[key] = output
+			changed.append(key)
+	return {"tiles":result_tiles,"changed":changed,"layer_id":layer_id,"length":length,"angle":angle,"strength":strength}
+
+static func _directional_tile(layer: PaintLayer, key: Vector2i, radius: int, offsets: Array[Vector2i], strength: float, mask: Image) -> Image:
+	var side := 64+radius*2
+	var padded := Image.create(side,side,false,Image.FORMAT_RGBA8)
+	padded.fill(layer.base_color)
+	var bounds := Rect2i(key*64-Vector2i.ONE*radius,Vector2i.ONE*side)
+	for ty in range(floori(float(bounds.position.y)/64.0),floori(float(bounds.end.y-1)/64.0)+1):
+		for tx in range(floori(float(bounds.position.x)/64.0),floori(float(bounds.end.x-1)/64.0)+1):
+			var tile_rect := Rect2i(tx*64,ty*64,64,64)
+			var part := bounds.intersection(tile_rect)
+			if part.has_area(): padded.blit_rect(layer.tile_at(Vector2i(tx,ty),false,false),Rect2i(part.position-tile_rect.position,part.size),part.position-bounds.position)
+	var data := padded.get_data()
+	var output := layer.tile_at(key,false,false).get_data()
+	var mask_bytes := mask.get_data() if mask != null else PackedByteArray()
+	for y in 64:
+		for x in 64:
+			var dst := (y*64+x)*4
+			var mix_amount := strength*(float(mask_bytes[dst+3])/255.0 if not mask_bytes.is_empty() else 1.0)
+			if mix_amount <= 0.0: continue
+			var sum_r := 0; var sum_g := 0; var sum_b := 0; var sum_a := 0
+			for offset in offsets:
+				var src := ((y+radius+offset.y)*side+x+radius+offset.x)*4
+				var alpha := int(data[src+3])
+				sum_a += alpha
+				sum_r += int(data[src])*alpha
+				sum_g += int(data[src+1])*alpha
+				sum_b += int(data[src+2])*alpha
+			var blur_a := float(sum_a)/offsets.size()
+			var center_a := float(output[dst+3])
+			var out_a := lerpf(center_a,blur_a,mix_amount)
+			if out_a < 0.5:
+				for channel in 4: output[dst+channel] = 0
+				continue
+			for channel in 3:
+				var sum_channel := sum_r if channel == 0 else sum_g if channel == 1 else sum_b
+				var center_premultiplied := float(output[dst+channel])*center_a/255.0
+				var blurred_premultiplied := float(sum_channel)/(offsets.size()*255.0)
+				output[dst+channel] = clampi(roundi(lerpf(center_premultiplied,blurred_premultiplied,mix_amount)*255.0/out_a),0,255)
+			output[dst+3] = clampi(roundi(out_a),0,255)
+	return Image.create_from_data(64,64,false,Image.FORMAT_RGBA8,output)
+
 static func _triangle_contains(point: Vector2, a: Vector2, b: Vector2, c: Vector2) -> bool:
 	var first := (b - a).cross(point - a)
 	var second := (c - b).cross(point - b)

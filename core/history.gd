@@ -36,6 +36,10 @@ func push(doc: PaintDocument, action: Dictionary) -> void:
 			for state in [action.before, action.after]:
 				if state.image is Image:
 					estimate += state.image.get_width() * state.image.get_height() * 4
+		elif action.kind == "reference":
+			for state in [action.before, action.after]:
+				if state.image is Image:
+					estimate += state.image.get_width() * state.image.get_height() * 4
 		action["bytes"] = estimate
 	while actions.size() > cursor:
 		memory_bytes -= int(actions.pop_back().get("bytes", 0))
@@ -90,6 +94,11 @@ func _apply(doc: PaintDocument, action: Dictionary, forward: bool) -> Array[Vect
 		doc.stamp_image = state.image
 		doc.stamp_region = state.region
 		doc.stamp_name = state.name
+	elif action.kind == "reference":
+		var state: Dictionary = action.after if forward else action.before
+		doc.reference_image = state.image
+		doc.reference_name = state.name
+		doc.reference_state = state.settings.duplicate(true)
 	elif action.kind == "effects":
 		doc.effects = (action.after if forward else action.before).duplicate(true)
 	elif action.kind == "palette":

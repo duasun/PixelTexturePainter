@@ -338,6 +338,10 @@ func additional_checks(painter: PaintEngine, progress: BackgroundJob.JobProgress
 	doc.stamp_region = Rect2i(1,0,2,2)
 	doc.stamp_name = "sample.png"
 	doc.pattern_settings.angle = 90.0
+	doc.reference_image = Image.create(2,2,false,Image.FORMAT_RGBA8)
+	doc.reference_image.fill(Color.GREEN)
+	doc.reference_name = "reference.png"
+	doc.reference_state = {"x":23.0,"y":41.0,"width":220.0,"height":180.0,"opacity":0.6,"locked":true,"visible":false}
 	var path := ProjectSettings.globalize_path("res://test_output/assets.rtpaint")
 	ProjectIO.save_project(progress, doc, path)
 	var loaded := ProjectIO.load_project(progress, path)
@@ -345,6 +349,8 @@ func additional_checks(painter: PaintEngine, progress: BackgroundJob.JobProgress
 	check(loaded.has("document") and loaded.document.stamp_image.get_data() == doc.stamp_image.get_data(), "Stamp image survives project save")
 	check(loaded.has("document") and loaded.document.stamp_region == doc.stamp_region and loaded.document.stamp_name == doc.stamp_name, "Stamp crop and source label survive project save")
 	check(loaded.has("document") and loaded.document.pattern_settings.angle == 90.0, "Pattern direction survives project save")
+	check(loaded.has("document") and loaded.document.reference_image.get_data() == doc.reference_image.get_data() and loaded.document.reference_name == "reference.png", "Reference image is embedded in the project")
+	check(loaded.has("document") and loaded.document.reference_state == doc.reference_state, "Reference visibility, placement, zoom, opacity and lock survive project save")
 	doc.effects.steps = 4
 	doc.effects.brightness = 0.1
 	var png_path := ProjectSettings.globalize_path("res://test_output/export.png")
@@ -442,6 +448,35 @@ func additional_checks(painter: PaintEngine, progress: BackgroundJob.JobProgress
 	check(spray.selected_layer().tiles.is_empty(), "Whole spray stroke undoes in one action")
 	undo.redo(spray)
 	check(spray.selected_layer().tile_at(Vector2i.ZERO).get_data() == painted, "Spray redo preserves random particles exactly")
+	# Leaving the mesh or crossing a UV seam must not replay old spray bursts.
+	painter.setup(spray,PaintHistory.new())
+	painter.tool = "spray"
+	painter.begin(Vector2(0.2,0.2),0,0)
+	painter.append_symmetry(Vector2(0.8,0.8),0,1)
+	check(painter._symmetry_paths.has(1), "Spray tracks the current mirrored point")
+	painter.append(Vector2(0.6,0.6),1,1)
+	check(painter._symmetry_paths.is_empty() and painter._points.size() == painter._read+1, "Changing UV islands drops stale mirrored spray and queued bursts")
+	painter.append_symmetry(Vector2(0.7,0.7),1,1)
+	painter.break_path()
+	check(painter._last.x < -90000 and painter._symmetry_paths.is_empty() and painter._points.size() == painter._read, "Leaving the mesh stops timed spray and discards queued old positions")
+	drain(painter)
+	var blur_doc := PaintDocument.new()
+	blur_doc.initialize(64,64,Color.TRANSPARENT)
+	blur_doc.selected_layer().tile_at(Vector2i.ZERO).set_pixel(32,32,Color.WHITE)
+	var directional := PaintOperations.directional_blur_layer(progress,blur_doc,blur_doc.selected_layer().id,16,0.0,1.0)
+	var directional_tile: Image = directional.tiles[Vector2i.ZERO]
+	check(directional_tile.get_pixel(28,32).a > 0.0 and directional_tile.get_pixel(32,28).a == 0.0, "Directional blur spreads along the chosen angle only")
+	var selection_mask := Image.create(64,64,false,Image.FORMAT_RGBA8)
+	selection_mask.fill(Color.TRANSPARENT)
+	selection_mask.set_pixel(28,32,Color.WHITE)
+	var selected_blur := PaintOperations.directional_blur_layer(progress,blur_doc,blur_doc.selected_layer().id,16,0.0,1.0,{Vector2i.ZERO:selection_mask})
+	check(selected_blur.tiles[Vector2i.ZERO].get_pixel(28,32).a > 0.0 and selected_blur.tiles[Vector2i.ZERO].get_pixel(36,32).a == 0.0, "Directional blur respects the face selection mask")
+	check(PaintOperations.directional_blur_layer(progress,blur_doc,blur_doc.selected_layer().id,16,0.0,0.0).changed.is_empty(), "Zero directional blur strength leaves paint unchanged")
+	var directional_4k := PaintDocument.new()
+	directional_4k.initialize(4096,4096,Color.TRANSPARENT)
+	directional_4k.selected_layer().tile_at(Vector2i(30,30)).set_pixel(32,32,Color.WHITE)
+	var big_directional := PaintOperations.directional_blur_layer(progress,directional_4k,directional_4k.selected_layer().id,64,45.0,0.8)
+	check(not big_directional.changed.is_empty() and big_directional.changed.size() <= 9,"4K directional blur touches only painted tiles and their neighbors")
 	var cancelled := BackgroundJob.JobProgress.new()
 	cancelled.cancel()
 	check(UVUnwrapper.unwrap(geometry,64,64,45,1,cancelled).get("cancelled",false), "UV generation honours cancellation")

@@ -2,12 +2,14 @@ class_name ModelView
 extends VBoxContainer
 const ZOOM_STEP := 0.95
 const MIN_DISTANCE_FACTOR := 0.0001
+const AXIS_DIRECTIONS := {"PosX":Vector3.RIGHT,"NegX":Vector3.LEFT,"PosY":Vector3.UP,"NegY":Vector3.DOWN,"PosZ":Vector3.BACK,"NegZ":Vector3.FORWARD}
 signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
 signal stamp_rotation_event(phase: String, horizontal_delta: float)
 signal hovered(hit: Dictionary)
 signal history_requested(action: String)
 signal background_color_changed(color: Color)
+signal reference_state_changed(state: Dictionary)
 var geometry: ModelGeometry
 var display_material: ShaderMaterial
 var yaw := 0.55
@@ -22,6 +24,7 @@ var _pan := false
 var _navigation_keys: Dictionary = {}
 var _navigation_fast := false
 var _painting := false
+var _stroke_started := false
 var _gesture_candidate := false
 var interpolate_strokes := true
 var _previous := Vector2.ZERO
@@ -53,7 +56,12 @@ func _ready() -> void:
 	$Header/Ortho.toggled.connect(func(on: bool):
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL if on else Camera3D.PROJECTION_PERSPECTIVE
 		_update_camera())
-	display.mouse_exited.connect(func(): hovered.emit({}))
+	for axis in AXIS_DIRECTIONS:
+		$Display/Axes/Grid.get_node(axis).pressed.connect(_view_axis.bind(AXIS_DIRECTIONS[axis]))
+	$Display/ReferenceOverlay.state_changed.connect(func(state: Dictionary): reference_state_changed.emit(state))
+	display.mouse_exited.connect(func():
+		hovered.emit({})
+		if _painting and not _gesture_candidate: surface_event.emit("move", {}, 0))
 	_update_camera()
 
 func _notification(what: int) -> void:
@@ -117,6 +125,12 @@ func set_background_color(value: Color) -> void:
 func background_color() -> Color:
 	return world_environment.environment.background_color
 
+func set_reference(image: Image, title: String, state: Dictionary) -> void:
+	$Display/ReferenceOverlay.set_source(image,title,state)
+
+func toggle_reference() -> void:
+	$Display/ReferenceOverlay.toggle_display()
+
 func _background_selected(value: Color) -> void:
 	set_background_color(value)
 	background_color_changed.emit(background_color())
@@ -155,6 +169,34 @@ func frame_model() -> void:
 		distance = maxf(geometry.bounds.size.length() * 1.15, 0.1)
 	_update_camera()
 
+func focus_on(faces: PackedInt32Array, hit: Dictionary = {}) -> void:
+	if geometry == null: return
+	if not faces.is_empty():
+		var bounds := AABB(geometry.positions[faces[0]*3],Vector3.ZERO)
+		for face in faces:
+			if face < 0 or face >= geometry.face_count(): continue
+			for corner in 3: bounds = bounds.expand(geometry.positions[face*3+corner])
+		target = bounds.get_center()
+		distance = maxf(bounds.size.length()*1.35,geometry.bounds.size.length()*0.035)
+	elif not hit.is_empty():
+		target = hit.position
+		distance = maxf(geometry.bounds.size.length()*0.18,0.01)
+	else:
+		frame_model()
+		return
+	_update_camera()
+
+func _view_axis(direction: Vector3) -> void:
+	if direction == Vector3.RIGHT: yaw = PI*0.5; pitch = 0.0
+	elif direction == Vector3.LEFT: yaw = -PI*0.5; pitch = 0.0
+	elif direction == Vector3.UP: yaw = 0.0; pitch = PI*0.5
+	elif direction == Vector3.DOWN: yaw = 0.0; pitch = -PI*0.5
+	elif direction == Vector3.FORWARD: yaw = PI; pitch = 0.0
+	else: yaw = 0.0; pitch = 0.0
+	$Header/Ortho.set_pressed_no_signal(true)
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_update_camera()
+
 func restore_view(wires: bool, orthographic: bool, light: bool) -> void:
 	$Header/Wires.set_pressed_no_signal(wires)
 	$Display/Viewport/World/Wires.visible = wires
@@ -168,8 +210,10 @@ func restore_view(wires: bool, orthographic: bool, light: bool) -> void:
 func _update_camera() -> void:
 	var direction := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch))
 	camera.position = target + direction * distance
-	camera.look_at(target)
+	camera.look_at(target, Vector3.FORWARD if direction.y > 0.9999 else Vector3.BACK if direction.y < -0.9999 else Vector3.UP)
 	camera.size = distance * 0.8
+	for axis in AXIS_DIRECTIONS:
+		$Display/Axes/Grid.get_node(axis).set_pressed_no_signal(camera.projection == Camera3D.PROJECTION_ORTHOGONAL and direction.dot(AXIS_DIRECTIONS[axis]) > 0.9999)
 	var model_extent := geometry.bounds.size.length() if geometry != null else 1.0
 	var model_reach := target.distance_to(geometry.bounds.get_center()) + model_extent if geometry != null else model_extent
 	camera.near = maxf(0.000001, distance * 0.0005)
@@ -252,9 +296,12 @@ func _input_display(event: InputEvent) -> void:
 			if event.pressed:
 				_gesture_candidate = event.ctrl_pressed or event.alt_pressed
 			_previous = event.position
-			surface_event.emit("begin" if event.pressed else "end", _hit(event.position), (1 if event.shift_pressed else 0) + (2 if event.ctrl_pressed else 0) + (4 if event.alt_pressed else 0))
+			var hit := _hit(event.position)
+			if event.pressed: _stroke_started = not hit.is_empty()
+			surface_event.emit("begin" if event.pressed else "end", hit, (1 if event.shift_pressed else 0) + (2 if event.ctrl_pressed else 0) + (4 if event.alt_pressed else 0))
 			if not event.pressed:
 				_gesture_candidate = false
+				_stroke_started = false
 		display.accept_event()
 	elif event is InputEventMouseMotion:
 		if _stamp_rotating:
@@ -274,13 +321,20 @@ func _input_display(event: InputEvent) -> void:
 				if _gesture_candidate:
 					gesture_motion.emit(event.relative)
 				elif not interpolate_strokes:
-					surface_event.emit("move", hit, 4 if event.alt_pressed else 0)
+					_emit_stroke_hit(hit)
 				else:
 					# Sample the screen path, not a straight UV segment across disconnected islands.
 					var steps := clampi(ceili(_previous.distance_to(event.position) / 3.0), 1, 64)
 					for i in range(1, steps + 1):
-						surface_event.emit("move", _hit(_previous.lerp(event.position, i / float(steps))), 4 if event.alt_pressed else 0)
+						_emit_stroke_hit(_hit(_previous.lerp(event.position, i / float(steps))))
 			_previous = event.position
+
+func _emit_stroke_hit(hit: Dictionary) -> void:
+	if not _stroke_started and not hit.is_empty():
+		_stroke_started = true
+		surface_event.emit("begin", hit, 0)
+	else:
+		surface_event.emit("move", hit, 0)
 
 func show_selection(faces: PackedInt32Array) -> void:
 	overlay.mesh = _overlay_mesh(faces)
