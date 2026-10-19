@@ -13,7 +13,6 @@ func _ready() -> void:
 	for axis in ["SymX","SymY","SymZ"]:
 		get_node(axis).toggled.connect(func(_on: bool): setting_changed.emit("symmetry_axes",symmetry_axes()))
 	$Tolerance.value_changed.connect(func(v: float): setting_changed.emit("fill_tolerance",v/100.0))
-	$Contiguous.toggled.connect(func(v: bool): setting_changed.emit("fill_contiguous",v))
 	$Length.value_changed.connect(func(v: float): setting_changed.emit("gradient_length", int(v)))
 
 func set_shape(value: int) -> void:
@@ -50,7 +49,6 @@ func set_tool(tool: String) -> void:
 	$LengthLabel.visible = tool == "gradient"
 	$Tolerance.visible = tool == "fill"
 	$ToleranceLabel.visible = tool == "fill"
-	$Contiguous.visible = tool == "fill"
 	$Shape.visible = has_shape
 	$Dither.visible = has_dither
 	$Mirror.visible = has_mirror

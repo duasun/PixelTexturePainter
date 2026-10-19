@@ -1,81 +1,50 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 [ext_resource type="Script" path="res://ui/pattern_panel.gd" id="script"]
-[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="num"]
-[node name="Pattern" type="VBoxContainer"]
+[ext_resource type="PackedScene" path="res://scenes/compact_number_field.tscn" id="num"]
+[ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="theme"]
+[node name="Pattern" type="HBoxContainer"]
+visible = false
 script = ExtResource("script")
-theme_override_constants/separation = 8
-[node name="Title" type="Label" parent="."]
+theme = ExtResource("theme")
+theme_override_constants/separation = 6
+[node name="ModeLabel" type="Label" parent="."]
 layout_mode = 2
-text = "FILL WITH TEXTURE"
+text = "Fill"
+[node name="Mode" type="OptionButton" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(110,30)
+tooltip_text = "Color, texture, built-in repeating pattern, or your own pixel canvas"
 [node name="Load" type="Button" parent="."]
 layout_mode = 2
 text = "Load texture…"
-[node name="Name" type="Label" parent="."]
+[node name="Edit" type="Button" parent="."]
 layout_mode = 2
-text = "No texture loaded"
-[node name="Preview" type="Control" parent="."]
+text = "Draw pattern…"
+[node name="Preview" type="TextureRect" parent="."]
 layout_mode = 2
-custom_minimum_size = Vector2(0,128)
-clip_contents = true
-[node name="Texture" type="TextureRect" parent="Preview"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-texture_filter = 1
+custom_minimum_size = Vector2(30,30)
 expand_mode = 1
 stretch_mode = 5
-mouse_filter = 2
-[node name="SepAngleLabel" type="HSeparator" parent="."]
-layout_mode = 2
-[node name="SectionAngleLabel" type="Label" parent="."]
-layout_mode = 2
-text = "TRANSFORM"
-theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.95,0.65,0.36,1)
+texture_filter = 1
+tooltip_text = "Current repeating fill source"
 [node name="AngleLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Texture direction"
+text = "Angle"
 [node name="Angle" parent="." instance=ExtResource("num")]
 layout_mode = 2
-value = 0.0
 minimum = -180.0
 maximum = 180.0
 suffix = "°"
-[node name="Rotate" type="Button" parent="."]
-layout_mode = 2
-text = "Rotate 90°"
 [node name="ScaleLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Texture scale · 100% = original pixels"
+text = "Scale"
 [node name="Scale" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 100.0
 minimum = 1.0
 maximum = 1600.0
 suffix = "%"
-[node name="OffsetLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Texture offset"
-[node name="OffsetX" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 0.0
-minimum = -4096.0
-maximum = 4096.0
-suffix = " px X"
-[node name="OffsetY" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 0.0
-minimum = -4096.0
-maximum = 4096.0
-suffix = " px Y"
-[node name="SepApply" type="HSeparator" parent="."]
-layout_mode = 2
 [node name="Apply" type="Button" parent="."]
-theme_type_variation = &"AccentButton"
 layout_mode = 2
-text = "Fill selected faces"
-[node name="Hint" type="Label" parent="."]
-theme_override_font_sizes/font_size = 11
-layout_mode = 2
-text = "Select faces → set direction → fill.\nOr click a face with Texture tool.\nCtrl+click sets the Clone source."
+text = "Fill selection"
+tooltip_text = "Fill the selected faces without clicking the model"

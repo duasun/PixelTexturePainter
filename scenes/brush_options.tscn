@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://ui/brush_options.gd" id="script"]
+[ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="theme"]
+[node name="BrushOptions" type="HBoxContainer"]
+visible = false
+script = ExtResource("script")
+theme = ExtResource("theme")
+theme_override_constants/separation = 6
+[node name="TipLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Tip"
+visible = false
+[node name="Tips" type="OptionButton" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(130,30)
+clip_text = true
+tooltip_text = "Choose a white brush tip. The active color tints it."
+[node name="Import" type="Button" parent="."]
+layout_mode = 2
+text = "+"
+custom_minimum_size = Vector2(32,30)
+tooltip_text = "Import a PNG into your user brush folder"

@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3]
+[ext_resource type="Script" path="res://ui/stamp_options.gd" id="script"]
+[ext_resource type="PackedScene" path="res://scenes/compact_number_field.tscn" id="num"]
+[ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="theme"]
+[node name="StampOptions" type="HBoxContainer"]
+visible = false
+script = ExtResource("script")
+theme = ExtResource("theme")
+theme_override_constants/separation = 6
+[node name="Load" type="Button" parent="."]
+layout_mode = 2
+text = "Load…"
+[node name="Crop" type="Button" parent="."]
+layout_mode = 2
+text = "Crop…"
+tooltip_text = "Open the stamp source to choose the painted area"
+[node name="Name" type="Label" parent="."]
+layout_mode = 2
+custom_minimum_size = Vector2(70,0)
+text = "No stamp"
+clip_text = true
+[node name="RotationLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Rot"
+[node name="Rotation" parent="." instance=ExtResource("num")]
+layout_mode = 2
+minimum = -180.0
+maximum = 180.0
+suffix = "°"

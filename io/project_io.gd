@@ -53,6 +53,9 @@ static func save_project(progress: BackgroundJob.JobProgress, doc: PaintDocument
 	if doc.pattern_image != null:
 		if _write(zip, "pattern.png", doc.pattern_image.save_png_to_buffer()) != OK:
 			return _archive_error(zip)
+	if doc.custom_pattern_image != null:
+		if _write(zip, "custom_pattern.png", doc.custom_pattern_image.save_png_to_buffer()) != OK:
+			return _archive_error(zip)
 	if doc.reference_image != null:
 		if _write(zip,"reference.png",doc.reference_image.save_png_to_buffer()) != OK:
 			return _archive_error(zip)
@@ -126,7 +129,7 @@ static func load_project(progress: BackgroundJob.JobProgress, path: String) -> D
 		doc.reference_state["opacity"] = clampf(float(doc.reference_state.opacity),0.1,1.0)
 		doc.reference_state["x"] = clampf(float(doc.reference_state.x),0.0,10000.0)
 		doc.reference_state["y"] = clampf(float(doc.reference_state.y),0.0,10000.0)
-	for asset in ["stamp", "pattern", "reference"]:
+	for asset in ["stamp", "pattern", "custom_pattern", "reference"]:
 		if zip.file_exists(asset + ".png"):
 			var image := Image.new()
 			if image.load_png_from_buffer(zip.read_file(asset + ".png")) != OK or image.get_width() > 4096 or image.get_height() > 4096:

@@ -46,33 +46,34 @@ func run() -> void:
 	preview_stamp.fill(Color("ea8f54"))
 	preview_stamp.fill_rect(Rect2i(4,0,4,4),Color("54ceb8"))
 	scene.get_node("%StampPanel").set_source(preview_stamp,"Sample stamp",Rect2i(4,0,4,4))
-	for index in range(1, 5):
+	for index in range(1, scene.get_node("%Inspector").get_tab_count()):
 		scene.get_node("%Inspector").current_tab = index
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://test_output/inspector_%d.png" % index)
-		if index == 2:
-			var preview = scene.get_node("%StampPanel/Preview")
-			var pivot: Vector2 = preview._image_rect().get_center()
-			var wheel := InputEventMouseButton.new()
-			wheel.button_index = MOUSE_BUTTON_WHEEL_UP
-			wheel.pressed = true
-			wheel.position = pivot
-			for n in 4: preview._gui_input(wheel)
-			var middle := InputEventMouseButton.new()
-			middle.button_index = MOUSE_BUTTON_MIDDLE
-			middle.pressed = true
-			middle.position = pivot
-			preview._gui_input(middle)
-			var motion := InputEventMouseMotion.new()
-			motion.position = pivot + Vector2(30,-12)
-			motion.relative = Vector2(30,-12)
-			preview._gui_input(motion)
-			middle.pressed = false
-			preview._gui_input(middle)
-			await process_frame
-			await RenderingServer.frame_post_draw
-			root.get_texture().get_image().save_png("res://test_output/stamp_zoom.png")
+	scene.get_node("%StampPopup").popup_centered()
+	var preview = scene.get_node("%StampPanel/Preview")
+	var pivot: Vector2 = preview._image_rect().get_center()
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	wheel.position = pivot
+	for n in 4: preview._gui_input(wheel)
+	var middle := InputEventMouseButton.new()
+	middle.button_index = MOUSE_BUTTON_MIDDLE
+	middle.pressed = true
+	middle.position = pivot
+	preview._gui_input(middle)
+	var motion := InputEventMouseMotion.new()
+	motion.position = pivot + Vector2(30,-12)
+	motion.relative = Vector2(30,-12)
+	preview._gui_input(motion)
+	middle.pressed = false
+	preview._gui_input(middle)
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("res://test_output/stamp_zoom.png")
+	scene.get_node("%StampPopup").hide()
 	scene.get_node("%Inspector").current_tab = 0
 	scene.get_node("%ToolBar").select("gradient")
 	scene.get_node("%ToolOptions/Size").set_value(12)

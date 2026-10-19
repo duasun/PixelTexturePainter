@@ -19,6 +19,8 @@ var edge_wrap_faces: Dictionary = {}
 var edge_wrap_camera_position := Vector3.ZERO
 var edge_wrap_visible_only := false
 var stencil: Image
+var brush_tip: Image
+var _stroke_brush_tip: Image
 var stencil_region := Rect2i()
 var stencil_rotation := 0.0
 var _cached_stencil: Image
@@ -121,6 +123,7 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 	_stroke_mirror = mirror
 	_stroke_stencil_rotation = stencil_rotation
 	_stroke_edge_wrap = edge_wrap
+	_stroke_brush_tip = brush_tip if tool == "brush" else null
 	if tool == "stencil": _stroke_brush_size = _stencil_extent(brush_size, _stroke_stencil_rotation)
 	if tool == "spray":
 		_stroke_brush_size = footprint_size()
@@ -402,18 +405,31 @@ func _make_stamp() -> void:
 	if _stroke_tool == "stencil" and stencil != null:
 		_stamp = _stencil_raster(brush_size,_stroke_stencil_rotation,_stroke_opacity,_mask)
 		return
-	_stamp = Image.create(_stroke_brush_size, _stroke_brush_size, false, Image.FORMAT_RGBA8)
-	_stamp.fill(Color.TRANSPARENT)
-	for y in _stroke_brush_size:
-		if _stroke_shape == 0:
-			_stamp.fill_rect(Rect2i(0, y, _stroke_brush_size, 1), paint)
-		else:
-			var radius := _stroke_brush_size / 2.0
-			var dy := y + 0.5 - radius
-			var half := sqrt(maxf(0.0, radius * radius - dy * dy))
-			var start := ceili(radius - half - 0.5)
-			var row_end := floori(radius + half - 0.5)
-			_stamp.fill_rect(Rect2i(start, y, row_end - start + 1, 1), paint)
+	if _stroke_tool == "brush" and _stroke_brush_tip != null:
+		var tip: Image = _stroke_brush_tip.duplicate()
+		tip.resize(_stroke_brush_size,_stroke_brush_size,Image.INTERPOLATE_NEAREST)
+		_stamp = Image.create(_stroke_brush_size,_stroke_brush_size,false,Image.FORMAT_RGBA8)
+		_stamp.fill(Color.TRANSPARENT)
+		for y in _stroke_brush_size:
+			for x in _stroke_brush_size:
+				var sample: Color = tip.get_pixel(x,y)
+				if sample.a > 0.0:
+					var tinted := paint
+					tinted.a *= sample.a * sample.get_luminance()
+					_stamp.set_pixel(x,y,tinted)
+	else:
+		_stamp = Image.create(_stroke_brush_size, _stroke_brush_size, false, Image.FORMAT_RGBA8)
+		_stamp.fill(Color.TRANSPARENT)
+		for y in _stroke_brush_size:
+			if _stroke_shape == 0:
+				_stamp.fill_rect(Rect2i(0, y, _stroke_brush_size, 1), paint)
+			else:
+				var radius := _stroke_brush_size / 2.0
+				var dy := y + 0.5 - radius
+				var half := sqrt(maxf(0.0, radius * radius - dy * dy))
+				var start := ceili(radius - half - 0.5)
+				var row_end := floori(radius + half - 0.5)
+				_stamp.fill_rect(Rect2i(start, y, row_end - start + 1, 1), paint)
 	if _stroke_falloff > 0.0 and _stroke_brush_size > 1:
 		var pixels := _stamp.get_data()
 		var radius := _stroke_brush_size * 0.5

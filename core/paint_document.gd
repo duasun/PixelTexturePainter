@@ -30,6 +30,7 @@ var reference_image: Image
 var reference_name := ""
 var reference_state: Dictionary = {"x":12.0,"y":90.0,"width":300.0,"height":325.0,"opacity":1.0,"locked":false,"visible":true}
 var pattern_image: Image
+var custom_pattern_image: Image
 var pattern_settings: Dictionary = {"angle": 0.0, "scale": 1.0, "offset_x": 0.0, "offset_y": 0.0}
 var uv_export_padding := 2
 var palette_lookup: PaletteLookup
@@ -153,6 +154,7 @@ func snapshot() -> PaintDocument:
 	result.reference_name = reference_name
 	result.reference_state = reference_state.duplicate(true)
 	result.pattern_image = pattern_image
+	result.custom_pattern_image = custom_pattern_image
 	result.pattern_settings = pattern_settings.duplicate(true)
 	for layer in layers:
 		result.layers.append(layer.copy_layer())

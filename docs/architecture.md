@@ -5,8 +5,8 @@
 1. Glavni prozor, komponente i UI scene; File/Edit/View; ravne kontrole, Verdana, SVG ikonice.
 2. Dokument sa retkim blokovima, lokalni undo/redo, snimanje i recovery.
 3. 2D/3D prikaz, BVH biranje površine i diskretni kursor sa obrisom četkice.
-4. Brush, spray sa Opacity/Flow i preview tačkicama, clone, smudge, blur, stamp, picker i Alt+klik, oblici, selekcije, maske i slojevi sa okom i preimenovanjem.
-5. Texture fill sa rotacijom/skaliranjem/pomeranjem; gradijent sa dužinom u texelima i razvijanjem preko susednih trouglova.
+4. Brush sa 20 ugrađenih i uvozivih PNG maski, spray sa Opacity/Strength i preview tačkicama, clone, smudge, blur, stamp, picker i Alt+klik, oblici, selekcije, maske i slojevi sa okom i preimenovanjem.
+5. Fill režimi Color, Texture, šest ugrađenih patterna i korisnički piksel-kanvas; rotacija i skala patterna, gradijent sa dužinom u texelima i razvijanjem preko susednih trouglova.
 6. Auto UV ugaonim projekcijama, provera preklapanja, MaxRects pakovanje i osnovno uređivanje ostrva.
 7. Efekti uživo, geometrijske ivice, PNG, GLB/glTF sa naslikanom teksturom i OBJ export.
 8. Funkcionalne provere, Godot render test i 4K merenje na lokalnom GPU-u.
@@ -49,7 +49,7 @@ Godot `ImageTexture.update()` osvežava celu sliku. Prikaz koristi `Texture2DArr
 
 Maske za 3D četkicu rasterizuju samo potrebne 64×64 blokove pogođenog ostrva. UV prostorne ćelije prethodno smanjuju listu kandidata. Cache je ograničen na 256 blokova. Clone koristi lenje kompozitne kopije izvora i copy-on-write, da izbegne punu kopiju 4K projekta na početku poteza.
 
-Smudge i Blur uzorkuju lokalne CPU blokove trenutne mape, bez GPU readback-a, sa četkicom do 64 px. Blur koristi premultiplied alpha i izvorni Image resize za lokalni filter. Spray akumulira coverage samo na pogođenim blokovima; Opacity ograničava ceo potez, Flow pojedinačne čestice. Preview i sledeći nalet koriste isti seed i ograničenja selekcije/ostrva. Wireframe se gradi pri promeni geometrije, a hover samo pri promeni ciljne grupe. Preview markeri ne ulaze u eksport.
+Smudge i Blur uzorkuju lokalne CPU blokove trenutne mape, bez GPU readback-a, sa četkicom do 64 px. Blur koristi premultiplied alpha i izvorni Image resize za lokalni filter. Spray akumulira coverage samo na pogođenim blokovima; Opacity ograničava ceo potez, a Strength zajedno određuje internu gustinu i nakupljanje čestica. Preview i sledeći nalet koriste isti seed i ograničenja selekcije/ostrva. Brush maska se skalira i tonira jednom na početku poteza; 3D/UV preview se kešira za izabranu veličinu i boju. Wireframe se gradi pri promeni geometrije, a hover samo pri promeni ciljne grupe. Preview markeri ne ulaze u eksport.
 
 Panel palete i inspektor imaju Control omotače koji odvajaju minimalne veličine sadržaja od SplitContainer razdelnika. Raspored je definisan scenama; kod čuva samo korisničke split offset vrednosti. GPU prikaz drži trenutno izabranu mapu. Osvetljeni pregled pravi šest privremenih mapa do 1024 px u pozadinskoj niti, bez šest stalnih 4K GPU kopija.
 

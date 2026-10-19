@@ -30,7 +30,7 @@ Ispod menija je razmak, zatim podešavanja izabranog alata u jednom redu neposre
 
 | Prečica | Radnja |
 |---|---|
-| B | Brush: veličina, opacity, square/round, dither, UV mirror |
+| B | Brush: veličina, opacity, 20 otisaka i uvoz svog PNG brush tipa |
 | A | Spray: pojedinačni pikseli, kontinuirano prskanje dok držiš klik |
 | E | Eraser |
 | I | Eyedropper |
@@ -68,29 +68,23 @@ Linija, pravougaonik, elipsa i gradijent prikazuju svetli pregled dok držiš le
 
 Levi klik bira **1**, desni **2**. Okvir i broj obeležavaju izabrane swatcheve. Dva stalna uzorka sa HEX vrednostima pokazuju trenutne boje i kada su uzete eyedropperom van palete. Dugme **+** ispod palete otvara birač i dodaje novu boju. **Edit selected color…** ili dvoklik na swatch menja boju, a **Remove color** je briše. Sve tri radnje podržavaju Undo/Redo. Paleta i obe boje čuvaju se u projektu; efekat Palette koristi celu paletu.
 
-**Edit → Replace color** menja odgovarajuće piksele u slojevima trenutno prikazane mape, sa podesivom tolerancijom i jednom Undo radnjom. Za lokalno bojenje koristi Fill sa Tolerance i Contiguous.
+**Edit → Replace color** menja odgovarajuće piksele u slojevima trenutno prikazane mape, sa podesivom tolerancijom i jednom Undo radnjom. Za lokalno bojenje koristi Fill sa Tolerance.
 
 ### Fill i stamp
 
-Bez selekcije **F** popunjava oblast vidljive boje povezanu preko horizontalnih/vertikalnih suseda, do granice druge boje. **Tolerance** određuje koliko susedna boja sme da odstupa; isključeni **Contiguous** menja sve odgovarajuće piksele u pogođenom UV ostrvu, ili u celoj teksturi iz UV prikaza. Sa izabranim faces, fill boji ceo izbor. Veliki fill radi u pozadini, može da se otkaže i ima jednu Undo akciju.
+U gornjoj traci alata **F / Fill** biraš **Color**, **Texture**, **Grid**, **Checker**, **Stripes**, **Dots**, **Brick**, **Weave** ili **Custom**. Color bez selekcije popunjava povezanu oblast iste boje do granice; **Tolerance** određuje dozvoljeno odstupanje. Sa izabranim faces boji ceo izbor. Texture i patterni popunjavaju izabrane faces ili UV ostrvo ispod klika, uključujući klik u UV prikazu. Rezultat je zaseban sloj koji možeš ponovo da podesiš, uz Undo/Redo. Veliki fill radi u pozadini i može da se otkaže.
 
-**File → Import stamp image…** učitava PNG/JPG/WebP do 4096×4096 i aktivira **Stamp / T**. Otvara se **Stamp** tab u desnom inspektoru: prevuci pravougaonik preko slike da koristiš samo taj deo. Točkić zumira oko kursora, a srednji klik i povlačenje pomeraju uvećanu sliku; levi klik i dalje precizno bira izvorne piksele. Prikaz ispod pokazuje izabrani otisak; **Use full image** vraća celu sliku. **Rotation** okreće otisak. PNG sa providnom pozadinom je pogodan za otiske. **Size** određuje veličinu otiska u texelima, **Opacity** jačinu. Možeš i da izabereš T pa klikneš na model ako slika još nije učitana. Slika i izabrana oblast čuvaju se u projektu, a promena oblasti podržava Undo. Ovo je slikovna četkica; kamera-projektovan stencil koji pomeraš preko ekrana još nije implementiran.
+**Stamp / T** u gornjoj traci ima **Load**, **Crop** i **Rotation**. Load učitava PNG/JPG/WebP do 4096×4096; Crop otvara poseban pregled u kome prevlačenjem biraš deo slike. Točkić zumira oko kursora, srednji klik pomera uvećanu sliku, a **Use full image** vraća celu sliku. PNG sa providnom pozadinom je pogodan za otiske. **Size** određuje veličinu otiska u texelima, **Opacity** jačinu. Slika, crop i rotacija čuvaju se u projektu. Ovo je slikovna četkica; kamera-projektovan stencil koji pomeraš preko ekrana još nije implementiran.
+
+**Brush / B** nudi 20 belih otisaka u padajućem izboru gornje trake. Oni se boje aktivnom bojom i mogu se koristiti kao obična četkica ili za pojedinačne otiske. Dugme **+** uvozi PNG do 512×512 u trajnu fasciklu `user://brushes`; tu možeš da dodaš i svoje PNG otiske. Podrazumevana četkica ostaje dostupna kao prvi izbor. Izbor četkice pamti se u podešavanjima.
 
 ### Fill with Texture
 
-Izaberi površine, otvori **Pattern**, učitaj sliku i podesi **Direction**, **Scale** i **Offset**. Klikni **Create pattern fill layer**, ili alatom P klikni površinu modela. Bez ručne selekcije klik bira pogođeno UV ostrvo. Dobijaš zaseban sloj: kasnije ga izaberi, promeni rotaciju, skalu ili pomeraj i pregled se ponovo proračunava; ručno slikanje po istom sloju ostaje iznad uzorka. Izvorna slika, izabrane površine i transformacija čuvaju se u projektu. Tekstura se ponavlja u prostoru UV atlasa; ovo nije triplanar projekcija.
+Za sopstvenu teksturu izaberi **Texture** u Fill izboru i klikni **Load texture**. Za ugrađene uzorke izaberi jedan od šest patterna; koriste trenutno izabrane boje 1 i 2. Za lični uzorak izaberi **Custom → Draw pattern**, odredi širinu i visinu kanvasa (1–128 px), crtaj levim dugmetom, briši desnim i potvrdi. **Angle** i **Scale** podešavaju ponavljanje. Dugme **Fill selection** radi bez dodatnog klika ako su faces već izabrane; taster **P** brzo otvara Fill u Texture režimu. Izvorna slika, custom pattern i transformacija čuvaju se u `.rtpaint` projektu. Ponavljanje je u prostoru UV atlasa; ovo nije triplanar projekcija.
 
 ### Spray
 
-Skraćeni natpisi u traci su **Op** (Opacity), **Dots** (Density), **Step** (Spacing) i **Dist** (Distance); potpuni opisi su u tooltipovima.
-
-- **Size** određuje prečnik na udaljenosti 100%; stvarni otisak vidi se kao obris na modelu i UV prikazu.
-- **Density** je broj pokušaja nanošenja piksela po naletu; čestice mogu pasti na isti piksel.
-- **Spacing** je razmak u texelima duž poteza.
-- **Rate** je broj naleta u sekundi dok miš miruje.
-- **Opacity** ograničava ukupnu jačinu jednog držanja klika: na 20% ni dugo prskanje u istom potezu ne prelazi 20% prema boji pre poteza. Novi potez može dodatno pojačati boju.
-- **Flow** određuje koliko svaka čestica doprinosi dostizanju tog ograničenja.
-- **Distance** je relativna udaljenost mlaznice: 200% udvostručuje prečnik i deli Flow sa četiri. Nije mera u metrima modela. Maksimalni efektivni prečnik je 256 texela.
+Spray ima tri glavna podešavanja: **Size** određuje prečnik otiska u texelima, **Opacity** ograničava ukupnu jačinu jednog držanja klika, a **Strength** zajedno određuje broj čestica i brzinu nakupljanja boje. Na primer, na 20% Opacity ni dugo prskanje u istom potezu ne prelazi 20% prema boji pre poteza; novi potez može dodatno pojačati boju. Ostala podešavanja naleta automatski održavaju ujednačen rezultat.
 
 Svetle tačkice unutar kursora pokazuju položaje **sledećeg naleta** u oba prikaza, uz ograničenje selekcijom i pogođenim UV ostrvom. Posle naleta prikaz prelazi na naredni raspored; svetlina markera ne predstavlja jačinu boje. Jedno držanje klika je jedna undo akcija. Redo vraća iste čestice, bez novog nasumičnog rasporeda. Podešavanja izmenjena tokom poteza važe za sledeći potez.
 
@@ -134,7 +128,7 @@ GLB/glTF uključuje Albedo, Roughness, Metallic, Normal, AO i Emission kada njih
 
 Posle izmena, automatski recovery se pravi približno svaka dva minuta kada nema aktivnog poteza/posla. **File → Recover autosave** otvara poslednju kopiju. To je jedna zajednička recovery kopija, nije istorija projekata. Exit i zamena nesnimljenog projekta traže potvrdu odbacivanja. Koristi Save pre potvrde ako želiš da sačuvaš izmene.
 
-Korisnički `user://painter.cfg` pamti putanju poslednjeg projekta, alat, veličinu/oblik/opacity/soft edge četkice, Dither, Mirror UV, Wrap, podešavanja spreja, Compact, aktivni tab inspektora, otvorene sekcije Effects, podešavanja AO/ivica/Normal/Blur/UV kontrola, zum i položaj Stamp pregleda poslednjeg projekta, vidljivost prikaza i veličine panela. Podešavanja se snimaju kratko posle promene i pri izlasku. **File → Open last project** otvara zapamćeni fajl; **File → Reopen last project on startup** uključuje/isključuje automatsko otvaranje. Kada fajl više nije dostupan, program se vraća početnom primeru. Starije vrednosti razdelnika iz `user://workspace_layout.cfg` preuzimaju se pri prvom pravljenju novog configa. Stamp slika i crop, Pattern slika i transformacija, boje i slojevi čuvaju se u sačuvanom `.rtpaint` fajlu.
+Korisnički `user://painter.cfg` pamti putanju poslednjeg projekta, alat, izabrani brush tip, veličinu/oblik/opacity/soft edge četkice, Dither, Mirror UV, Wrap, Spray Strength, Fill režim, Compact, aktivni tab inspektora, otvorene sekcije Effects, podešavanja AO/ivica/Normal/Blur/UV kontrola, zum i položaj Stamp pregleda poslednjeg projekta, vidljivost prikaza i veličine panela. Podešavanja se snimaju kratko posle promene i pri izlasku. **File → Open last project** otvara zapamćeni fajl; **File → Reopen last project on startup** uključuje/isključuje automatsko otvaranje. Kada fajl više nije dostupan, program se vraća početnom primeru. Starije vrednosti razdelnika iz `user://workspace_layout.cfg` preuzimaju se pri prvom pravljenju novog configa. Stamp slika i crop, uvezena texture slika, custom pattern, boje i slojevi čuvaju se u sačuvanom `.rtpaint` fajlu.
 
 ## Performanse i trenutni obim
 
@@ -160,6 +154,7 @@ $engine = 'C:\Users\Dboja\Downloads\Godot_v4.7-stable_win64.exe\Godot_v4.7-stabl
 & $engine --headless --path . --script res://tests/run_features.gd
 & $engine --headless --path . --script res://tests/run_workflow.gd
 & $engine --headless --path . --script res://tests/run_preferences.gd
+& $engine --headless --path . --script res://tests/run_fill_tools.gd
 & $engine --headless --path . --script res://tests/run_transforms.gd
 & $engine --path . --script res://tests/render_smoke.gd
 & $engine --path . --script res://tests/render_features.gd

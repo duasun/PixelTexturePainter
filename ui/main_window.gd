@@ -9,7 +9,6 @@ var _selection_before := PackedInt32Array()
 var _steps_before: Array[PackedInt32Array] = []
 var gradient_length := 7
 var fill_tolerance := 0.0
-var fill_contiguous := true
 var symmetry_axes := 0
 var color_b := Color.BLACK
 var selection_mode := 0
@@ -57,8 +56,11 @@ var _spray_mirror_texture: ImageTexture
 var _mode_before_fullscreen := Window.MODE_WINDOWED
 var _stamp_source_texture: ImageTexture
 var _stamp_source_image: Image
+var _brush_preview_texture: ImageTexture
+var _brush_preview_key: Array = []
 var _stamp_rotation_editing := false
 var _stamp_rotation_before := 0.0
+var _brush_tip_path := ""
 var settings_enabled := true
 var settings_path := "user://painter.cfg"
 var _preferences := PainterConfig.new()
@@ -78,6 +80,12 @@ func _ready() -> void:
 	%ToolBar.compact_changed.connect(func(compact: bool): %ToolScroll.custom_minimum_size.x = 96 if compact else 138; _queue_preferences_save())
 	%ToolOptions.setting_changed.connect(_setting)
 	%SprayOptions.setting_changed.connect(_setting)
+	%BrushOptions.tip_selected.connect(_brush_tip_selected)
+	%BrushOptions.import_requested.connect(func(): _file_dialog("brush"))
+	%StampOptions.load_requested.connect(func(): _file_dialog("stencil"))
+	%StampOptions.crop_requested.connect(func(): %StampPopup.popup_centered())
+	%StampOptions.rotation_changed.connect(func(angle: float): _stamp_rotation_input(angle,false))
+	%StampOptions.rotation_committed.connect(func(angle: float): _stamp_rotation_input(angle,true))
 	%MenuBar.action_requested.connect(_action)
 	%PalettePanel.color_selected.connect(func(c: Color, slot: int): _setting("color" if slot == 1 else "color_b", c))
 	%PalettePanel.palette_change_requested.connect(_palette_change)
@@ -87,7 +95,10 @@ func _ready() -> void:
 	%Effects.section_changed.connect(_queue_preferences_save)
 	%UV.action_requested.connect(_uv_action)
 	%Pattern.load_requested.connect(func(): _file_dialog("pattern"))
-	%Pattern.apply_requested.connect(func(): _apply_pattern(selected_faces))
+	%Pattern.apply_requested.connect(func(): _fill_selected_pattern())
+	%Pattern.custom_requested.connect(_open_pattern_editor)
+	%Pattern.mode_changed.connect(func(_mode: int): _queue_preferences_save())
+	%PatternEditor.saved.connect(_save_custom_pattern)
 	%Pattern.settings_changed.connect(_pattern_settings_changed)
 	%Pattern.transform_committed.connect(func():
 		if document != null and document.selected_layer().pattern_image != null: _apply_pattern(document.selected_layer().pattern_faces))
@@ -236,11 +247,14 @@ func _set_document(doc: PaintDocument) -> void:
 	%PalettePanel.refresh(doc.palette, doc.palette_name)
 	_sync_colors()
 	%Pattern.set_source(doc.pattern_image, "Project texture")
+	%Pattern.set_custom_source(doc.custom_pattern_image)
 	%Pattern.restore_settings(doc.pattern_settings)
 	_sync_pattern_inspector()
 	%UV.get_node("ExportPadding").set_value(doc.uv_export_padding,false)
 	%StampPanel.set_source(doc.stamp_image, doc.stamp_name, doc.stamp_region)
 	%StampPanel.set_stamp_rotation(doc.stamp_rotation)
+	%StampOptions.set_source(doc.stamp_image,doc.stamp_name)
+	%StampOptions.set_stamp_rotation(doc.stamp_rotation)
 	model_view.set_reference(doc.reference_image,doc.reference_name,doc.reference_state)
 	if not doc.path.is_empty() and doc.path == _saved_stamp_view_path:
 		%StampPanel.restore_view_state(_saved_stamp_view)
@@ -319,6 +333,9 @@ func _refresh_metadata() -> void:
 	%MenuBar.refresh(can_undo, can_redo, FileAccess.file_exists(_recovery_path),_last_project_path,_reopen_last,PaintChannels.label(document.current_channel()))
 
 func _select_tool(tool: String) -> void:
+	if tool == "texture":
+		%Pattern.set_mode(1)
+		tool = "fill"
 	_cancel_blur_preview()
 	_cancel_geometry_preview()
 	if painter.active:
@@ -327,25 +344,25 @@ func _select_tool(tool: String) -> void:
 		return
 	painter.tool = tool
 	model_view.set_stamp_rotation_mode(tool == "stencil")
-	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "fill", "texture", "picker"]
+	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "fill", "picker"]
 	_gradient_start.clear()
 	_gradient_end.clear()
 	_clear_shape_preview()
 	%ToolOptions.set_tool(tool)
 	%SprayOptions.visible = tool == "spray"
+	%BrushOptions.visible = tool == "brush"
+	%Pattern.visible = tool == "fill"
+	%StampOptions.visible = tool == "stencil"
 	if tool == "select": model_view.get_node("Header/Wires").button_pressed = true
-	if tool == "stencil": _show_inspector_tab("Stamp")
-	if tool == "texture": _show_inspector_tab("Texture")
 	_refresh_cursor()
 	_queue_preferences_save()
 	_status({"gradient": "Gradient: click and drag the direction. Length stays exactly %d px. UV seams use unfolded surface distance." % gradient_length,
 		"select": "Click a surface. Shift adds; Ctrl subtracts. Ctrl+. grows; Ctrl+, shrinks. Esc clears.",
-		"fill": "Fill selected faces, or the connected color region under the cursor.",
-		"texture": "Select faces, load a texture in the Texture tab, then click to fill. Set its rotation before filling.",
+		"fill": "Choose color, texture, or pattern above. Color fills a connected region; patterns fill selected faces or the clicked UV island.",
 		"clone": "Ctrl+click sets the source on the active layer. Paint to copy it; the source stays frozen during the stroke.",
 		"smudge": "Smudge: drag existing paint · Opacity sets strength · up to 64 px · reads current map",
 		"blur": "Blur: smooth local texels · Opacity sets strength · up to 64 px · reads current map",
-		"spray": "Preview shows the next burst · Opacity caps the stroke · Flow sets buildup · Alt+click picks a color",
+		"spray": "Preview shows the next burst · Opacity caps the stroke · Strength sets buildup · Alt+click picks a color",
 		"stencil": "Stamp: load and crop an image, then hover to preview. Alt+right-drag rotates; right-drag orbits the camera."}.get(tool, tool.capitalize() + " · draw in either view"))
 
 func _setting(key: String, value: Variant) -> void:
@@ -354,8 +371,12 @@ func _setting(key: String, value: Variant) -> void:
 		gradient_length = value
 	elif key == "fill_tolerance":
 		fill_tolerance = value
-	elif key == "fill_contiguous":
-		fill_contiguous = value
+	elif key == "spray_strength":
+		painter.spray_flow = value
+		painter.spray_particles = maxi(1,roundi(4.0+value*28.0))
+		painter.spray_spacing = 4.0
+		painter.spray_rate = 20.0
+		painter.spray_distance = 1.0
 	elif key == "symmetry_axes":
 		symmetry_axes = int(value)
 	elif key == "color_b":
@@ -375,6 +396,7 @@ func _sync_colors() -> void:
 		document.primary_color = painter.color
 		document.secondary_color = color_b
 	%PalettePanel.set_colors(painter.color, color_b)
+	%Pattern.set_colors(painter.color,color_b)
 
 func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: bool) -> void:
 	if document == null or (jobs.busy() and jobs.kind != "pbr_preview"):
@@ -437,22 +459,22 @@ func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: 
 		return
 	if painter.tool == "fill":
 		if phase == "begin":
-			if painter.selection_active:
-				jobs.start("operation", PaintOperations.fill.bind(document, painter.selection, true, painter.color))
+			if %Pattern.mode() == 0:
+				if painter.selection_active:
+					jobs.start("operation", PaintOperations.fill.bind(document, painter.selection, true, painter.color))
+				else:
+					var fill_pixel := Vector2i((hit.uv * Vector2(document.width, document.height)).floor())
+					var limit_island := document.geometry.islands[int(hit.face)] if from_model and int(hit.get("face", -1)) >= 0 else -1
+					jobs.start("operation", PaintFloodFill.run.bind(document, fill_pixel, limit_island, painter.color, fill_tolerance, true))
 			else:
-				var fill_pixel := Vector2i((hit.uv * Vector2(document.width, document.height)).floor())
-				var limit_island := document.geometry.islands[int(hit.face)] if from_model and int(hit.get("face", -1)) >= 0 else -1
-				jobs.start("operation", PaintFloodFill.run.bind(document, fill_pixel, limit_island, painter.color, fill_tolerance, fill_contiguous))
-		return
-	if painter.tool == "texture":
-		if phase == "begin":
-			var faces := selected_faces.duplicate()
-			var clicked := int(hit.get("face", -1))
-			if faces.is_empty() and clicked >= 0:
-				for f in document.geometry.face_count():
-					if document.geometry.islands[f] == document.geometry.islands[clicked]:
-						faces.append(f)
-			_texture_fill(faces)
+				var faces := selected_faces.duplicate()
+				var clicked := int(hit.get("face", -1))
+				if clicked < 0 and document.geometry != null:
+					clicked = int(document.geometry.surface_at_uv(hit.uv,-1).get("face",-1))
+				if faces.is_empty() and clicked >= 0:
+					for f in document.geometry.face_count():
+						if document.geometry.islands[f] == document.geometry.islands[clicked]: faces.append(f)
+				_texture_fill(faces)
 		return
 	if painter.tool == "clone":
 		if phase == "begin" and modifiers & 2:
@@ -835,15 +857,46 @@ func _commit_pattern_settings() -> void:
 
 func _sync_pattern_inspector() -> void:
 	if document == null or document.layers.is_empty(): return
+	%Pattern.set_custom_source(document.custom_pattern_image)
 	var layer := document.selected_layer()
 	if layer.pattern_image != null:
 		%Pattern.set_source(layer.pattern_image,layer.title)
+		%Pattern.set_mode(1)
 		%Pattern.restore_settings(layer.pattern_settings)
 		%Pattern.set_editing_pattern(true)
 	else:
 		%Pattern.set_source(document.pattern_image,"Project texture")
 		%Pattern.restore_settings(document.pattern_settings)
 		%Pattern.set_editing_pattern(false)
+
+func _brush_tip_selected(path: String, tip: Image) -> void:
+	_brush_tip_path = path
+	painter.brush_tip = tip
+	_brush_preview_key.clear()
+	_refresh_cursor()
+	_queue_preferences_save()
+
+func _open_pattern_editor() -> void:
+	if document == null: return
+	%PatternEditor.open_editor(document.custom_pattern_image,painter.color)
+
+func _save_custom_pattern(image: Image) -> void:
+	if document == null: return
+	history.push(document,{"kind":"property","label":"Custom fill pattern","target":document,"property":"custom_pattern_image","before":document.custom_pattern_image,"after":image})
+	document.custom_pattern_image = image
+	%Pattern.set_custom_source(image)
+	%Pattern.set_mode(8)
+	_refresh_metadata()
+
+func _fill_selected_pattern() -> void:
+	if document == null or jobs.busy(): return
+	if %Pattern.mode() == 0:
+		if painter.selection_active:
+			jobs.start("operation",PaintOperations.fill.bind(document,painter.selection,true,painter.color))
+		else:
+			_status("Click a pixel or select faces to fill with color.")
+	else:
+		_apply_pattern(selected_faces)
 
 func _uv_action(action: String, value: Variant) -> void:
 	if document == null or document.geometry == null or jobs.busy() or painter.active:
@@ -1171,6 +1224,8 @@ func _action(action: String) -> void:
 			%UV.get_node("ExportPadding").set_value(document.uv_export_padding,false)
 			%StampPanel.set_source(document.stamp_image, document.stamp_name, document.stamp_region)
 			%StampPanel.set_stamp_rotation(document.stamp_rotation)
+			%StampOptions.set_source(document.stamp_image,document.stamp_name)
+			%StampOptions.set_stamp_rotation(document.stamp_rotation)
 			model_view.set_reference(document.reference_image,document.reference_name,document.reference_state)
 			_stamp_rotation_editing = false
 			_refresh_metadata()
@@ -1204,6 +1259,7 @@ func _file_dialog(action: String) -> void:
 		"save", "open": dialog.filters = PackedStringArray(["*.rtpaint ; Pixel texture painter project"])
 		"import": dialog.filters = PackedStringArray(["*.glb, *.gltf, *.obj ; 3D models"])
 		"stencil", "pattern", "reference": dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Texture image"])
+		"brush": dialog.filters = PackedStringArray(["*.png ; Brush tip PNG"])
 		"palette": dialog.filters = PackedStringArray(["*.png, *.hex, *.gpl, *.pal, *.txt, *.ase, *.json, *.csv ; Color palettes"])
 		"export", "export_maps": dialog.filters = PackedStringArray(["*.png ; PNG texture"])
 		"export_model": dialog.filters = PackedStringArray(["*.glb ; GLB model with embedded texture", "*.gltf ; glTF model with texture files", "*.obj ; OBJ with current UV coordinates"])
@@ -1217,6 +1273,12 @@ func _file_dialog(action: String) -> void:
 
 func _file_selected(path: String) -> void:
 	match _file_action:
+		"brush":
+			var imported := BrushLibrary.import_tip(path)
+			if imported.has("error"): _message(str(imported.error))
+			else:
+				%BrushOptions.reload(str(imported.path))
+				_status("Brush imported to the brush folder: " + str(imported.path.get_file()))
 		"palette": jobs.start("palette", PaletteIO.load_palette.bind(path))
 		"save": jobs.start("save", ProjectIO.save_project.bind(document, path if path.ends_with(".rtpaint") else path + ".rtpaint"))
 		"open": jobs.start("open", ProjectIO.load_project.bind(path))
@@ -1239,6 +1301,7 @@ func _file_selected(path: String) -> void:
 				painter.stencil = image
 				painter.stencil_region = selected
 				%StampPanel.set_source(image, document.stamp_name, selected)
+				%StampOptions.set_source(image,document.stamp_name)
 				%ToolBar.select("stencil")
 				_refresh_metadata()
 				_status("Stamp loaded · drag on its preview to choose a crop")
@@ -1266,12 +1329,12 @@ func _file_selected(path: String) -> void:
 			else:
 				image.convert(Image.FORMAT_RGBA8)
 				%Pattern.set_source(image, path.get_file())
+				%Pattern.set_mode(1)
 				if document.selected_layer().pattern_image == null:
 					history.push(document, {"kind": "property", "target": document, "property": "pattern_image", "before": document.pattern_image, "after": image})
 					document.pattern_image = image
 				else: _apply_pattern(document.selected_layer().pattern_faces)
-				_show_inspector_tab("Texture")
-				%ToolBar.select("texture")
+				%ToolBar.select("fill")
 
 func _texture_fill(faces: PackedInt32Array) -> void:
 	if jobs.busy() or painter.active or document == null or document.selected_layer().locked:
@@ -1280,7 +1343,7 @@ func _texture_fill(faces: PackedInt32Array) -> void:
 		_file_dialog("pattern")
 		return
 	if faces.is_empty():
-		_status("Select faces, or click a model surface with the Texture tool.")
+		_status("Select faces, or click a model surface with Fill pattern mode.")
 		return
 	if document.layers.size() >= 32:
 		_message("This project supports up to 32 layers across all maps.")
@@ -1316,6 +1379,7 @@ func _stamp_rotation_input(angle: float, commit: bool) -> void:
 	document.stamp_rotation = normalized
 	painter.stencil_rotation = normalized
 	%StampPanel.set_stamp_rotation(normalized)
+	%StampOptions.set_stamp_rotation(normalized)
 	_refresh_cursor()
 	if commit:
 		if not is_equal_approx(_stamp_rotation_before,normalized):
@@ -1471,7 +1535,7 @@ func _job_completed(kind: String, value: Variant) -> void:
 				document.active_layer = previous+1
 				history.push(document,{"kind":"layers","label":"Create pattern fill layer","before":before,"after":document.layers.duplicate(),"active_before":previous,"active_after":document.active_layer})
 				tiles.mark(document.all_keys(),false)
-				_status("Editable pattern layer created · change its transform in Texture")
+				_status("Editable pattern layer created · change its transform in the Fill toolbar")
 			_sync_pattern_inspector()
 			_refresh_metadata()
 		"selection":
@@ -1605,6 +1669,28 @@ func _refresh_cursor() -> void:
 	if painter.tool == "stencil" and painter.stencil != null:
 		current_stamp = painter.stamp_source_preview()
 		if not _stamp_rotation_editing: %StampPanel.set_result_preview(painter.stamp_preview())
+	if painter.tool == "brush" and painter.brush_tip != null and not _cursor_hit.is_empty():
+		var preview_key := [painter.brush_tip,painter.brush_size,painter.color,painter.opacity]
+		if preview_key != _brush_preview_key:
+			_brush_preview_key = preview_key
+			var mask: Image = painter.brush_tip.duplicate()
+			mask.resize(painter.brush_size,painter.brush_size,Image.INTERPOLATE_NEAREST)
+			var preview := Image.create(painter.brush_size,painter.brush_size,false,Image.FORMAT_RGBA8)
+			preview.fill(Color.TRANSPARENT)
+			for y in painter.brush_size:
+				for x in painter.brush_size:
+					var ink := mask.get_pixel(x,y)
+					if ink.a <= 0.0: continue
+					var tint := painter.color
+					tint.a *= painter.opacity*ink.a*ink.get_luminance()
+					preview.set_pixel(x,y,tint)
+			_brush_preview_texture = ImageTexture.create_from_image(preview)
+		model_view.set_spray_preview(null)
+		model_view.set_spray_mirror_preview(null)
+		model_view.set_stamp_preview(_brush_preview_texture,painter.brush_size,0.0)
+		uv_canvas.set_spray_preview(null)
+		uv_canvas.set_stamp_preview(_brush_preview_texture,0.0)
+		return
 	if painter.tool == "spray" and not _cursor_hit.is_empty():
 		model_view.set_stamp_preview(null,1,0.0)
 		uv_canvas.set_stamp_preview(null,0.0)
@@ -1681,9 +1767,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			KEY_PERIOD: _resize_selection(true)
 			KEY_COMMA: _resize_selection(false)
 	else:
-		var keys := {KEY_B: "brush", KEY_A: "spray", KEY_U:"smudge", KEY_V:"blur", KEY_E: "eraser", KEY_I: "picker", KEY_F: "fill", KEY_S: "select", KEY_L: "line", KEY_R: "rect", KEY_O: "ellipse", KEY_G: "gradient", KEY_T: "stencil", KEY_P: "texture", KEY_C: "clone"}
+		var keys := {KEY_B: "brush", KEY_A: "spray", KEY_U:"smudge", KEY_V:"blur", KEY_E: "eraser", KEY_I: "picker", KEY_F: "fill", KEY_S: "select", KEY_L: "line", KEY_R: "rect", KEY_O: "ellipse", KEY_G: "gradient", KEY_T: "stencil", KEY_C: "clone"}
 		if keys.has(event.keycode):
 			%ToolBar.select(keys[event.keycode])
+		elif event.keycode == KEY_P:
+			%Pattern.set_mode(1)
+			%ToolBar.select("fill")
 		elif event.keycode == KEY_ESCAPE:
 			_clear_selection()
 		elif event.keycode == KEY_F2: %Layers.rename_active()
@@ -1751,6 +1840,7 @@ func _restore_preferences() -> void:
 	%Layers.get_node("Properties/SelectionMode").select(selection_mode)
 	%ToolOptions.get_node("Size").set_value(float(_preferences.get_setting("brush","size",4)),false)
 	painter.brush_size = int(%ToolOptions.get_node("Size").value)
+	%BrushOptions.set_selected_path(str(_preferences.get_setting("brush","tip_path","")))
 	%ToolOptions.get_node("Opacity").set_value(float(_preferences.get_setting("brush","opacity",100)),false)
 	%SprayOptions.get_node("Opacity").set_value(%ToolOptions.get_node("Opacity").value,false)
 	painter.opacity = %ToolOptions.get_node("Opacity").value/100.0
@@ -1767,22 +1857,17 @@ func _restore_preferences() -> void:
 	symmetry_axes = clampi(int(_preferences.get_setting("brush","symmetry_axes",0)),0,7)
 	%ToolOptions.set_symmetry_axes(symmetry_axes)
 	fill_tolerance = clampf(float(_preferences.get_setting("fill","tolerance",0.0)),0.0,1.0)
-	fill_contiguous = bool(_preferences.get_setting("fill","contiguous",true))
 	%ToolOptions.get_node("Tolerance").set_value(fill_tolerance*100.0,false)
-	%ToolOptions.get_node("Contiguous").set_pressed_no_signal(fill_contiguous)
+	%Pattern.set_mode(int(_preferences.get_setting("fill","mode",0)))
 	%ToolOptions.get_node("Length").set_value(float(_preferences.get_setting("brush","gradient_length",7)),false)
 	gradient_length = int(%ToolOptions.get_node("Length").value)
-	%SprayOptions.get_node("Flow").set_value(float(_preferences.get_setting("spray","flow",10)),false)
-	painter.spray_flow = %SprayOptions.get_node("Flow").value/100.0
-	%SprayOptions.get_node("Particles").set_value(float(_preferences.get_setting("spray","density",12)),false)
-	painter.spray_particles = int(%SprayOptions.get_node("Particles").value)
-	%SprayOptions.get_node("Spacing").set_value(float(_preferences.get_setting("spray","spacing",4)),false)
-	painter.spray_spacing = %SprayOptions.get_node("Spacing").value
-	%SprayOptions.get_node("Rate").set_value(float(_preferences.get_setting("spray","rate",20)),false)
-	painter.spray_rate = %SprayOptions.get_node("Rate").value
-	%SprayOptions.get_node("Distance").set_value(float(_preferences.get_setting("spray","distance",100)),false)
-	painter.spray_distance = %SprayOptions.get_node("Distance").value/100.0
+	var spray_strength := float(_preferences.get_setting("spray","strength",_preferences.get_setting("spray","flow",50)))
+	%SprayOptions.get_node("Strength").set_value(spray_strength,false)
+	_setting("spray_strength",spray_strength/100.0)
 	var last_tool := str(_preferences.get_setting("brush","tool","brush"))
+	if last_tool == "texture":
+		%Pattern.set_mode(1)
+		last_tool = "fill"
 	%ToolBar.select(last_tool if last_tool in %ToolBar.TOOLS else "brush")
 	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius", "DirectionalLength", "DirectionalAngle", "DirectionalStrength"]:
 		var control: NumberField = %Effects.get_node(field)
@@ -1797,8 +1882,7 @@ func _restore_preferences() -> void:
 	if not saved_tab_name.is_empty() and %Inspector.has_node(saved_tab_name):
 		_show_inspector_tab(saved_tab_name)
 	else:
-		var legacy_tab := clampi(int(_preferences.get_setting("view","inspector_tab",0)),0,4)
-		%Inspector.current_tab = [0,4,1,3,2][legacy_tab]
+		%Inspector.current_tab = 0
 	_restoring_preferences = false
 
 func _show_inspector_tab(tab_name: String) -> void:
@@ -1838,6 +1922,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("panels","inspector_offset",%MainSplit.split_offset)
 	_preferences.set_setting("panels","layers_offset",%Layers.split_offset)
 	_preferences.set_setting("brush","tool",painter.tool)
+	_preferences.set_setting("brush","tip_path",_brush_tip_path)
 	_preferences.set_setting("brush","size",painter.brush_size)
 	_preferences.set_setting("brush","opacity",%ToolOptions.get_node("Opacity").value)
 	_preferences.set_setting("brush","falloff",%ToolOptions.get_node("Falloff").value)
@@ -1847,13 +1932,9 @@ func _save_preferences() -> void:
 	_preferences.set_setting("brush","edge_wrap",painter.edge_wrap)
 	_preferences.set_setting("brush","symmetry_axes",symmetry_axes)
 	_preferences.set_setting("fill","tolerance",fill_tolerance)
-	_preferences.set_setting("fill","contiguous",fill_contiguous)
+	_preferences.set_setting("fill","mode",%Pattern.mode())
 	_preferences.set_setting("brush","gradient_length",gradient_length)
-	_preferences.set_setting("spray","flow",%SprayOptions.get_node("Flow").value)
-	_preferences.set_setting("spray","density",painter.spray_particles)
-	_preferences.set_setting("spray","spacing",painter.spray_spacing)
-	_preferences.set_setting("spray","rate",painter.spray_rate)
-	_preferences.set_setting("spray","distance",%SprayOptions.get_node("Distance").value)
+	_preferences.set_setting("spray","strength",%SprayOptions.get_node("Strength").value)
 	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius", "DirectionalLength", "DirectionalAngle", "DirectionalStrength"]:
 		_preferences.set_setting("inspector",field,%Effects.get_node(field).value)
 	_preferences.set_setting("inspector","AOFalloff",%Effects.get_node("AOFalloff").selected)

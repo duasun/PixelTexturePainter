@@ -1,77 +1,29 @@
 [gd_scene load_steps=4 format=3]
 [ext_resource type="Script" path="res://ui/spray_options.gd" id="script"]
 [ext_resource type="PackedScene" path="res://scenes/compact_number_field.tscn" id="num"]
-[ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="small_theme"]
-[node name="SprayOptions" type="GridContainer"]
-script = ExtResource("script")
-theme = ExtResource("small_theme")
-theme_override_constants/h_separation = 4
-theme_override_constants/v_separation = 0
-columns = 12
+[ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="theme"]
+[node name="SprayOptions" type="HBoxContainer"]
 visible = false
+script = ExtResource("script")
+theme = ExtResource("theme")
+theme_override_constants/separation = 6
 [node name="OpacityLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Op"
-tooltip_text = "Maximum opacity of one spray stroke"
+text = "Opacity"
 [node name="Opacity" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 100.0
 minimum = 0.0
 maximum = 100.0
 suffix = "%"
-tooltip_text = "Maximum opacity of one spray stroke, even when you keep holding the mouse"
-[node name="FlowLabel" type="Label" parent="."]
+tooltip_text = "Maximum opacity of one held spray stroke"
+[node name="StrengthLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Flow"
-[node name="Flow" parent="." instance=ExtResource("num")]
+text = "Strength"
+[node name="Strength" parent="." instance=ExtResource("num")]
 layout_mode = 2
-value = 10.0
+value = 50.0
 minimum = 0.0
 maximum = 100.0
-step = 0.5
 suffix = "%"
-tooltip_text = "Paint strength per particle; low flow builds up gradually toward the opacity limit"
-[node name="ParticlesLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Dots"
-tooltip_text = "Particles per spray burst"
-[node name="Particles" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 12.0
-minimum = 1.0
-maximum = 256.0
-suffix = ""
-tooltip_text = "Particles per spray burst"
-[node name="SpacingLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Step"
-tooltip_text = "Distance between bursts along the stroke, in pixels"
-[node name="Spacing" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 4.0
-minimum = 1.0
-maximum = 128.0
-suffix = ""
-tooltip_text = "Distance in texels between bursts along the stroke"
-[node name="RateLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Rate"
-tooltip_text = "Spray bursts per second"
-[node name="Rate" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 20.0
-minimum = 1.0
-maximum = 60.0
-suffix = ""
-tooltip_text = "Bursts per second while the pointer is still"
-[node name="DistanceLabel" type="Label" parent="."]
-layout_mode = 2
-text = "Dist"
-tooltip_text = "Relative nozzle distance and spray footprint"
-[node name="Distance" parent="." instance=ExtResource("num")]
-layout_mode = 2
-value = 100.0
-minimum = 25.0
-maximum = 400.0
-suffix = "%"
-tooltip_text = "Relative nozzle distance: wider footprint and lower strength at greater distance. The actual pixel diameter appears in the cursor bar."
+tooltip_text = "Controls particle density and paint buildup together"

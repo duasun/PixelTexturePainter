@@ -110,12 +110,6 @@ minimum = 0.0
 maximum = 100.0
 suffix = "%"
 visible = false
-[node name="Contiguous" type="CheckButton" parent="."]
-layout_mode = 2
-text = "Contiguous"
-button_pressed = true
-visible = false
-tooltip_text = "Fill only neighboring matching pixels; turn off to replace all matching pixels in the target area"
 [node name="LengthLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Length"

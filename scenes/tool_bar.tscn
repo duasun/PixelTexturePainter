@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=17 format=3]
 [ext_resource type="Texture2D" path="res://assets/tools/smudge.svg" id="smudge"]
 [ext_resource type="Texture2D" path="res://assets/tools/blur.svg" id="blur"]
 [ext_resource type="Texture2D" path="res://assets/tools/compact.svg" id="compact"]
@@ -13,7 +13,6 @@
 [ext_resource type="Texture2D" path="res://assets/tools/ellipse.svg" id="ellipse"]
 [ext_resource type="Texture2D" path="res://assets/tools/gradient.svg" id="gradient"]
 [ext_resource type="Texture2D" path="res://assets/tools/stencil.svg" id="stencil"]
-[ext_resource type="Texture2D" path="res://assets/tools/texture.svg" id="texture"]
 [ext_resource type="Texture2D" path="res://assets/tools/clone.svg" id="clone"]
 [ext_resource type="Texture2D" path="res://assets/tools/spray.svg" id="spray"]
 [node name="ToolBar" type="VBoxContainer"]
@@ -176,17 +175,6 @@ tooltip_text = "Stamp  [T]"
 theme_override_constants/icon_max_width = 20
 toggle_mode = true
 button_pressed = false
-alignment = 0
-custom_minimum_size = Vector2(0, 34)
-focus_mode = 0
-
-[node name="Texture" type="Button" parent="Tools"]
-layout_mode = 2
-text = "Texture"
-icon = ExtResource("texture")
-tooltip_text = "Texture  [P]"
-theme_override_constants/icon_max_width = 20
-toggle_mode = true
 alignment = 0
 custom_minimum_size = Vector2(0, 34)
 focus_mode = 0

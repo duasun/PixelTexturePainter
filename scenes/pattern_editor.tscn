@@ -1,0 +1,61 @@
+[gd_scene load_steps=4 format=3]
+[ext_resource type="Script" path="res://ui/pattern_editor.gd" id="script"]
+[ext_resource type="Script" path="res://ui/pattern_canvas.gd" id="canvas"]
+[ext_resource type="PackedScene" path="res://scenes/number_field.tscn" id="number"]
+[node name="PatternEditor" type="ConfirmationDialog"]
+title = "Draw repeating pattern"
+size = Vector2i(420,530)
+ok_button_text = "Use pattern"
+script = ExtResource("script")
+[node name="Body" type="VBoxContainer" parent="."]
+offset_left = 12.0
+offset_top = 46.0
+offset_right = 408.0
+offset_bottom = 475.0
+theme_override_constants/separation = 8
+[node name="Dimensions" type="HBoxContainer" parent="Body"]
+layout_mode = 2
+[node name="WidthLabel" type="Label" parent="Body/Dimensions"]
+layout_mode = 2
+text = "Width"
+[node name="Width" parent="Body/Dimensions" instance=ExtResource("number")]
+layout_mode = 2
+value = 16.0
+minimum = 1.0
+maximum = 128.0
+suffix = " px"
+[node name="HeightLabel" type="Label" parent="Body/Dimensions"]
+layout_mode = 2
+text = "Height"
+[node name="Height" parent="Body/Dimensions" instance=ExtResource("number")]
+layout_mode = 2
+value = 16.0
+minimum = 1.0
+maximum = 128.0
+suffix = " px"
+[node name="New" type="Button" parent="Body/Dimensions"]
+layout_mode = 2
+text = "New canvas"
+[node name="Canvas" type="Control" parent="Body"]
+custom_minimum_size = Vector2(380,330)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_default_cursor_shape = 3
+texture_filter = 1
+script = ExtResource("canvas")
+[node name="Tools" type="HBoxContainer" parent="Body"]
+layout_mode = 2
+[node name="InkLabel" type="Label" parent="Body/Tools"]
+layout_mode = 2
+text = "Draw color"
+[node name="Ink" type="ColorPickerButton" parent="Body/Tools"]
+layout_mode = 2
+custom_minimum_size = Vector2(34,28)
+color = Color(1,1,1,1)
+[node name="Clear" type="Button" parent="Body/Tools"]
+layout_mode = 2
+text = "Clear"
+[node name="Hint" type="Label" parent="Body"]
+layout_mode = 2
+text = "Left drag paints pixels · Right drag erases · The canvas repeats."
+theme_override_font_sizes/font_size = 11

@@ -218,7 +218,7 @@ func run() -> void:
 	await settle(scene)
 	check(scene.get_node("%Inspector").size.x > inspector_width+30,"Inspector divider changes its width")
 	var resized_width: float = scene.get_node("%Inspector").size.x
-	for index in 4:
+	for index in scene.get_node("%Inspector").get_tab_count():
 		scene.get_node("%Inspector").current_tab = index
 		await settle(scene)
 		check(is_equal_approx(scene.get_node("%Inspector").size.x,resized_width) and is_equal_approx(scene.get_node("%PalettePanel").size.y,resized_height),"Switching inspector tabs preserves panel dimensions")

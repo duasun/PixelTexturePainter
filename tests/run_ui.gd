@@ -30,9 +30,10 @@ func run() -> void:
 	var inspector: TabContainer = scene.get_node("%Inspector")
 	var tab_names: Array[String] = []
 	for index in inspector.get_tab_count(): tab_names.append(str(inspector.get_child(index).name))
-	check(tab_names == ["Layers","UV","Stamp","Texture","Effects"], "Inspector tabs follow the requested order")
-	scene.get_node("%ToolBar").select("texture")
-	check(inspector.current_tab == 3 and inspector.get_tab_title(3) == "Texture", "Texture tool opens the Texture inspector tab")
+	check(tab_names == ["Layers","UV","Effects"], "Inspector contains Layers, UV and Effects")
+	scene.get_node("%ToolBar").select("fill")
+	scene.get_node("%Pattern").set_mode(1)
+	check(scene.get_node("%Pattern").visible and scene.get_node("%Pattern/Load").visible, "Fill texture controls open in the top toolbar")
 	scene.get_node("%ToolBar").select("brush")
 	var model_view: ModelView = scene.model_view
 	var zoom_point: Vector2 = model_view.display.size * 0.5
@@ -303,12 +304,12 @@ func run() -> void:
 	check(scene.painter.tool == "spray" and scene.get_node("%SprayOptions").visible, "Spray tool reveals its scene-based controls")
 	await process_frame
 	var settings_bar: Control = scene.get_node("Margin/Layout/MainSplit/LeftColumn/SettingsBar")
-	check(settings_bar.size.y <= 32.0 and scene.get_node("%SprayOptions/Distance").get_global_rect().end.x <= scene.get_node("%Inspector").global_position.x, "Spray controls share one visible row with Size, Dither, Mirror and symmetry")
+	check(settings_bar.size.y <= 32.0 and scene.get_node("%SprayOptions/Strength").get_global_rect().end.x <= scene.get_node("%Inspector").global_position.x, "Spray controls share one visible row")
 	var all_tools_fit := true
 	var workspaces_stay_put := true
 	var palette_before_settings: Rect2 = scene.get_node("%PalettePanel").get_global_rect()
 	var model_before_settings: Rect2 = scene.model_view.get_global_rect()
-	for setting_tool in ["brush", "eraser", "clone", "smudge", "blur", "fill", "gradient", "line", "rect", "ellipse", "stencil", "texture", "select", "picker", "spray"]:
+	for setting_tool in ["brush", "eraser", "clone", "smudge", "blur", "fill", "gradient", "line", "rect", "ellipse", "stencil", "select", "picker", "spray"]:
 		scene.get_node("%ToolBar").select(setting_tool)
 		await process_frame
 		if settings_bar.size.y != 30.0 or settings_bar.get_global_rect().end.x > scene.get_node("%Inspector").global_position.x:
@@ -318,9 +319,9 @@ func run() -> void:
 	check(all_tools_fit, "Every tool keeps its visible settings in one row without covering the inspector")
 	check(workspaces_stay_put, "Switching tools keeps model view and palette in fixed positions")
 	scene.get_node("%ToolBar").select("fill")
-	check(scene.get_node("%ToolOptions/Tolerance").visible and scene.get_node("%ToolOptions/Contiguous").visible and not scene.get_node("%ToolOptions/Size").visible, "Fill shows only settings it actually uses")
+	check(scene.get_node("%ToolOptions/Tolerance").visible and scene.get_node("%Pattern").visible and not scene.get_node("%ToolOptions/Size").visible, "Fill shows its pattern controls without a Contiguous switch")
 	scene.get_node("%ToolBar").select("spray")
-	check(scene.get_node("%SprayOptions/Opacity/Center/Display").tooltip_text.contains("Maximum opacity") and scene.get_node("%SprayOptions/Distance").visible, "Compact Spray fields retain descriptive tooltips and all controls")
+	check(scene.get_node("%SprayOptions/Opacity/Center/Display").tooltip_text.contains("Maximum opacity") and scene.get_node("%SprayOptions/Strength").visible, "Spray offers Opacity and Strength")
 	gesture.ctrl_pressed = false
 	gesture.alt_pressed = true
 	gesture.pressed = true
@@ -335,8 +336,8 @@ func run() -> void:
 	gesture.position = drag.position
 	scene.uv_canvas._gui_input(gesture)
 	check(is_equal_approx(scene.painter.opacity, 0.5) and scene.get_node("%SprayOptions/Opacity").value == 50, "Alt drag controls spray opacity and synchronizes both fields")
-	scene.get_node("%SprayOptions/Distance").set_value(200)
-	check(scene.painter.spray_distance == 2.0 and scene.painter.footprint_size() == 16, "Spray distance updates the actual pixel footprint")
+	scene.get_node("%SprayOptions/Strength").set_value(70)
+	check(is_equal_approx(scene.painter.spray_flow,0.7) and scene.painter.spray_particles >= 20, "Spray Strength controls buildup and particle density")
 	scene.get_node("%ToolBar").select("gradient")
 	var length_before: int = scene.gradient_length
 	var gradient_size_before: int = scene.painter.brush_size
@@ -434,6 +435,7 @@ func run() -> void:
 	# Bucket input uses flood fill without selection, including UV clicks.
 	scene.document.layers[0].tile_at(Vector2i.ZERO).fill_rect(Rect2i(8,0,1,16),Color.BLACK)
 	scene.get_node("%ToolBar").select("fill")
+	scene.get_node("%Pattern").set_mode(0)
 	scene._setting("color", Color.RED)
 	scene._surface_input("begin", {"uv":Vector2(0.1,0.1),"face":-1}, 0, false)
 	await ready_document(scene)
@@ -458,7 +460,7 @@ func run() -> void:
 	stamp_image.save_png(stamp_path)
 	scene._file_action = "stencil"
 	scene._file_selected(stamp_path)
-	check(scene.painter.tool == "stencil" and scene.get_node("%Inspector").current_tab == 2 and scene.document.stamp_region == Rect2i(0,0,8,4), "Loading a stamp opens its inspector and defaults to full image")
+	check(scene.painter.tool == "stencil" and scene.get_node("%StampOptions").visible and scene.document.stamp_region == Rect2i(0,0,8,4), "Loading a stamp opens the top toolbar and defaults to full image")
 	var stamp_panel = scene.get_node("%StampPanel")
 	var crop = stamp_panel.get_node("Preview")
 	var bounds: Rect2 = crop._image_rect()
