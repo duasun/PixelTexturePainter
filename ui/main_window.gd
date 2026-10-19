@@ -502,7 +502,7 @@ func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: 
 		painter.begin(hit.uv, island, face)
 	else:
 		painter.append(hit.uv, island, face)
-	if from_model and symmetry_axes != 0 and painter.tool in ["brush","eraser","stencil","spray","smudge","blur"]:
+	if from_model and symmetry_axes != 0 and painter.tool in ["brush","eraser","stencil","smudge","blur"]:
 		for subset in range(1,8):
 			if (subset & symmetry_axes) != subset: continue
 			var mirror := document.geometry.mirrored_hit(hit,subset)
@@ -1654,15 +1654,15 @@ func _refresh_cursor() -> void:
 	var brush_tool := painter.tool in ["brush", "eraser", "clone", "stencil", "line", "rect", "ellipse", "spray", "smudge", "blur"]
 	var diameter: int = painter.footprint_size() if brush_tool else 1
 	var rounded := (painter.shape == 1 or painter.tool == "spray") and painter.tool != "stencil" and brush_tool
-	model_view.set_cursor(_cursor_hit, resolution, diameter, rounded, painter.mirror and brush_tool)
+	model_view.set_cursor(_cursor_hit, resolution, diameter, rounded, painter.mirror and brush_tool and painter.tool != "spray")
 	var symmetry_hits: Array[Dictionary] = []
-	if _cursor_from_model and not _cursor_hit.is_empty() and symmetry_axes != 0 and painter.tool in ["brush","eraser","stencil","spray","smudge","blur"]:
+	if _cursor_from_model and not _cursor_hit.is_empty() and symmetry_axes != 0 and painter.tool in ["brush","eraser","stencil","smudge","blur"]:
 		for subset in range(1,8):
 			if (subset & symmetry_axes) == subset:
 				var reflected := document.geometry.mirrored_hit(_cursor_hit,subset)
 				if not reflected.is_empty(): symmetry_hits.append(reflected)
 	model_view.set_symmetry_preview(symmetry_hits)
-	uv_canvas.set_cursor(_cursor_hit, diameter, rounded, painter.mirror and brush_tool)
+	uv_canvas.set_cursor(_cursor_hit, diameter, rounded, painter.mirror and brush_tool and painter.tool != "spray")
 	var face_under := int(_cursor_hit.get("face",-1))
 	model_view.show_hover(face_under if painter.tool == "select" else -1,selection_mode)
 	var current_stamp: Image
@@ -1701,7 +1701,7 @@ func _refresh_cursor() -> void:
 		else:
 			_spray_preview_texture.update(preview)
 		model_view.set_spray_preview(_spray_preview_texture)
-		if painter.mirror:
+		if painter.mirror and painter.tool != "spray":
 			var pixel := Vector2i((_cursor_hit.uv*resolution).floor()).clamp(Vector2i.ZERO,Vector2i(resolution)-Vector2i.ONE)
 			var mirror_uv := (Vector2(document.width-pixel.x-1,pixel.y)+Vector2.ONE*0.5)/resolution
 			var mirrored := painter.spray_preview(mirror_uv,-1)

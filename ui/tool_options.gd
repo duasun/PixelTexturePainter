@@ -33,9 +33,9 @@ func set_tool(tool: String) -> void:
 	var has_opacity := paints and tool != "spray"
 	var has_falloff := tool in ["brush", "eraser", "clone", "smudge", "blur", "line", "rect", "ellipse"]
 	var has_shape := has_falloff
-	var has_dither := has_falloff or tool in ["spray", "gradient"]
-	var has_mirror := paints
-	var has_symmetry := tool in ["brush", "eraser", "stencil", "spray", "smudge", "blur"]
+	var has_dither := has_falloff or tool == "gradient"
+	var has_mirror := paints and tool != "spray"
+	var has_symmetry := tool in ["brush", "eraser", "stencil", "smudge", "blur"]
 	$Size.maximum = 64 if tool in ["smudge","blur"] else 256
 	$Size.set_value(minf($Size.value,$Size.maximum))
 	$Active.text = tool.capitalize().to_upper()
@@ -52,7 +52,7 @@ func set_tool(tool: String) -> void:
 	$Shape.visible = has_shape
 	$Dither.visible = has_dither
 	$Mirror.visible = has_mirror
-	$EdgeWrap.visible = has_size
+	$EdgeWrap.visible = has_size and tool != "spray"
 	$SymmetryLabel.visible = has_symmetry
 	$Shape.set_pressed_no_signal(true if tool == "spray" else false if tool == "stencil" else _brush_shape == 1)
 	for axis in ["SymX","SymY","SymZ"]: get_node(axis).visible = has_symmetry

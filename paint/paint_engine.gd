@@ -119,10 +119,10 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 	_stroke_opacity = opacity
 	_stroke_falloff = falloff
 	_stroke_shape = shape
-	_stroke_dither = dither
-	_stroke_mirror = mirror
+	_stroke_dither = dither and tool != "spray"
+	_stroke_mirror = mirror and tool != "spray"
 	_stroke_stencil_rotation = stencil_rotation
-	_stroke_edge_wrap = edge_wrap
+	_stroke_edge_wrap = edge_wrap and tool != "spray"
 	_stroke_brush_tip = brush_tip if tool == "brush" else null
 	if tool == "stencil": _stroke_brush_size = _stencil_extent(brush_size, _stroke_stencil_rotation)
 	if tool == "spray":
@@ -633,7 +633,7 @@ func spray_preview(uv: Vector2, island: int) -> Image:
 	if tool != "spray" or document == null: return null
 	var diameter := footprint_size()
 	var density := _stroke_spray_particles if active else spray_particles
-	var ordered := _stroke_dither if active else dither
+	var ordered := _stroke_dither if active else false
 	var strength := _stroke_opacity if active else opacity
 	var flow := _stroke_spray_flow if active else spray_flow / maxf(1.0,spray_distance*spray_distance)
 	var tint_alpha := _stroke_color.a if active else color.a

@@ -60,7 +60,7 @@ Prečice sa povlačenjem rade u 3D i UV prikazu. Pomeraj od najmanje 4 px razdva
 
 Linija, pravougaonik, elipsa i gradijent prikazuju svetli pregled dok držiš levi klik i vučeš. Pregled se istovremeno vidi na modelu i u UV prikazu, a potez ulazi u aktivni sloj tek kada pustiš miš. Potez i dalje poštuje izbor površina i Undo.
 
-**Sym X/Y/Z** u podešavanjima alata ogledaju 3D potez oko centra modela. Markeri na suprotnoj površini pokazuju gde će se crtati; jedan potez na svim uključenim osama ostaje jedna Undo radnja. Radi za Brush, Eraser, Stamp, Spray, Smudge i Blur kada se crta direktno na modelu. **Mirror UV** je zasebno ogledanje u atlasu.
+**Sym X/Y/Z** u podešavanjima alata ogledaju 3D potez oko centra modela. Markeri na suprotnoj površini pokazuju gde će se crtati; jedan potez na svim uključenim osama ostaje jedna Undo radnja. Radi za Brush, Eraser, Stamp, Smudge i Blur kada se crta direktno na modelu. **Mirror UV** je zasebno ogledanje u atlasu.
 
 ### Palete i trenutne boje
 
@@ -102,7 +102,7 @@ Izaberi površinu/povezane površine, G, boju A i B, **Length = 7 px**, pa povuc
 
 Ctrl+klik postavlja clone izvor u bilo kom prikazu. Svaki potez čita kompozit pre početka tog poteza, tako da preklapanje izvora i odredišta ne razmazuje uzorak. Novi potez ponovo polazi od postavljenog izvora.
 
-**Wrap** u podešavanjima alata prenosi deo otiska koji dodiruje 3D ivicu na susednu vidljivu površinu, čak i kada između njih postoji UV šav. Ako su površine selektovane, boja ostaje unutar te selekcije. Važi za četkicu, gumicu, Clone, Stamp, Spray, Smudge, Blur i geometrijske poteze Line/Rectangle/Ellipse. Fill i Texture fill već koriste izabrane površine, a Gradient razvija prelaz preko njihovih zajedničkih ivica. Prekidač se pamti u configu.
+**Wrap** u podešavanjima alata prenosi deo otiska koji dodiruje 3D ivicu na susednu vidljivu površinu, čak i kada između njih postoji UV šav. Ako su površine selektovane, boja ostaje unutar te selekcije. Važi za četkicu, gumicu, Clone, Stamp, Smudge, Blur i geometrijske poteze Line/Rectangle/Ellipse. Fill i Texture fill već koriste izabrane površine, a Gradient razvija prelaz preko njihovih zajedničkih ivica. Prekidač se pamti u configu.
 
 Layers: dodavanje, kopiranje, brisanje, redosled, vidljivost, zaključavanje, opacity i Normal/Multiply/Add. **Oko i katanac su u svakom redu sloja**; oko menja vidljivost, katanac zabranjuje crtanje po tom sloju. Dvoklik na naziv, F2 na fokusiranom sloju ili polje Name menja naziv; vidljivost, zaključavanje i preimenovanje podržavaju Undo. **Reset current map** u Layers ili Edit meniju briše sadržaj svih slojeva izabrane mape, uz jedan Undo korak; struktura i druge mape ostaju.
 
