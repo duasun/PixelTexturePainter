@@ -14,13 +14,16 @@ var shape := 0
 var dither := false
 var selection: Dictionary = {}
 var selection_active := false
+var selection_bounds: Dictionary = {}
 var edge_wrap := false
 var edge_wrap_faces: Dictionary = {}
 var edge_wrap_camera_position := Vector3.ZERO
 var edge_wrap_visible_only := false
 var stencil: Image
 var brush_tip: Image
+var brush_angle := 0.0
 var _stroke_brush_tip: Image
+var _stroke_brush_angle := 0.0
 var stencil_region := Rect2i()
 var stencil_rotation := 0.0
 var _cached_stencil: Image
@@ -44,6 +47,8 @@ var spray_spacing := 4.0
 var spray_rate := 20.0
 var spray_distance := 1.0
 var spray_flow := 0.1
+var spray_dot_size := 1
+var spray_dot_round := true
 var _stroke_spray_flow := 0.1
 var _spray_seed: int = randi()
 var _spray_dots := PackedVector2Array()
@@ -56,6 +61,8 @@ var _spray_anchor := Vector2(-99999, -99999)
 var _stroke_spray_particles := 12
 var _stroke_spray_spacing := 4.0
 var _stroke_spray_rate := 20.0
+var _stroke_spray_dot_size := 1
+var _stroke_spray_dot_round := true
 var _clone_offset := Vector2i.ZERO
 var _clone_layer: PaintLayer
 var _clone_cache: Dictionary = {}
@@ -82,6 +89,7 @@ func setup(doc: PaintDocument, undo: PaintHistory) -> void:
 	history = undo
 	selection.clear()
 	selection_active = false
+	selection_bounds.clear()
 	edge_wrap_faces.clear()
 	active = false
 	finishing = false
@@ -98,6 +106,12 @@ func setup(doc: PaintDocument, undo: PaintHistory) -> void:
 	_cached_stencil = null
 	_cached_stencil_stamp = null
 	_cached_source = null
+
+func set_selection(mask: Dictionary) -> void:
+	selection = mask
+	selection_active = not mask.is_empty()
+	selection_bounds.clear()
+	for key in mask: selection_bounds[key] = mask[key].get_used_rect()
 
 var _stroke_tool: String
 var _stroke_color: Color
@@ -124,6 +138,7 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 	_stroke_stencil_rotation = stencil_rotation
 	_stroke_edge_wrap = edge_wrap and tool != "spray"
 	_stroke_brush_tip = brush_tip if tool == "brush" else null
+	_stroke_brush_angle = brush_angle
 	if tool == "stencil": _stroke_brush_size = _stencil_extent(brush_size, _stroke_stencil_rotation)
 	if tool == "spray":
 		_stroke_brush_size = footprint_size()
@@ -132,6 +147,8 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 		_stroke_spray_particles = spray_particles
 		_stroke_spray_spacing = maxf(1.0, spray_spacing)
 		_stroke_spray_rate = maxf(1.0, spray_rate)
+		_stroke_spray_dot_size = spray_dot_size
+		_stroke_spray_dot_round = spray_dot_round
 		_spray_elapsed = 0.0
 		_spray_anchor = Vector2(-99999, -99999)
 	if _mask_geometry != document.geometry:
@@ -406,8 +423,7 @@ func _make_stamp() -> void:
 		_stamp = _stencil_raster(brush_size,_stroke_stencil_rotation,_stroke_opacity,_mask)
 		return
 	if _stroke_tool == "brush" and _stroke_brush_tip != null:
-		var tip: Image = _stroke_brush_tip.duplicate()
-		tip.resize(_stroke_brush_size,_stroke_brush_size,Image.INTERPOLATE_NEAREST)
+		var tip := BrushLibrary.rotated_tip(_stroke_brush_tip,_stroke_brush_size,_stroke_brush_angle)
 		_stamp = Image.create(_stroke_brush_size,_stroke_brush_size,false,Image.FORMAT_RGBA8)
 		_stamp.fill(Color.TRANSPARENT)
 		for y in _stroke_brush_size:
@@ -469,6 +485,11 @@ func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false, pat
 			var key := Vector2i(tx, ty)
 			var restriction := _restriction(key,island)
 			if (selection_active or island >= 0) and restriction == null: continue
+			var clipped := rect.intersection(Rect2i(key * 64, Vector2i.ONE * 64))
+			var dest := clipped.position - key * 64
+			if selection_active:
+				var bounds: Rect2i = selection_bounds.get(key,Rect2i(Vector2i.ZERO,Vector2i(64,64)))
+				if not bounds.intersects(Rect2i(dest,clipped.size)): continue
 			var bank: Dictionary = _layer.masks if _mask else _layer.tiles
 			if not _before.has(key):
 				_before[key] = bank[key].duplicate() if bank.has(key) else null
@@ -476,9 +497,7 @@ func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false, pat
 				if bank.has(key):
 					bank[key] = bank[key].duplicate()
 			var target := _layer.tile_at(key, _mask)
-			var clipped := rect.intersection(Rect2i(key * 64, Vector2i.ONE * 64))
 			var src := Rect2i(clipped.position - origin, clipped.size)
-			var dest := clipped.position - key * 64
 			if _stroke_tool == "spray":
 				_apply_spray(key,origin,target,restriction)
 			elif _stroke_tool == "eraser":
@@ -559,7 +578,15 @@ func _commit() -> void:
 	var bank: Dictionary = _layer.masks if _mask else _layer.tiles
 	for key in _before.keys():
 		var image: Image = bank[key]
-		if _before[key] != null and _before[key].get_data() == image.get_data():
+		var unchanged := false
+		if _before[key] != null:
+			unchanged = _before[key].get_data() == image.get_data()
+		else:
+			var empty := Image.create(64,64,false,Image.FORMAT_RGBA8)
+			empty.fill(Color.WHITE if _mask else _layer.base_color)
+			unchanged = empty.get_data() == image.get_data()
+			if unchanged: bank.erase(key)
+		if unchanged:
 			_before.erase(key)
 		else:
 			after[key] = image.duplicate()
@@ -582,12 +609,12 @@ func _make_spray_stamp() -> void:
 	if _mask:
 		tint = Color(tint.get_luminance(), tint.get_luminance(), tint.get_luminance(), tint.a)
 	tint.a *= _stroke_spray_flow
-	var pattern := spray_pattern(_spray_seed,_stroke_brush_size,_stroke_spray_particles,tint,_stroke_dither)
+	var pattern := spray_pattern(_spray_seed,_stroke_brush_size,_stroke_spray_particles,tint,_stroke_dither,_stroke_spray_dot_size,_stroke_spray_dot_round)
 	_stamp = pattern.image
 	_spray_dots = pattern.points
 	_spray_seed = pattern.next_seed
 
-static func spray_pattern(seed_value: int, diameter: int, count: int, tint: Color, ordered: bool) -> Dictionary:
+static func spray_pattern(seed_value: int, diameter: int, count: int, tint: Color, ordered: bool, dot_size := 1, round_dot := true) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var image := Image.create(diameter,diameter,false,Image.FORMAT_RGBA8)
@@ -604,8 +631,15 @@ static func spray_pattern(seed_value: int, diameter: int, count: int, tint: Colo
 			continue
 		if ordered and (pixel.x + pixel.y) % 2:
 			continue
-		image.set_pixelv(pixel,image.get_pixelv(pixel).blend(tint))
-		points[pixel] = true
+		var side := clampi(dot_size,1,diameter)
+		var corner := pixel - Vector2i(side / 2,side / 2)
+		for dy in side:
+			for dx in side:
+				var dot := corner + Vector2i(dx,dy)
+				if dot.x < 0 or dot.y < 0 or dot.x >= diameter or dot.y >= diameter: continue
+				if round_dot and (Vector2(dx,dy)+Vector2.ONE*0.5-Vector2.ONE*side*0.5).length_squared() > float(side*side)*0.25: continue
+				image.set_pixelv(dot,image.get_pixelv(dot).blend(tint))
+				points[dot] = true
 	return {"image":image,"points":PackedVector2Array(points.keys()),"next_seed":rng.randi()}
 
 func _apply_spray(key: Vector2i, origin: Vector2i, target: Image, restriction: Image) -> void:
@@ -637,10 +671,12 @@ func spray_preview(uv: Vector2, island: int) -> Image:
 	var strength := _stroke_opacity if active else opacity
 	var flow := _stroke_spray_flow if active else spray_flow / maxf(1.0,spray_distance*spray_distance)
 	var tint_alpha := _stroke_color.a if active else color.a
-	var state := [_spray_seed,diameter,density,ordered,strength,flow,tint_alpha]
+	var dot_size := _stroke_spray_dot_size if active else spray_dot_size
+	var round_dot := _stroke_spray_dot_round if active else spray_dot_round
+	var state := [_spray_seed,diameter,density,ordered,strength,flow,tint_alpha,dot_size,round_dot]
 	if state != _preview_state:
 		_preview_state = state
-		_preview_pattern = spray_pattern(_spray_seed,diameter,density,Color(0.9,1,1,0.8 if strength*flow*tint_alpha >= 0.5/255 else 0.0),ordered).image
+		_preview_pattern = spray_pattern(_spray_seed,diameter,density,Color(0.9,1,1,0.8 if strength*flow*tint_alpha >= 0.5/255 else 0.0),ordered,dot_size,round_dot).image
 	var preview := Image.create(diameter,diameter,false,Image.FORMAT_RGBA8)
 	preview.fill(Color.TRANSPARENT)
 	var origin := _pixel(uv)-Vector2i(diameter >> 1,diameter >> 1)

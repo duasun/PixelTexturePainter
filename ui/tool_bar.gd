@@ -1,7 +1,7 @@
 extends VBoxContainer
 signal tool_selected(tool: String)
 signal compact_changed(compact: bool)
-const TOOLS := ["brush", "spray", "smudge", "blur", "eraser", "picker", "fill", "select", "line", "rect", "ellipse", "gradient", "stencil", "clone"]
+const TOOLS := ["brush", "spray", "smudge", "blur", "eraser", "picker", "fill", "select", "lasso", "line", "rect", "ellipse", "gradient", "stencil", "clone"]
 var _labels: Dictionary = {}
 
 func _ready() -> void:

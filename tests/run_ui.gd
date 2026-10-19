@@ -690,7 +690,7 @@ func run() -> void:
 	check(scene._blur_preview_layer_id == scene.document.selected_layer().id and scene.document.revision == preview_revision and scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(26,30).a > 0.0,"Directional blur previews on the selected layer without history")
 	effects.get_node("DirectionalCancel").pressed.emit()
 	check(scene._blur_preview_layer_id.is_empty() and scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(26,30).a == 0.0,"Directional blur Cancel restores the original layer")
-	# The view widget changes orientation without shifting focus, and Z uses the hovered surface.
+	# The view widget changes orientation without shifting focus; Z frames the hovered object.
 	model_view.frame_model()
 	var focus_hit: Dictionary = model_view._hit(model_view.display.size*0.5)
 	if not focus_hit.is_empty():
@@ -699,7 +699,11 @@ func run() -> void:
 		focus_key.keycode = KEY_Z
 		focus_key.pressed = true
 		scene._unhandled_key_input(focus_key)
-		check(model_view.target.distance_to(focus_hit.position) < 0.0001,"Z focuses the surface under the cursor")
+		var focus_bounds := AABB(scene.document.geometry.positions[int(focus_hit.face)*3],Vector3.ZERO)
+		for face in scene.document.geometry.face_count():
+			if scene.document.geometry.objects[face] == scene.document.geometry.objects[int(focus_hit.face)]:
+				for corner in 3: focus_bounds = focus_bounds.expand(scene.document.geometry.positions[face*3+corner])
+		check(model_view.target.distance_to(focus_bounds.get_center()) < 0.0001,"Z focuses the object under the cursor")
 	var focus_before_axis: Vector3 = model_view.target
 	model_view.get_node("Display/Axes/Grid/PosX").pressed.emit()
 	check(model_view.camera.projection == Camera3D.PROJECTION_ORTHOGONAL and model_view.camera.position.x > model_view.target.x and model_view.target == focus_before_axis,"+X axis gives an orthographic side view around the current focus")

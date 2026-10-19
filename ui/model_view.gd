@@ -7,6 +7,7 @@ signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
 signal stamp_rotation_event(phase: String, horizontal_delta: float)
 signal hovered(hit: Dictionary)
+signal lasso_event(phase: String, point: Vector2)
 signal history_requested(action: String)
 signal background_color_changed(color: Color)
 signal reference_state_changed(state: Dictionary)
@@ -18,6 +19,7 @@ var distance := 5.5
 var target := Vector3.ZERO
 var _orbit := false
 var stamp_rotation_mode := false
+var brush_rotation_mode := false
 var _stamp_rotating := false
 var _stamp_anchor_hit: Dictionary = {}
 var _pan := false
@@ -27,6 +29,7 @@ var _painting := false
 var _stroke_started := false
 var _gesture_candidate := false
 var interpolate_strokes := true
+var lasso_mode := false
 var _previous := Vector2.ZERO
 var _marker_position: Variant = null
 var _hover_key := Vector2i(-2,-2)
@@ -113,9 +116,10 @@ func _process(delta: float) -> void:
 	target += step
 	_update_camera()
 
-func set_stamp_rotation_mode(enabled: bool) -> void:
+func set_stamp_rotation_mode(enabled: bool, brush_enabled := false) -> void:
 	stamp_rotation_mode = enabled
-	$Navigation.text = "Alt+RMB rotate stamp · RMB orbit + WASD · Q/E down/up · MMB pan · wheel zoom" if enabled else "RMB orbit + WASD move · Q/E down/up · Shift faster · MMB pan · wheel zoom"
+	brush_rotation_mode = brush_enabled
+	$Navigation.text = "Alt+RMB rotate stamp · RMB orbit + WASD · Q/E down/up · MMB pan · wheel zoom" if enabled else "Shift+RMB rotate brush · RMB orbit + WASD · MMB pan · wheel zoom" if brush_enabled else "RMB orbit + WASD move · Q/E down/up · Shift faster · MMB pan · wheel zoom"
 
 func set_background_color(value: Color) -> void:
 	var opaque := Color(value.r, value.g, value.b)
@@ -276,7 +280,7 @@ func _input_display(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if not _stamp_rotating: hovered.emit(_hit(event.position))
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			if event.pressed and stamp_rotation_mode and event.alt_pressed and not event.shift_pressed:
+			if event.pressed and ((stamp_rotation_mode and event.alt_pressed and not event.shift_pressed) or (brush_rotation_mode and event.shift_pressed and not event.alt_pressed)):
 				_stamp_rotating = true
 				_stamp_anchor_hit = _hit(event.position)
 				hovered.emit(_stamp_anchor_hit)
@@ -292,6 +296,11 @@ func _input_display(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			_zoom_at(event.position, false)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if lasso_mode:
+				_painting = event.pressed
+				lasso_event.emit("begin" if event.pressed else "end",event.position)
+				display.accept_event()
+				return
 			_painting = event.pressed
 			if event.pressed:
 				_gesture_candidate = event.ctrl_pressed or event.alt_pressed
@@ -317,6 +326,10 @@ func _input_display(event: InputEvent) -> void:
 		else:
 			var hit := _hit(event.position)
 			hovered.emit(hit)
+			if lasso_mode and _painting:
+				lasso_event.emit("move",event.position)
+				_previous = event.position
+				return
 			if _painting:
 				if _gesture_candidate:
 					gesture_motion.emit(event.relative)
@@ -338,6 +351,46 @@ func _emit_stroke_hit(hit: Dictionary) -> void:
 
 func show_selection(faces: PackedInt32Array) -> void:
 	overlay.mesh = _overlay_mesh(faces)
+
+func set_selection_boundary(texture: Texture2D) -> void:
+	display_material.set_shader_parameter("selection_ants_enabled",texture != null)
+	if texture != null: display_material.set_shader_parameter("selection_border",texture)
+
+func set_lasso_preview(points: PackedVector2Array) -> void:
+	$Display/LassoPreview.points = points
+
+func snap_lasso(point: Vector2) -> Vector2:
+	if geometry == null: return point
+	var hit := _hit(point)
+	if hit.is_empty(): return point
+	var face := int(hit.face)
+	var closest := point
+	var distance := 8.0
+	var tolerance := maxf(geometry.bounds.size.length()*0.00001,0.000001)
+	for edge in 3:
+		var a: Vector3 = geometry.positions[face*3+edge]
+		var b: Vector3 = geometry.positions[face*3+(edge+1)%3]
+		var soft := false
+		for neighbor in geometry.neighbors[face]:
+			if geometry.face_normals[face].dot(geometry.face_normals[neighbor]) < 0.98: continue
+			for other_edge in 3:
+				var other_a: Vector3 = geometry.positions[neighbor*3+other_edge]
+				var other_b: Vector3 = geometry.positions[neighbor*3+(other_edge+1)%3]
+				if a.distance_to(other_b) < tolerance and b.distance_to(other_a) < tolerance or a.distance_to(other_a) < tolerance and b.distance_to(other_b) < tolerance:
+					soft = true
+					break
+			if soft: break
+		if soft: continue
+		var p0 := camera.unproject_position(a)
+		var p1 := camera.unproject_position(b)
+		var direction := p1-p0
+		var t := clampf((point-p0).dot(direction)/maxf(direction.length_squared(),0.000001),0.0,1.0)
+		var candidate := p0+direction*t
+		var separation := point.distance_to(candidate)
+		if separation < distance:
+			distance = separation
+			closest = candidate
+	return closest
 
 func toggle_wires() -> void:
 	$Header/Wires.button_pressed = not $Header/Wires.button_pressed

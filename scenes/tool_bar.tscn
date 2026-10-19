@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 [ext_resource type="Texture2D" path="res://assets/tools/smudge.svg" id="smudge"]
 [ext_resource type="Texture2D" path="res://assets/tools/blur.svg" id="blur"]
 [ext_resource type="Texture2D" path="res://assets/tools/compact.svg" id="compact"]
@@ -15,6 +15,7 @@
 [ext_resource type="Texture2D" path="res://assets/tools/stencil.svg" id="stencil"]
 [ext_resource type="Texture2D" path="res://assets/tools/clone.svg" id="clone"]
 [ext_resource type="Texture2D" path="res://assets/tools/spray.svg" id="spray"]
+[ext_resource type="Texture2D" path="res://assets/tools/lasso.svg" id="lasso"]
 [node name="ToolBar" type="VBoxContainer"]
 custom_minimum_size = Vector2(82, 0)
 script = ExtResource("script")
@@ -120,6 +121,16 @@ tooltip_text = "Select  [S]"
 theme_override_constants/icon_max_width = 20
 toggle_mode = true
 button_pressed = false
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Lasso" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Magic lasso"
+icon = ExtResource("lasso")
+tooltip_text = "Magic lasso: draw in 3D or UV; snaps to mesh or color edges. Click Close selection"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
 alignment = 0
 custom_minimum_size = Vector2(0, 34)
 focus_mode = 0

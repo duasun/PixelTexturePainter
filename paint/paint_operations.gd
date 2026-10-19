@@ -28,8 +28,8 @@ static func _command(layer: PaintLayer, mask: bool, before: Dictionary, after: D
 	return {"command": {"kind": "tiles", "label": title, "layer": layer, "mask": mask,
 		"before": before, "after": after, "bytes": after.size() * 64 * 64 * 4 * 2}}
 
-static func texture_fill(progress: BackgroundJob.JobProgress, doc: PaintDocument, faces: PackedInt32Array, pattern: Image, settings: Dictionary) -> Dictionary:
-	var selection := UVRaster.selection(doc.geometry, faces, Vector2i(doc.width, doc.height))
+static func texture_fill(progress: BackgroundJob.JobProgress, doc: PaintDocument, faces: PackedInt32Array, pattern: Image, settings: Dictionary, restriction: Dictionary = {}) -> Dictionary:
+	var selection := restriction if not restriction.is_empty() else UVRaster.selection(doc.geometry, faces, Vector2i(doc.width, doc.height))
 	var before: Dictionary = {}
 	var after: Dictionary = {}
 	var keys := selection.keys()
@@ -100,7 +100,7 @@ static func rerender_pattern(progress: BackgroundJob.JobProgress, doc: PaintDocu
 	return {"layer":updated,"layer_id":layer_id}
 
 static func gradient(progress: BackgroundJob.JobProgress, doc: PaintDocument, faces: PackedInt32Array, start: Dictionary, finish: Dictionary,
-	length: int, color_a: Color, color_b: Color, ordered: bool, brush_width := 0) -> Dictionary:
+	length: int, color_a: Color, color_b: Color, ordered: bool, brush_width := 0, restriction: Dictionary = {}) -> Dictionary:
 	var layer := doc.selected_layer()
 	var before: Dictionary = {}
 	var after: Dictionary = {}
@@ -129,6 +129,7 @@ static func gradient(progress: BackgroundJob.JobProgress, doc: PaintDocument, fa
 			if progress.report(float(i) / keys.size(), "Rendering %d px gradient…" % length):
 				return {"cancelled": true}
 			var key: Vector2i = keys[i]
+			if not restriction.is_empty() and not restriction.has(key): continue
 			if brush_width > 0:
 				var minimum := INF
 				var maximum := -INF
@@ -141,6 +142,7 @@ static func gradient(progress: BackgroundJob.JobProgress, doc: PaintDocument, fa
 			for y in mini(64, doc.height - key.y * 64):
 				for x in mini(64, doc.width - key.x * 64):
 					var pixel := key * 64 + Vector2i(x, y)
+					if not restriction.is_empty() and restriction[key].get_pixel(x,y).a == 0.0: continue
 					var displacement := (Vector2(pixel) + Vector2.ONE * 0.5) - origin
 					if brush_width > 0 and absf(displacement.dot(lateral)) > half_width: continue
 					var t := displacement.dot(direction) / maxi(1, length - 1)
@@ -167,6 +169,7 @@ static func gradient(progress: BackgroundJob.JobProgress, doc: PaintDocument, fa
 			var masks: Dictionary = {}
 			UVRaster.triangle(masks, tri, Vector2i(doc.width, doc.height), Color.WHITE)
 			for key in masks:
+				if not restriction.is_empty() and not restriction.has(key): continue
 				if brush_width > 0:
 					var minimum := INF
 					var maximum := -INF
@@ -182,6 +185,7 @@ static func gradient(progress: BackgroundJob.JobProgress, doc: PaintDocument, fa
 					for x in 64:
 						if mask_data[(y * 64 + x) * 4 + 3] == 0:
 							continue
+						if not restriction.is_empty() and restriction[key].get_pixel(x,y).a == 0.0: continue
 						var pixel: Vector2i = key * 64 + Vector2i(x, y)
 						var bary := _barycentric(Vector2(pixel) + Vector2.ONE * 0.5, tri)
 						if brush_width > 0 and absf(bary.dot(lateral_weights)) > half_width: continue

@@ -15,6 +15,7 @@ UI je u `.tscn` scenama. Font je instalirana **Verdana**, preko SystemFont resur
 1. Program pri pokretanju otvara poslednji uspešno otvoren ili snimljen projekat. Ako ga nema, prikazuje primer obojenog sanduka. **File → New project**: izaberi rezoluciju ili posebno širinu i visinu, od 16 do 4096 px. Novi projekat dobija praznu teksturu i kocku kao početni model.
 2. **File → Import model** učitava GLB, glTF ili OBJ. Novi model zamenjuje prethodnu geometriju, UV mrežu i stare slojeve boje; **Undo** ih vraća. Postojeće UV koordinate iz GLB/glTF se koriste bez novog odmotavanja (sitne greške zaokruživanja na ivici 0–1 se poravnaju sa ivicom). Albedo, Roughness, Metallic, Normal, AO i Emission materijalne teksture prenose se na te koordinate kao slojevi koje možeš dalje da slikaš; novi prazan Paint sloj je iznad njih. Ako različiti materijali koriste ista UV polja, program čuva prvu teksturu na preklopljenim pikselima i prijavljuje broj preklopa. OBJ učitava geometriju i UV, ali trenutno ne čita MTL teksture. Model bez UV pripremi u tabu **UV → Generate UV layout**. UV Info pokazuje broj sitnih/nepokrivenih trouglova i preklapanja.
 3. **S / Select**: klik na model ili UV teksturu bira UV ostrvo; u Layers izaberi Face, Object ili Material za drugačiji izbor. Shift dodaje, Ctrl oduzima, Esc čisti izbor. **Ctrl+.** dodaje jedan prsten susednih trouglova preko zajedničkih ivica; **Ctrl+,** vraća po jedan korak do početnog izbora. Novi ručni izbor postavlja novu početnu selekciju. Žuta ivica sa tamnim obrisom i obojena površina pokazuju izbor u oba prikaza.
+   **Magic lasso** u bočnoj traci dopušta da slobodnom linijom obuhvatiš deo modela ili UV slike; bliske tvrde ivice modela, odnosno kontrastne ivice teksture, privlače liniju. Posle poteza klikni **Close selection** iznad prikaza. Animirana žuto-crna granica pokazuje masku u oba prikaza; Brush, Spray, Fill, Gradient, Stamp i ostali alati za bojenje ostaju unutar nje. Na modelu se biraju samo vidljive površine ispod linije. **Esc** briše izbor.
 4. **B / Brush** crta direktno na modelu ili UV teksturi. Na modelu potez ostaje unutar pogođenog UV ostrva i ručnog izbora. Možeš pritisnuti levi klik na praznoj pozadini 3D pregleda i ući na model uz držanje: potez počinje na prvom pogođenom delu. U 2D možeš crtati i u praznim delovima atlasa.
 5. **File → Save / Save as** čuva `.rtpaint` projekat. **Export current map PNG** izvozi izabranu mapu, a **Export all maps PNG** sve napravljene mape. **Export model** nudi **GLB**, **glTF** i OBJ; po uspešnom izvozu otvara odredišni folder u Windows Exploreru. GLB čuva geometriju, trenutni UV, Albedo sa efektima i podržane materijalne mape u jednom fajlu. Uz glTF sačuvaj i prateće `.bin`/slikovne fajlove koje izvoz napravi. Materijal koristi nearest filtriranje; projekat samo sa Albedom izvozi se kao unshaded, a sa dodatnim podržanim mapama kao PBR materijal. OBJ čuva geometriju i UV; teksture za njega izvezi posebno.
 
@@ -30,8 +31,9 @@ Ispod menija je razmak, zatim podešavanja izabranog alata u jednom redu neposre
 
 | Prečica | Radnja |
 |---|---|
-| B | Brush: veličina, opacity, 20 otisaka i uvoz svog PNG brush tipa |
-| A | Spray: pojedinačni pikseli, kontinuirano prskanje dok držiš klik |
+| B | Brush: veličina, opacity, 20 otisaka, uvoz PNG tipa ili Draw za svoju četkicu |
+| Shift + desni klik i povlačenje | Rotira aktivni brush tip u 3D ili UV prikazu; Angle gore dopušta i tačan broj stepeni |
+| A | Spray: kontinuirano prskanje sa podesivom veličinom i okruglim ili četvrtastim tačkama |
 | E | Eraser |
 | I | Eyedropper |
 | Alt + levi klik | Brzi eyedropper uz zadržavanje izabranog alata |
@@ -45,6 +47,7 @@ Ispod menija je razmak, zatim podešavanja izabranog alata u jednom redu neposre
 | T | Stamp iz učitane slike |
 | L / R / O | Linija / pravougaonik / elipsa |
 | S | Izbor površina |
+| Magic lasso | Nacrtaj slobodnu granicu na modelu ili UV slici, pa klikni Close selection |
 | Tab | Uključi / isključi wireframe modela |
 | F2 | Preimenuj fokusirani sloj |
 | Ctrl+. / Ctrl+, | Proširi selekciju / vrati prethodni prsten |
@@ -53,7 +56,7 @@ Ispod menija je razmak, zatim podešavanja izabranog alata u jednom redu neposre
 | Ctrl+S / Ctrl+Shift+S | Save / Save as |
 | Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / redo |
 | Ctrl+E | Export PNG |
-| Z | Fokus na izabrane površine, površinu pod kursorom ili ceo model |
+| Z ili . | Fokus na izabrane površine, objekat pod kursorom ili ceo model |
 | H | Prikaži / sakrij referentnu sliku preko 3D pregleda |
 
 Prečice sa povlačenjem rade u 3D i UV prikazu. Pomeraj od najmanje 4 px razdvaja povlačenje od kratkog klika; Alt+klik i dalje uzima boju, a Ctrl+klik zadržava radnje kao što su clone izvor i oduzimanje selekcije. Podešavanje samo menja vrednost, bez poteza boje ili Undo stavke. U 3D prikazu drži desni klik i koristi **WASD** za kretanje, **E/Q** za gore/dole i **Shift** za brže kretanje. Dok držiš desni klik, pokret miša okreće kameru; srednji klik je pomera, a točkić sporije zumira ka površini ispod kursora i dopušta veoma blizak pregled bez prolaska kroz tu površinu. Prečice alata, uključujući A i E, rade čim pustiš desni klik. U UV prikazu srednji/desni klik pomera sliku. Numerička polja podržavaju unos klikom, horizontalno povlačenje, Shift za finije korake i točkić; šira polja van trake imaju i dugmad +/−.
@@ -84,7 +87,7 @@ Za sopstvenu teksturu izaberi **Texture** u Fill izboru i klikni **Load texture*
 
 ### Spray
 
-Spray ima tri glavna podešavanja: **Size** određuje prečnik otiska u texelima, **Opacity** ograničava ukupnu jačinu jednog držanja klika, a **Strength** zajedno određuje broj čestica i brzinu nakupljanja boje. Na primer, na 20% Opacity ni dugo prskanje u istom potezu ne prelazi 20% prema boji pre poteza; novi potez može dodatno pojačati boju. Ostala podešavanja naleta automatski održavaju ujednačen rezultat.
+Spray ima **Size** za prečnik naleta, **Opacity** za ukupnu jačinu jednog držanja klika i **Strength** za broj čestica i nakupljanje boje. **Dot** bira veličinu pojedinačne tačke od 1 do 32 texela, a dugme ●/■ menja okrugli ili četvrtasti oblik. Preview pokazuje isti oblik tačaka kao naredni nalet. Na primer, na 20% Opacity ni dugo prskanje u istom potezu ne prelazi 20% prema boji pre poteza; novi potez može dodatno pojačati boju.
 
 Svetle tačkice unutar kursora pokazuju položaje **sledećeg naleta** u oba prikaza, uz ograničenje selekcijom i pogođenim UV ostrvom. Posle naleta prikaz prelazi na naredni raspored; svetlina markera ne predstavlja jačinu boje. Jedno držanje klika je jedna undo akcija. Redo vraća iste čestice, bez novog nasumičnog rasporeda. Podešavanja izmenjena tokom poteza važe za sledeći potez.
 
@@ -112,7 +115,7 @@ Tab **Effects** radi sa sklopivim sekcijama. Na početku su sve zatvorene; progr
 
 **Directional Blur** u Effects razmazuje aktivni sloj duž zadatog ugla, sa Length 2–64 px i Strength 0–100%. Ako su površine izabrane, menja samo njihovu UV oblast. Puštanje polja ili **Preview directional blur** računa privremeni rezultat u pozadini; **Apply** ga snima kao jednu Undo radnju, a **Cancel** vraća sloj. Na 4K teksturi obrađuju se samo naslikani tileovi i susedi.
 
-**File → Import reference image** postavlja sliku preko 3D pregleda, odvojeno od teksture. Povuci zaglavlje da je pomeriš, točkić iznad slike da je uvećaš/smanjiš, sliderom podesi prozirnost i dugmetom Lock zaključaš položaj. **H** je skriva ili vraća. Slika, vidljivost, položaj, veličina, prozirnost i zaključavanje čuvaju se u `.rtpaint` fajlu. Referenca se ne izvozi u PNG/GLB. **Z** fokusira kameru na izabrane faceove, inače na površinu ispod kursora ili na ceo model. Klik na **+X/−X, +Y/−Y, +Z/−Z** u uglu 3D prikaza okreće kameru na tu osu i uključuje ortografski pogled; desni klik ponovo slobodno orbitira.
+**File → Import reference image** postavlja sliku preko 3D pregleda, odvojeno od teksture. Povuci zaglavlje da je pomeriš, točkić iznad slike da je uvećaš/smanjiš, sliderom podesi prozirnost i dugmetom Lock zaključaš položaj. **H** je skriva ili vraća. Slika, vidljivost, položaj, veličina, prozirnost i zaključavanje čuvaju se u `.rtpaint` fajlu. Referenca se ne izvozi u PNG/GLB. **Z** ili **.** fokusira kameru na izabrane faceove, inače na objekat ispod kursora ili na ceo model. Klik na **+X/−X, +Y/−Y, +Z/−Z** u uglu 3D prikaza okreće kameru na tu osu i uključuje ortografski pogled; desni klik ponovo slobodno orbitira.
 
 ### Dodatne mape
 
@@ -128,7 +131,7 @@ GLB/glTF uključuje Albedo, Roughness, Metallic, Normal, AO i Emission kada njih
 
 Posle izmena, automatski recovery se pravi približno svaka dva minuta kada nema aktivnog poteza/posla. **File → Recover autosave** otvara poslednju kopiju. To je jedna zajednička recovery kopija, nije istorija projekata. Exit i zamena nesnimljenog projekta traže potvrdu odbacivanja. Koristi Save pre potvrde ako želiš da sačuvaš izmene.
 
-Korisnički `user://painter.cfg` pamti putanju poslednjeg projekta, alat, izabrani brush tip, veličinu/oblik/opacity/soft edge četkice, Dither, Mirror UV, Wrap, Spray Strength, Fill režim, Compact, aktivni tab inspektora, otvorene sekcije Effects, podešavanja AO/ivica/Normal/Blur/UV kontrola, zum i položaj Stamp pregleda poslednjeg projekta, vidljivost prikaza i veličine panela. Podešavanja se snimaju kratko posle promene i pri izlasku. **File → Open last project** otvara zapamćeni fajl; **File → Reopen last project on startup** uključuje/isključuje automatsko otvaranje. Kada fajl više nije dostupan, program se vraća početnom primeru. Starije vrednosti razdelnika iz `user://workspace_layout.cfg` preuzimaju se pri prvom pravljenju novog configa. Stamp slika i crop, uvezena texture slika, custom pattern, boje i slojevi čuvaju se u sačuvanom `.rtpaint` fajlu.
+Korisnički `user://painter.cfg` pamti putanju poslednjeg projekta, alat, izabrani brush tip i njegov ugao, veličinu/oblik/opacity/soft edge četkice, Dither, Mirror UV, Wrap, Spray Strength i veličinu/oblik tačaka, Fill režim, Compact, aktivni tab inspektora, otvorene sekcije Effects, podešavanja AO/ivica/Normal/Blur/UV kontrola, zum i položaj Stamp pregleda poslednjeg projekta, vidljivost prikaza i veličine panela. Podešavanja se snimaju kratko posle promene i pri izlasku. **File → Open last project** otvara zapamćeni fajl; **File → Reopen last project on startup** uključuje/isključuje automatsko otvaranje. Kada fajl više nije dostupan, program se vraća početnom primeru. Starije vrednosti razdelnika iz `user://workspace_layout.cfg` preuzimaju se pri prvom pravljenju novog configa. Stamp slika i crop, uvezena texture slika, custom pattern, boje i slojevi čuvaju se u sačuvanom `.rtpaint` fajlu. Nacrtani brush tipovi ostaju kao PNG fajlovi u korisničkom `user://brushes` folderu i nude se u Brush izboru.
 
 ## Performanse i trenutni obim
 
@@ -155,6 +158,8 @@ $engine = 'C:\Users\Dboja\Downloads\Godot_v4.7-stable_win64.exe\Godot_v4.7-stabl
 & $engine --headless --path . --script res://tests/run_workflow.gd
 & $engine --headless --path . --script res://tests/run_preferences.gd
 & $engine --headless --path . --script res://tests/run_fill_tools.gd
+& $engine --headless --path . --script res://tests/run_selection.gd
+& $engine --headless --path . --script res://tests/bench_lasso.gd
 & $engine --headless --path . --script res://tests/run_transforms.gd
 & $engine --path . --script res://tests/render_smoke.gd
 & $engine --path . --script res://tests/render_features.gd

@@ -3,6 +3,8 @@ extends Control
 signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
 signal hovered(hit: Dictionary)
+signal lasso_event(phase: String, point: Vector2)
+signal brush_rotation_event(phase: String, horizontal_delta: float)
 var document: PaintDocument
 var display_material: ShaderMaterial
 var zoom := 2.0
@@ -17,6 +19,10 @@ var _outline_round := false
 var show_uv := true
 var show_grid := true
 var selected_faces := PackedInt32Array()
+var lasso_mode := false
+var brush_rotation_mode := false
+var _brush_rotating := false
+var lasso_preview := PackedVector2Array()
 var spray_preview_texture: Texture2D
 var spray_mirror_texture: Texture2D
 var stamp_preview_texture: Texture2D
@@ -48,6 +54,10 @@ func set_cursor(hit: Dictionary, diameter: int, rounded: bool, mirrored: bool) -
 	round_brush = rounded
 	mirror_cursor = mirrored
 	queue_redraw()
+
+func set_selection_boundary(texture: Texture2D) -> void:
+	display_material.set_shader_parameter("selection_ants_enabled",texture != null)
+	if texture != null: display_material.set_shader_parameter("selection_border",texture)
 
 func set_spray_preview(texture: Texture2D, mirrored: Texture2D = null) -> void:
 	spray_preview_texture = texture
@@ -117,6 +127,11 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		_mouse = event.position
 		hovered.emit(_hit(_mouse))
+		if event.button_index == MOUSE_BUTTON_RIGHT and (event.pressed and brush_rotation_mode and event.shift_pressed or not event.pressed and _brush_rotating):
+			_brush_rotating = event.pressed
+			brush_rotation_event.emit("begin" if event.pressed else "end",0.0)
+			accept_event()
+			return
 		if event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_RIGHT:
 			_pan_active = event.pressed
 		elif event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
@@ -126,6 +141,11 @@ func _gui_input(event: InputEvent) -> void:
 			_layout()
 			hovered.emit(_hit(_mouse))
 		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if lasso_mode:
+				_painting = event.pressed
+				lasso_event.emit("begin" if event.pressed else "end",event.position)
+				accept_event()
+				return
 			_painting = event.pressed
 			if event.pressed:
 				_gesture_candidate = event.ctrl_pressed or event.alt_pressed
@@ -135,6 +155,10 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 	elif event is InputEventMouseMotion:
 		_mouse = event.position
+		if _brush_rotating:
+			brush_rotation_event.emit("move",event.relative.x)
+			accept_event()
+			return
 		if _pan_active:
 			pan += event.relative
 			_layout()
@@ -142,6 +166,9 @@ func _gui_input(event: InputEvent) -> void:
 		else:
 			var hit := _hit(event.position)
 			hovered.emit(hit)
+			if lasso_mode and _painting:
+				lasso_event.emit("move",event.position)
+				return
 			if _painting:
 				if _gesture_candidate:
 					gesture_motion.emit(event.relative)
@@ -175,6 +202,11 @@ func _draw() -> void:
 			points.append(points[0])
 			draw_polyline(points, Color(0.025, 0.025, 0.025, 0.95), 5.0)
 			draw_polyline(points, Color(1.0, 0.91, 0.24), 2.0)
+	if lasso_preview.size() > 1:
+		var path := PackedVector2Array()
+		for point in lasso_preview: path.append(_origin() + point * zoom)
+		draw_polyline(path,Color.BLACK,4.0)
+		draw_polyline(path,Color("ffbe61"),2.0)
 	var hit := _cursor_hit
 	if not hit.is_empty():
 		var p: Vector2 = (hit.uv * Vector2(document.width, document.height)).floor().clamp(Vector2.ZERO, Vector2(document.width - 1, document.height - 1))

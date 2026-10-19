@@ -61,6 +61,11 @@ var _brush_preview_key: Array = []
 var _stamp_rotation_editing := false
 var _stamp_rotation_before := 0.0
 var _brush_tip_path := ""
+var _lasso_points := PackedVector2Array()
+var _lasso_from_model := false
+var _lasso_dragging := false
+var _lasso_selected := false
+var _lasso_tile_cache: Dictionary = {}
 var settings_enabled := true
 var settings_path := "user://painter.cfg"
 var _preferences := PainterConfig.new()
@@ -81,7 +86,10 @@ func _ready() -> void:
 	%ToolOptions.setting_changed.connect(_setting)
 	%SprayOptions.setting_changed.connect(_setting)
 	%BrushOptions.tip_selected.connect(_brush_tip_selected)
+	%BrushOptions.angle_changed.connect(_brush_angle_changed)
 	%BrushOptions.import_requested.connect(func(): _file_dialog("brush"))
+	%BrushOptions.draw_requested.connect(func(): %BrushEditor.open_editor())
+	%BrushEditor.saved.connect(_save_custom_brush)
 	%StampOptions.load_requested.connect(func(): _file_dialog("stencil"))
 	%StampOptions.crop_requested.connect(func(): %StampPopup.popup_centered())
 	%StampOptions.rotation_changed.connect(func(angle: float): _stamp_rotation_input(angle,false))
@@ -115,9 +123,13 @@ func _ready() -> void:
 	uv_canvas.surface_event.connect(_surface_input.bind(false))
 	model_view.gesture_motion.connect(_gesture_motion)
 	model_view.stamp_rotation_event.connect(_stamp_rotation_drag)
+	uv_canvas.brush_rotation_event.connect(_brush_rotation_drag)
 	uv_canvas.gesture_motion.connect(_gesture_motion)
 	model_view.hovered.connect(_hover.bind(true))
 	uv_canvas.hovered.connect(_hover.bind(false))
+	model_view.lasso_event.connect(_lasso_input.bind(true))
+	uv_canvas.lasso_event.connect(_lasso_input.bind(false))
+	%CloseSelection.pressed.connect(_close_lasso)
 	painter.tiles_changed.connect(tiles.mark)
 	painter.stroke_committed.connect(_refresh_metadata)
 	painter.stroke_committed.connect(_refresh_cursor)
@@ -233,6 +245,7 @@ func _set_document(doc: PaintDocument) -> void:
 	history.clear()
 	selected_faces.clear()
 	_selection_steps.clear()
+	_reset_lasso()
 	_gradient_start.clear()
 	_clear_shape_preview()
 	painter.setup(doc, history)
@@ -277,6 +290,7 @@ func _install_document_state(state: Dictionary) -> void:
 	document.editing_mask = bool(state.editing_mask)
 	selected_faces.clear()
 	_selection_steps.clear()
+	_reset_lasso()
 	painter.setup(document,history)
 	tiles.setup(document)
 	uv_canvas.setup(document)
@@ -343,8 +357,11 @@ func _select_tool(tool: String) -> void:
 		_status("Finish the current stroke before changing tools.")
 		return
 	painter.tool = tool
-	model_view.set_stamp_rotation_mode(tool == "stencil")
-	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "fill", "picker"]
+	model_view.set_stamp_rotation_mode(tool == "stencil",tool == "brush")
+	uv_canvas.brush_rotation_mode = tool == "brush"
+	model_view.lasso_mode = tool == "lasso"
+	uv_canvas.lasso_mode = tool == "lasso"
+	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "lasso", "fill", "picker"]
 	_gradient_start.clear()
 	_gradient_end.clear()
 	_clear_shape_preview()
@@ -358,6 +375,7 @@ func _select_tool(tool: String) -> void:
 	_queue_preferences_save()
 	_status({"gradient": "Gradient: click and drag the direction. Length stays exactly %d px. UV seams use unfolded surface distance." % gradient_length,
 		"select": "Click a surface. Shift adds; Ctrl subtracts. Ctrl+. grows; Ctrl+, shrinks. Esc clears.",
+		"lasso": "Draw around an area in 3D or UV. Nearby mesh or color edges snap automatically; Close selection applies it.",
 		"fill": "Choose color, texture, or pattern above. Color fills a connected region; patterns fill selected faces or the clicked UV island.",
 		"clone": "Ctrl+click sets the source on the active layer. Paint to copy it; the source stays frozen during the stroke.",
 		"smudge": "Smudge: drag existing paint · Opacity sets strength · up to 64 px · reads current map",
@@ -401,7 +419,7 @@ func _sync_colors() -> void:
 func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: bool) -> void:
 	if document == null or (jobs.busy() and jobs.kind != "pbr_preview"):
 		return
-	if phase == "begin" and not _replaying_gesture_click and (modifiers & 6) != 0:
+	if phase == "begin" and painter.tool not in ["select","lasso"] and not _replaying_gesture_click and (modifiers & 6) != 0:
 		_commit_effects()
 		_gesture_mode = "opacity" if (modifiers & 4) != 0 else "size"
 		_gesture_hit = hit.duplicate()
@@ -459,6 +477,11 @@ func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: 
 		return
 	if painter.tool == "fill":
 		if phase == "begin":
+			if painter.selection_active:
+				var selected_pixel := Vector2i((hit.uv * Vector2(document.width,document.height)).floor())
+				var selected_key := Vector2i(selected_pixel.x>>6,selected_pixel.y>>6)
+				var selected_mask: Image = painter.selection.get(selected_key)
+				if selected_mask == null or selected_mask.get_pixel(selected_pixel.x&63,selected_pixel.y&63).a == 0.0: return
 			if %Pattern.mode() == 0:
 				if painter.selection_active:
 					jobs.start("operation", PaintOperations.fill.bind(document, painter.selection, true, painter.color))
@@ -617,7 +640,68 @@ func _select_surface(hit: Dictionary, modifiers: int) -> void:
 	selected_faces = PackedInt32Array(selected.keys())
 	selected_faces.sort()
 	_selection_steps.clear()
+	_lasso_selected = false
 	_rebuild_selection()
+
+func _lasso_input(phase: String, point: Vector2, from_model: bool) -> void:
+	if document == null or jobs.busy() or painter.tool != "lasso": return
+	if phase == "begin":
+		_lasso_points.clear()
+		_lasso_tile_cache.clear()
+		_lasso_from_model = from_model
+		_lasso_dragging = true
+	elif not _lasso_dragging or from_model != _lasso_from_model: return
+	if phase != "end":
+		var sample := model_view.snap_lasso(point) if from_model else (point-uv_canvas._origin())/uv_canvas.zoom
+		if not from_model and sample.x >= 0 and sample.y >= 0 and sample.x < document.width and sample.y < document.height:
+			var cell := Vector2i(sample.floor())
+			var key := Vector2i(cell.x>>6,cell.y>>6)
+			if not _lasso_tile_cache.has(key): _lasso_tile_cache[key] = document.compose_tile(key)
+			sample = LassoSelection.snap_uv(sample,_lasso_tile_cache[key],key*64)
+		if _lasso_points.is_empty() or sample.distance_to(_lasso_points[-1]) >= (2.0 if from_model else 0.5):
+			_lasso_points.append(sample)
+			if from_model: model_view.set_lasso_preview(_lasso_points)
+			else: uv_canvas.lasso_preview = _lasso_points; uv_canvas.queue_redraw()
+	else:
+		_lasso_dragging = false
+		%CloseSelection.visible = _lasso_points.size() >= 3
+		_status("Click Close selection to apply the lasso." if %CloseSelection.visible else "Draw a larger lasso before closing it.")
+
+func _close_lasso() -> void:
+	if document == null or jobs.busy() or _lasso_points.size() < 3: return
+	var points := _lasso_points.duplicate()
+	var from_model := _lasso_from_model
+	%CloseSelection.visible = false
+	model_view.set_lasso_preview(PackedVector2Array())
+	uv_canvas.lasso_preview.clear()
+	uv_canvas.queue_redraw()
+	var dimensions := Vector2i(document.width,document.height)
+	var geometry := document.geometry
+	if from_model:
+		var camera_transform := model_view.camera.global_transform
+		var projection := model_view.camera.get_camera_projection()
+		var view_size := model_view.display.size
+		jobs.start("selection_lasso",func(progress: BackgroundJob.JobProgress) -> Dictionary:
+			var mask := LassoSelection.model_mask(progress,geometry,points,dimensions,view_size,camera_transform,projection)
+			return {"selection":mask,"boundary":LassoSelection.boundary(mask,dimensions)})
+	else:
+		jobs.start("selection_lasso",func(progress: BackgroundJob.JobProgress) -> Dictionary:
+			progress.report(0.1,"Selecting UV pixels…")
+			var mask := LassoSelection.uv_mask(points,dimensions)
+			return {"selection":mask,"boundary":LassoSelection.boundary(mask,dimensions)})
+
+func _reset_lasso() -> void:
+	_lasso_points.clear()
+	_lasso_tile_cache.clear()
+	_lasso_dragging = false
+	_lasso_selected = false
+	if not is_node_ready(): return
+	%CloseSelection.visible = false
+	model_view.set_lasso_preview(PackedVector2Array())
+	uv_canvas.lasso_preview.clear()
+	uv_canvas.queue_redraw()
+	model_view.set_selection_boundary(null)
+	uv_canvas.set_selection_boundary(null)
 
 func _resize_selection(grow: bool) -> void:
 	if jobs.busy() or painter.active or document == null or document.geometry == null: return
@@ -652,19 +736,21 @@ func _show_selection() -> void:
 	model_view.show_selection(selected_faces)
 	uv_canvas.selected_faces = selected_faces
 	uv_canvas.queue_redraw()
-	_status("%d selected triangles · painting stays inside the selection" % selected_faces.size() if not selected_faces.is_empty() else "Selection cleared")
+	_status("Lasso selected · painting stays inside the marching ants" if _lasso_selected else "%d selected triangles · painting stays inside the selection" % selected_faces.size() if not selected_faces.is_empty() else "Selection cleared")
 
 func _clear_selection() -> void:
 	if jobs.busy() or painter.active:
 		return
 	selected_faces.clear()
 	_selection_steps.clear()
-	painter.selection.clear()
-	painter.selection_active = false
+	_reset_lasso()
+	painter.set_selection({})
 	_show_selection()
 
 func _run_gradient() -> void:
 	var faces := selected_faces.duplicate()
+	if _lasso_selected and painter.selection_active and document.geometry != null:
+		for face in document.geometry.face_count(): faces.append(face)
 	var start_face := int(_gradient_start.get("face", -1))
 	# A planar side normally contains two triangles; include the connected coplanar side by default.
 	if faces.is_empty() and start_face >= 0:
@@ -677,7 +763,7 @@ func _run_gradient() -> void:
 					found[next] = true
 					queue.append(next)
 		faces = PackedInt32Array(found.keys())
-	jobs.start("operation", PaintOperations.gradient.bind(document, faces, _gradient_start.duplicate(), _gradient_end.duplicate(), gradient_length, painter.color, color_b, painter.dither, painter.brush_size))
+	jobs.start("operation", PaintOperations.gradient.bind(document, faces, _gradient_start.duplicate(), _gradient_end.duplicate(), gradient_length, painter.color, color_b, painter.dither, painter.brush_size, painter.selection if painter.selection_active else {}))
 	_gradient_start.clear()
 	_gradient_end.clear()
 	_clear_shape_preview()
@@ -875,6 +961,26 @@ func _brush_tip_selected(path: String, tip: Image) -> void:
 	_brush_preview_key.clear()
 	_refresh_cursor()
 	_queue_preferences_save()
+
+func _brush_angle_changed(angle: float) -> void:
+	painter.brush_angle = fposmod(angle+180.0,360.0)-180.0
+	_brush_preview_key.clear()
+	_refresh_cursor()
+	_queue_preferences_save()
+
+func _brush_rotation_drag(phase: String, horizontal_delta: float) -> void:
+	if phase == "move" and painter.tool == "brush":
+		%BrushOptions.set_angle(fposmod(painter.brush_angle+horizontal_delta*0.5+180.0,360.0)-180.0)
+		_brush_angle_changed(%BrushOptions.get_node("Angle").value)
+		_status("Brush rotation: %d°" % roundi(painter.brush_angle))
+
+func _save_custom_brush(name: String, image: Image) -> void:
+	var result := BrushLibrary.save_tip(name,image)
+	if result.has("error"):
+		_message(str(result.error))
+		return
+	%BrushOptions.reload(str(result.path))
+	_status("Brush saved in user://brushes: " + str(result.path.get_file()))
 
 func _open_pattern_editor() -> void:
 	if document == null: return
@@ -1111,7 +1217,7 @@ func _preview_layer_blur(kind := "blur") -> void:
 	_blur_job_signature = requested.duplicate(true)
 	_blur_job_layer_id = layer.id
 	if kind == "directional":
-		var selection := painter.selection.duplicate() if not selected_faces.is_empty() else {}
+		var selection := painter.selection.duplicate() if painter.selection_active else {}
 		jobs.start("layer_blur_preview",PaintOperations.directional_blur_layer.bind(document.read_copy(),layer.id,int(requested[2]),float(requested[3]),float(requested[4]),selection))
 	else:
 		jobs.start("layer_blur_preview",PaintOperations.blur_layer.bind(document.read_copy(),layer.id,int(requested[2])))
@@ -1150,7 +1256,13 @@ func _action(action: String) -> void:
 		else: _file_dialog("reference")
 		return
 	if action == "Focus":
-		if document != null: model_view.focus_on(selected_faces,_cursor_hit if _cursor_from_model else {})
+		if document != null:
+			var focus_faces := selected_faces.duplicate()
+			var hit_face := int(_cursor_hit.get("face",-1)) if _cursor_from_model else -1
+			if focus_faces.is_empty() and document.geometry != null and hit_face >= 0:
+				for face in document.geometry.face_count():
+					if document.geometry.objects[face] == document.geometry.objects[hit_face]: focus_faces.append(face)
+			model_view.focus_on(focus_faces)
 		return
 	if jobs.busy() or painter.active:
 		_status("Wait for the current operation to finish.")
@@ -1342,8 +1454,11 @@ func _texture_fill(faces: PackedInt32Array) -> void:
 	if %Pattern.source == null:
 		_file_dialog("pattern")
 		return
-	if faces.is_empty():
+	if faces.is_empty() and not painter.selection_active:
 		_status("Select faces, or click a model surface with Fill pattern mode.")
+		return
+	if _lasso_selected and painter.selection_active:
+		jobs.start("operation", PaintOperations.texture_fill.bind(document,faces,%Pattern.source,%Pattern.settings(),painter.selection))
 		return
 	if document.layers.size() >= 32:
 		_message("This project supports up to 32 layers across all maps.")
@@ -1352,6 +1467,9 @@ func _texture_fill(faces: PackedInt32Array) -> void:
 
 func _apply_pattern(faces: PackedInt32Array) -> void:
 	if document == null or jobs.busy() or painter.active or %Pattern.source == null: return
+	if _lasso_selected and painter.selection_active:
+		_texture_fill(faces)
+		return
 	var layer := document.selected_layer()
 	if layer.pattern_image != null:
 		jobs.start("pattern_render",PaintOperations.rerender_pattern.bind(document.read_copy(),layer.id,%Pattern.source,%Pattern.settings()))
@@ -1390,6 +1508,9 @@ func _stamp_rotation_input(angle: float, commit: bool) -> void:
 		_status("Stamp rotation: %d°" % roundi(normalized))
 
 func _stamp_rotation_drag(phase: String, horizontal_delta: float) -> void:
+	if painter.tool == "brush":
+		_brush_rotation_drag(phase,horizontal_delta)
+		return
 	if phase == "begin":
 		_stamp_rotation_before = document.stamp_rotation if document != null else 0.0
 		_stamp_rotation_editing = true
@@ -1539,8 +1660,24 @@ func _job_completed(kind: String, value: Variant) -> void:
 			_sync_pattern_inspector()
 			_refresh_metadata()
 		"selection":
-			painter.selection = result.selection
-			painter.selection_active = not selected_faces.is_empty()
+			painter.set_selection(result.selection)
+			var outline := LassoSelection.boundary(result.selection,Vector2i(document.width,document.height))
+			var outline_texture := ImageTexture.create_from_image(outline)
+			model_view.set_selection_boundary(outline_texture)
+			uv_canvas.set_selection_boundary(outline_texture)
+			_show_selection()
+		"selection_lasso":
+			selected_faces.clear()
+			_selection_steps.clear()
+			painter.set_selection(result.selection)
+			_lasso_selected = painter.selection_active
+			if painter.selection_active:
+				var outline_texture := ImageTexture.create_from_image(result.boundary)
+				model_view.set_selection_boundary(outline_texture)
+				uv_canvas.set_selection_boundary(outline_texture)
+			else:
+				model_view.set_selection_boundary(null)
+				uv_canvas.set_selection_boundary(null)
 			_show_selection()
 		"operation":
 			var command: Dictionary = result.command
@@ -1670,11 +1807,10 @@ func _refresh_cursor() -> void:
 		current_stamp = painter.stamp_source_preview()
 		if not _stamp_rotation_editing: %StampPanel.set_result_preview(painter.stamp_preview())
 	if painter.tool == "brush" and painter.brush_tip != null and not _cursor_hit.is_empty():
-		var preview_key := [painter.brush_tip,painter.brush_size,painter.color,painter.opacity]
+		var preview_key := [painter.brush_tip,painter.brush_size,painter.color,painter.opacity,painter.brush_angle]
 		if preview_key != _brush_preview_key:
 			_brush_preview_key = preview_key
-			var mask: Image = painter.brush_tip.duplicate()
-			mask.resize(painter.brush_size,painter.brush_size,Image.INTERPOLATE_NEAREST)
+			var mask := BrushLibrary.rotated_tip(painter.brush_tip,painter.brush_size,painter.brush_angle)
 			var preview := Image.create(painter.brush_size,painter.brush_size,false,Image.FORMAT_RGBA8)
 			preview.fill(Color.TRANSPARENT)
 			for y in painter.brush_size:
@@ -1778,6 +1914,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_F2: %Layers.rename_active()
 		elif event.keycode == KEY_H: _action("ToggleReference")
 		elif event.keycode == KEY_Z: _action("Focus")
+		elif event.keycode == KEY_PERIOD: _action("Focus")
 		elif event.keycode == KEY_BRACKETLEFT:
 			%ToolOptions.get_node("Size").set_value(painter.brush_size - 1)
 		elif event.keycode == KEY_BRACKETRIGHT:
@@ -1841,6 +1978,8 @@ func _restore_preferences() -> void:
 	%ToolOptions.get_node("Size").set_value(float(_preferences.get_setting("brush","size",4)),false)
 	painter.brush_size = int(%ToolOptions.get_node("Size").value)
 	%BrushOptions.set_selected_path(str(_preferences.get_setting("brush","tip_path","")))
+	%BrushOptions.set_angle(float(_preferences.get_setting("brush","angle",0.0)))
+	painter.brush_angle = %BrushOptions.get_node("Angle").value
 	%ToolOptions.get_node("Opacity").set_value(float(_preferences.get_setting("brush","opacity",100)),false)
 	%SprayOptions.get_node("Opacity").set_value(%ToolOptions.get_node("Opacity").value,false)
 	painter.opacity = %ToolOptions.get_node("Opacity").value/100.0
@@ -1864,6 +2003,13 @@ func _restore_preferences() -> void:
 	var spray_strength := float(_preferences.get_setting("spray","strength",_preferences.get_setting("spray","flow",50)))
 	%SprayOptions.get_node("Strength").set_value(spray_strength,false)
 	_setting("spray_strength",spray_strength/100.0)
+	var dot_size := int(_preferences.get_setting("spray","dot_size",1))
+	%SprayOptions.get_node("DotSize").set_value(dot_size,false)
+	painter.spray_dot_size = dot_size
+	var dot_round := bool(_preferences.get_setting("spray","dot_round",true))
+	%SprayOptions.get_node("DotShape").set_pressed_no_signal(dot_round)
+	%SprayOptions.get_node("DotShape").text = "●" if dot_round else "■"
+	painter.spray_dot_round = dot_round
 	var last_tool := str(_preferences.get_setting("brush","tool","brush"))
 	if last_tool == "texture":
 		%Pattern.set_mode(1)
@@ -1923,6 +2069,7 @@ func _save_preferences() -> void:
 	_preferences.set_setting("panels","layers_offset",%Layers.split_offset)
 	_preferences.set_setting("brush","tool",painter.tool)
 	_preferences.set_setting("brush","tip_path",_brush_tip_path)
+	_preferences.set_setting("brush","angle",painter.brush_angle)
 	_preferences.set_setting("brush","size",painter.brush_size)
 	_preferences.set_setting("brush","opacity",%ToolOptions.get_node("Opacity").value)
 	_preferences.set_setting("brush","falloff",%ToolOptions.get_node("Falloff").value)
@@ -1935,6 +2082,8 @@ func _save_preferences() -> void:
 	_preferences.set_setting("fill","mode",%Pattern.mode())
 	_preferences.set_setting("brush","gradient_length",gradient_length)
 	_preferences.set_setting("spray","strength",%SprayOptions.get_node("Strength").value)
+	_preferences.set_setting("spray","dot_size",painter.spray_dot_size)
+	_preferences.set_setting("spray","dot_round",painter.spray_dot_round)
 	for field in ["EdgeWidth", "EdgeScatter", "EdgeNoise", "EdgeFalloff", "AOStrength", "AORadius", "AODepth", "NormalStrength", "BlurRadius", "DirectionalLength", "DirectionalAngle", "DirectionalStrength"]:
 		_preferences.set_setting("inspector",field,%Effects.get_node(field).value)
 	_preferences.set_setting("inspector","AOFalloff",%Effects.get_node("AOFalloff").selected)

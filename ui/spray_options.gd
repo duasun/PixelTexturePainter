@@ -4,3 +4,7 @@ signal setting_changed(key: String, value: Variant)
 func _ready() -> void:
 	$Opacity.value_changed.connect(func(value: float): setting_changed.emit("opacity",value/100.0))
 	$Strength.value_changed.connect(func(value: float): setting_changed.emit("spray_strength",value/100.0))
+	$DotSize.value_changed.connect(func(value: float): setting_changed.emit("spray_dot_size",int(value)))
+	$DotShape.toggled.connect(func(round_dot: bool):
+		$DotShape.text = "●" if round_dot else "■"
+		setting_changed.emit("spray_dot_round",round_dot))

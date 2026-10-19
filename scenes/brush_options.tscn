@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 [ext_resource type="Script" path="res://ui/brush_options.gd" id="script"]
 [ext_resource type="Theme" path="res://assets/tool_settings_theme.tres" id="theme"]
+[ext_resource type="PackedScene" path="res://scenes/compact_number_field.tscn" id="num"]
 [node name="BrushOptions" type="HBoxContainer"]
 visible = false
 script = ExtResource("script")
@@ -12,11 +13,27 @@ text = "Tip"
 visible = false
 [node name="Tips" type="OptionButton" parent="."]
 layout_mode = 2
-custom_minimum_size = Vector2(130,30)
+custom_minimum_size = Vector2(80,30)
 clip_text = true
 tooltip_text = "Choose a white brush tip. The active color tints it."
 [node name="Import" type="Button" parent="."]
 layout_mode = 2
 text = "+"
-custom_minimum_size = Vector2(32,30)
+custom_minimum_size = Vector2(26,30)
 tooltip_text = "Import a PNG into your user brush folder"
+[node name="Draw" type="Button" parent="."]
+layout_mode = 2
+text = "✎"
+custom_minimum_size = Vector2(26,30)
+tooltip_text = "Draw and save your own brush tip"
+[node name="AngleLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Angle"
+visible = false
+[node name="Angle" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 0.0
+minimum = -180.0
+maximum = 180.0
+suffix = "°"
+tooltip_text = "Rotate the brush tip; Shift + right-drag in a view"

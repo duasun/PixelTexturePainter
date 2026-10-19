@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 [ext_resource type="Script" path="res://ui/main_window.gd" id="script"]
 [ext_resource type="Theme" path="res://assets/theme.tres" id="theme"]
 [ext_resource type="PackedScene" path="res://scenes/tool_bar.tscn" id="toolbar"]
@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://scenes/brush_options.tscn" id="brush_options"]
 [ext_resource type="PackedScene" path="res://scenes/stamp_options.tscn" id="stamp_options"]
 [ext_resource type="PackedScene" path="res://scenes/pattern_editor.tscn" id="pattern_editor"]
+[ext_resource type="PackedScene" path="res://scenes/brush_editor.tscn" id="brush_editor"]
 [node name="MainWindow" type="Control"]
 layout_mode = 1
 anchors_preset = 15
@@ -107,6 +108,12 @@ layout_mode = 2
 unique_name_in_owner = true
 [node name="StampOptions" parent="Margin/Layout/MainSplit/LeftColumn/SettingsBar" instance=ExtResource("stamp_options")]
 layout_mode = 2
+unique_name_in_owner = true
+[node name="CloseSelection" type="Button" parent="Margin/Layout/MainSplit/LeftColumn/SettingsBar"]
+layout_mode = 2
+visible = false
+text = "Close selection"
+tooltip_text = "Close the drawn lasso and restrict painting to its interior"
 unique_name_in_owner = true
 [node name="MainDock" type="VSplitContainer" parent="Margin/Layout/MainSplit/LeftColumn"]
 layout_mode = 2
@@ -259,6 +266,7 @@ size_flags_horizontal = 3
 layout_mode = 2
 unique_name_in_owner = true
 [node name="StampPopup" type="PopupPanel" parent="."]
+unique_name_in_owner = true
 size = Vector2i(350,610)
 [node name="StampScroll" type="ScrollContainer" parent="StampPopup"]
 offset_left = 8.0
@@ -270,6 +278,8 @@ horizontal_scroll_mode = 0
 unique_name_in_owner = true
 size_flags_horizontal = 3
 [node name="PatternEditor" parent="." instance=ExtResource("pattern_editor")]
+unique_name_in_owner = true
+[node name="BrushEditor" parent="." instance=ExtResource("brush_editor")]
 unique_name_in_owner = true
 [node name="StatusBar" type="HBoxContainer" parent="Margin/Layout"]
 layout_mode = 2

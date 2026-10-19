@@ -27,3 +27,20 @@ minimum = 0.0
 maximum = 100.0
 suffix = "%"
 tooltip_text = "Controls particle density and paint buildup together"
+[node name="DotSizeLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Dot"
+[node name="DotSize" parent="." instance=ExtResource("num")]
+layout_mode = 2
+value = 1.0
+minimum = 1.0
+maximum = 32.0
+suffix = " px"
+tooltip_text = "Size of each spray dot in texture pixels"
+[node name="DotShape" type="Button" parent="."]
+layout_mode = 2
+text = "●"
+toggle_mode = true
+button_pressed = true
+custom_minimum_size = Vector2(32,30)
+tooltip_text = "Toggle round or square spray dots"

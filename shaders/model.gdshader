@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode unshaded, cull_back;
 #include "res://shaders/texture_common.gdshaderinc"
 #include "res://shaders/shape_preview.gdshaderinc"
+#include "res://shaders/selection_ants.gdshaderinc"
 uniform bool shaded = false;
 uniform bool pbr_enabled = false;
 uniform sampler2D pbr_albedo : filter_nearest, repeat_disable;
@@ -100,6 +101,7 @@ void fragment() {
 	if (shape_preview_mode > 0 && (shape_preview_island < 0.0 || abs(UV2.x-shape_preview_island) < 0.25)) {
 		c = shape_preview_color(c,UV*texture_size,fwidth(UV*texture_size));
 	}
+	c = selection_ants(c,UV);
 	if (cursor_visible) {
 		vec2 p = UV * texture_size;
 		vec2 fw = max(fwidth(p) * 0.7, vec2(0.0001));
