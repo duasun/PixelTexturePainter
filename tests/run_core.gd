@@ -175,6 +175,7 @@ func run() -> void:
 	var flat := Image.create(16,16,false,Image.FORMAT_RGBA8)
 	flat.fill(Color(0.5,0.5,0.5))
 	noise_doc.effects.noise = 0.8
+	noise_doc.effects.noise_enabled = true
 	noise_doc.effects.noise_density = 0.0
 	check(ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc).get_data() == flat.get_data(),"Zero noise coverage leaves the texture unchanged")
 	noise_doc.effects.noise_density = 1.0
@@ -191,6 +192,8 @@ func run() -> void:
 	noise_doc.effects.noise_mode = 3
 	var color_grains := ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc)
 	check(color_grains.get_pixel(0,0).r != color_grains.get_pixel(0,0).g,"Color noise varies channels independently")
+	noise_doc.effects.noise_enabled = false
+	check(ProjectIO.apply_effects(flat,Vector2i.ZERO,noise_doc).get_data() == flat.get_data(),"Disabled noise keeps its settings without changing export pixels")
 	var model_start := {"uv": Vector2(0.13,0.15), "face": 0}
 	var model_end := {"uv": Vector2(0.13,0.25), "face": 0}
 	var model_narrow := PaintOperations.gradient(progress,ao_doc,PackedInt32Array([0]),model_start,model_end,7,Color.WHITE,Color.BLACK,false,4)
@@ -285,6 +288,13 @@ func run() -> void:
 	doc.selected_layer().mask_enabled = true
 	doc.selected_layer().tile_at(Vector2i.ZERO, true).fill_rect(Rect2i(0,0,4,4), Color.BLACK)
 	doc.effects.steps = 8
+	doc.effects.adjustments_enabled = true
+	check(not PaintDocument.new().has_live_effects(),"New projects start with live effects disabled")
+	var hidden_effect := PaintLayer.new()
+	hidden_effect.title = "Hidden edge highlights"
+	hidden_effect.effect_kind = "edges"
+	hidden_effect.visible = false
+	doc.layers.append(hidden_effect)
 	var path := ProjectSettings.globalize_path("res://test_output/roundtrip.rtpaint")
 	var saved := ProjectIO.save_project(progress, doc, path)
 	check(not saved.has("error"), "Project saves")
@@ -294,6 +304,14 @@ func run() -> void:
 		check(loaded.document.compose_tile(Vector2i.ZERO).get_data() == doc.compose_tile(Vector2i.ZERO).get_data(), "Save/load preserves composite pixels exactly")
 		check(loaded.document.geometry.uvs == doc.geometry.uvs, "Save/load preserves edited UV coordinates")
 		check(loaded.document.effects.steps == 8, "Save/load preserves effect settings")
+		check(loaded.document.effects.adjustments_enabled,"Save/load restores the active adjustment toggle")
+		check(loaded.document.layers[-1].effect_kind == "edges" and not loaded.document.layers[-1].visible,"Save/load restores generated effect identity and visibility")
+	doc.effects.adjustments_enabled = false
+	doc.effects.noise = 0.7
+	doc.effects.noise_enabled = false
+	ProjectIO.save_project(progress,doc,path)
+	var loaded_disabled := ProjectIO.load_project(progress,path)
+	check(loaded_disabled.has("document") and not loaded_disabled.document.effects.adjustments_enabled and not loaded_disabled.document.effects.noise_enabled,"Save/load keeps changed effect values switched off")
 	var obj_path := ProjectSettings.globalize_path("res://test_output/model.obj")
 	ProjectIO.export_obj(doc.geometry, obj_path)
 	var imported := ModelIO.load_model(progress, obj_path)
@@ -381,6 +399,7 @@ func additional_checks(painter: PaintEngine, progress: BackgroundJob.JobProgress
 	check(loaded.has("document") and loaded.document.reference_state == doc.reference_state, "Reference visibility, placement, zoom, opacity and lock survive project save")
 	doc.effects.steps = 4
 	doc.effects.brightness = 0.1
+	doc.effects.adjustments_enabled = true
 	var png_path := ProjectSettings.globalize_path("res://test_output/export.png")
 	var png := ProjectIO.export_png(progress, doc, png_path)
 	check(not png.has("error"), "PNG texture exports")

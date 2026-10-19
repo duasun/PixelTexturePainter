@@ -42,7 +42,7 @@ static func uv_mask(points: PackedVector2Array, size: Vector2i) -> Dictionary:
 			if (a.y <= row and b.y > row) or (b.y <= row and a.y > row):
 				crossings.append(a.x+(row-a.y)*(b.x-a.x)/(b.y-a.y))
 		crossings.sort()
-		for pair in int(crossings.size()/2):
+		for pair in floori(float(crossings.size())/2.0):
 			var left := maxi(0,ceili(crossings[pair*2]-0.5))
 			var right := mini(size.x-1,floori(crossings[pair*2+1]-0.5))
 			UVRaster.span(result,y,left,right,Color.WHITE)

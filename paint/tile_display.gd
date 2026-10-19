@@ -77,9 +77,9 @@ func apply_to(material: ShaderMaterial) -> void:
 	material.set_shader_parameter("pages", texture_array)
 	material.set_shader_parameter("texture_size", Vector2(document.width, document.height))
 	material.set_shader_parameter("page_columns", columns)
-	var effects := document.effects if document.current_channel() == "albedo" else PaintDocument.new().effects
+	var effects := document.effective_effects() if document.current_channel() == "albedo" else PaintDocument.new().effective_effects()
 	for key in effects:
-		material.set_shader_parameter("fx_" + key, effects[key])
+		if not str(key).ends_with("_enabled"): material.set_shader_parameter("fx_" + key, effects[key])
 	if _palette_texture == null or _palette_colors != document.palette:
 		_palette_colors = document.palette.duplicate()
 		_palette_texture = ImageTexture.create_from_image(PaletteLookup.build(_palette_colors))

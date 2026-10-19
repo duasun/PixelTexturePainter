@@ -24,17 +24,17 @@ func new_canvas(width: int, height: int) -> void:
 
 func _draw() -> void:
 	if image == null: return
-	var scale := floorf(minf(size.x/image.get_width(),size.y/image.get_height()))
-	scale = maxf(1.0,scale)
-	var bounds := Rect2((size-Vector2(image.get_size())*scale)*0.5,Vector2(image.get_size())*scale)
+	var pixel_scale := floorf(minf(size.x/image.get_width(),size.y/image.get_height()))
+	pixel_scale = maxf(1.0,pixel_scale)
+	var bounds := Rect2((size-Vector2(image.get_size())*pixel_scale)*0.5,Vector2(image.get_size())*pixel_scale)
 	draw_rect(bounds,Color(0.18,0.18,0.18),true)
 	draw_texture_rect(_texture,bounds,false)
-	if scale >= 8:
+	if pixel_scale >= 8:
 		for x in image.get_width()+1:
-			var px := bounds.position.x+x*scale
+			var px := bounds.position.x+x*pixel_scale
 			draw_line(Vector2(px,bounds.position.y),Vector2(px,bounds.end.y),Color(0.35,0.35,0.35,0.7))
 		for y in image.get_height()+1:
-			var py := bounds.position.y+y*scale
+			var py := bounds.position.y+y*pixel_scale
 			draw_line(Vector2(bounds.position.x,py),Vector2(bounds.end.x,py),Color(0.35,0.35,0.35,0.7))
 
 func _gui_input(event: InputEvent) -> void:
@@ -48,9 +48,9 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 func _paint(point: Vector2, erase: bool) -> void:
-	var scale := maxf(1.0,floorf(minf(size.x/image.get_width(),size.y/image.get_height())))
-	var origin := (size-Vector2(image.get_size())*scale)*0.5
-	var pixel := Vector2i(((point-origin)/scale).floor())
+	var pixel_scale := maxf(1.0,floorf(minf(size.x/image.get_width(),size.y/image.get_height())))
+	var origin := (size-Vector2(image.get_size())*pixel_scale)*0.5
+	var pixel := Vector2i(((point-origin)/pixel_scale).floor())
 	if pixel.x < 0 or pixel.y < 0 or pixel.x >= image.get_width() or pixel.y >= image.get_height():
 		_last_pixel = Vector2i(-1,-1)
 		return

@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 [ext_resource type="Script" path="res://ui/model_view.gd" id="script"]
 [ext_resource type="Script" path="res://ui/cursor_marker.gd" id="cursor"]
 [ext_resource type="Script" path="res://ui/symmetry_preview.gd" id="symmetry_preview"]
@@ -11,6 +11,7 @@
 [ext_resource type="Texture2D" path="res://assets/tools/redo.svg" id="redo_icon"]
 [ext_resource type="PackedScene" path="res://scenes/reference_overlay.tscn" id="reference"]
 [ext_resource type="PackedScene" path="res://scenes/axis_gizmo.tscn" id="axis_gizmo"]
+[ext_resource type="PackedScene" path="res://scenes/ruler_guide.tscn" id="ruler_guide"]
 [sub_resource type="Environment" id="env"]
 background_mode = 1
 background_color = Color(0.15,0.15,0.15,1)
@@ -239,6 +240,7 @@ tooltip_text = "View from -Z"
 theme_override_colors/font_color = Color(0.52, 0.75, 1, 1)
 
 [node name="ReferenceOverlay" parent="Display" instance=ExtResource("reference")]
+[node name="RulerGuide" parent="Display" instance=ExtResource("ruler_guide")]
 
 [node name="Navigation" type="Label" parent="."]
 layout_mode = 2

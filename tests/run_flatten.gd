@@ -62,7 +62,7 @@ func run() -> void:
 		var empty := PaintLayer.new()
 		ten.layers.append(empty)
 	var started := Time.get_ticks_usec()
-	for i in 256: ten.compose_tile(Vector2i(i%16,i/16))
+	for i in 256: ten.compose_tile(Vector2i(i%16,floori(float(i)/16.0)))
 	var compose_ms := (Time.get_ticks_usec()-started)/1000.0
 	started = Time.get_ticks_usec()
 	var preview := PBRPreview.build(progress,ten)

@@ -4,6 +4,8 @@ extends RefCounted
 const TILE := 64
 var id: String = str(Time.get_ticks_usec())
 var title := "Paint layer"
+var effect_kind := ""
+var effect_source_id := ""
 var channel := "albedo"
 var visible := true
 var locked := false
@@ -62,6 +64,7 @@ func metadata() -> Dictionary:
 	var faces: Array[int] = []
 	for face in pattern_faces: faces.append(face)
 	return {"id": id, "title": title, "channel": channel, "visible": visible, "locked": locked,
+		"effect_kind": effect_kind, "effect_source_id": effect_source_id,
 		"opacity": opacity, "blend_mode": blend_mode,
 		"base": base_color.to_html(true), "mask_enabled": mask_enabled,
 		"pattern_faces":faces, "pattern_settings":pattern_settings.duplicate(true)}
@@ -70,6 +73,13 @@ static func from_metadata(data: Dictionary) -> PaintLayer:
 	var layer := PaintLayer.new()
 	layer.id = data.get("id", layer.id)
 	layer.title = data.get("title", "Layer")
+	layer.effect_kind = str(data.get("effect_kind",""))
+	if not data.has("effect_kind"):
+		match layer.title:
+			"Edge highlights": layer.effect_kind = "edges"
+			"Cavity AO": layer.effect_kind = "ao"
+			"From Height": layer.effect_kind = "normal"
+	layer.effect_source_id = str(data.get("effect_source_id",""))
 	layer.channel = str(data.get("channel", "albedo"))
 	if not layer.channel in PaintChannels.IDS: layer.channel = "albedo"
 	layer.visible = data.get("visible", true)

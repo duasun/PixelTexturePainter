@@ -2,6 +2,7 @@ class_name UVCanvas
 extends Control
 signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
+signal ruler_started
 signal hovered(hit: Dictionary)
 signal lasso_event(phase: String, point: Vector2)
 signal brush_rotation_event(phase: String, horizontal_delta: float)
@@ -20,6 +21,11 @@ var show_uv := true
 var show_grid := true
 var selected_faces := PackedInt32Array()
 var lasso_mode := false
+var ruler_mode := false
+var _ruler_active := false
+var _ruler_anchor := Vector2.ZERO
+var _stroke_started := false
+var _previous := Vector2.ZERO
 var brush_rotation_mode := false
 var _brush_rotating := false
 var lasso_preview := PackedVector2Array()
@@ -147,9 +153,25 @@ func _gui_input(event: InputEvent) -> void:
 				accept_event()
 				return
 			_painting = event.pressed
+			if event.pressed and ruler_mode and event.shift_pressed and not event.ctrl_pressed and not event.alt_pressed:
+				_ruler_active = true
+				_ruler_anchor = event.position
+				_previous = event.position
+				_stroke_started = false
+				$RulerGuide.set_segment(_ruler_anchor,event.position,true)
+				accept_event()
+				return
+			if not event.pressed and _ruler_active: _flush_ruler(event.position)
 			if event.pressed:
 				_gesture_candidate = event.ctrl_pressed or event.alt_pressed
-			surface_event.emit("begin" if event.pressed else "end", _hit(event.position), (1 if event.shift_pressed else 0) + (2 if event.ctrl_pressed else 0) + (4 if event.alt_pressed else 0))
+			_previous = event.position
+			var hit := _hit(event.position)
+			if event.pressed:
+				_stroke_started = not hit.is_empty()
+				if _stroke_started: surface_event.emit("begin",hit,(1 if event.shift_pressed else 0) + (2 if event.ctrl_pressed else 0) + (4 if event.alt_pressed else 0))
+			else:
+				surface_event.emit("end",hit,(1 if event.shift_pressed else 0) + (2 if event.ctrl_pressed else 0) + (4 if event.alt_pressed else 0))
+				_stroke_started = false
 			if not event.pressed:
 				_gesture_candidate = false
 		accept_event()
@@ -172,9 +194,34 @@ func _gui_input(event: InputEvent) -> void:
 			if _painting:
 				if _gesture_candidate:
 					gesture_motion.emit(event.relative)
+				elif ruler_mode and (event.shift_pressed or _ruler_active):
+					if not _ruler_active:
+						_ruler_active = true
+						_ruler_anchor = _previous
+						ruler_started.emit()
+					if event.shift_pressed:
+						$RulerGuide.set_segment(_ruler_anchor,event.position,true)
+					else:
+						_flush_ruler(event.position)
 				else:
-					surface_event.emit("move", hit, 4 if event.alt_pressed else 0)
+					_emit_stroke_hit(hit)
+			_previous = event.position
 		queue_redraw()
+
+func _emit_stroke_hit(hit: Dictionary) -> void:
+	if not _stroke_started and not hit.is_empty():
+		_stroke_started = true
+		surface_event.emit("begin",hit,0)
+	else:
+		surface_event.emit("move",hit,0)
+
+func _flush_ruler(point: Vector2) -> void:
+	$RulerGuide.set_segment(Vector2.ZERO,Vector2.ZERO,false)
+	_ruler_active = false
+	var steps := clampi(ceili(_ruler_anchor.distance_to(point)/3.0),1,1024)
+	_emit_stroke_hit(_hit(_ruler_anchor))
+	for i in range(1,steps+1):
+		_emit_stroke_hit(_hit(_ruler_anchor.lerp(point,float(i)/float(steps))))
 
 func _draw() -> void:
 	if document == null:

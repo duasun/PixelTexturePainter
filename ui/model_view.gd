@@ -5,6 +5,7 @@ const MIN_DISTANCE_FACTOR := 0.0001
 const AXIS_DIRECTIONS := {"PosX":Vector3.RIGHT,"NegX":Vector3.LEFT,"PosY":Vector3.UP,"NegY":Vector3.DOWN,"PosZ":Vector3.BACK,"NegZ":Vector3.FORWARD}
 signal surface_event(phase: String, hit: Dictionary, modifiers: int)
 signal gesture_motion(delta: Vector2)
+signal ruler_started
 signal stamp_rotation_event(phase: String, horizontal_delta: float)
 signal hovered(hit: Dictionary)
 signal lasso_event(phase: String, point: Vector2)
@@ -31,6 +32,9 @@ var _stroke_started := false
 var _gesture_candidate := false
 var interpolate_strokes := true
 var lasso_mode := false
+var ruler_mode := false
+var _ruler_active := false
+var _ruler_anchor := Vector2.ZERO
 var _previous := Vector2.ZERO
 var _marker_position: Variant = null
 var _hover_key := Vector2i(-2,-2)
@@ -311,6 +315,15 @@ func _input_display(event: InputEvent) -> void:
 				display.accept_event()
 				return
 			_painting = event.pressed
+			if event.pressed and ruler_mode and event.shift_pressed and not event.ctrl_pressed and not event.alt_pressed:
+				_ruler_active = true
+				_ruler_anchor = event.position
+				_previous = event.position
+				_stroke_started = false
+				$Display/RulerGuide.set_segment(_ruler_anchor,event.position,true)
+				display.accept_event()
+				return
+			if not event.pressed and _ruler_active: _flush_ruler(event.position)
 			if event.pressed:
 				_gesture_candidate = event.ctrl_pressed or event.alt_pressed
 			_previous = event.position
@@ -342,6 +355,15 @@ func _input_display(event: InputEvent) -> void:
 			if _painting:
 				if _gesture_candidate:
 					gesture_motion.emit(event.relative)
+				elif ruler_mode and (event.shift_pressed or _ruler_active):
+					if not _ruler_active:
+						_ruler_active = true
+						_ruler_anchor = _previous
+						ruler_started.emit()
+					if event.shift_pressed:
+						$Display/RulerGuide.set_segment(_ruler_anchor,event.position,true)
+					else:
+						_flush_ruler(event.position)
 				elif not interpolate_strokes:
 					_emit_stroke_hit(hit)
 				else:
@@ -350,6 +372,14 @@ func _input_display(event: InputEvent) -> void:
 					for i in range(1, steps + 1):
 						_emit_stroke_hit(_hit(_previous.lerp(event.position, i / float(steps))))
 			_previous = event.position
+
+func _flush_ruler(point: Vector2) -> void:
+	$Display/RulerGuide.set_segment(Vector2.ZERO,Vector2.ZERO,false)
+	_ruler_active = false
+	var steps := clampi(ceili(_ruler_anchor.distance_to(point)/3.0),1,1024)
+	_emit_stroke_hit(_hit(_ruler_anchor))
+	for i in range(1,steps+1):
+		_emit_stroke_hit(_hit(_ruler_anchor.lerp(point,float(i)/float(steps))))
 
 func _emit_stroke_hit(hit: Dictionary) -> void:
 	if not _stroke_started and not hit.is_empty():
@@ -374,7 +404,7 @@ func snap_lasso(point: Vector2) -> Vector2:
 	if hit.is_empty(): return point
 	var face := int(hit.face)
 	var closest := point
-	var distance := 8.0
+	var snap_distance := 8.0
 	var tolerance := maxf(geometry.bounds.size.length()*0.00001,0.000001)
 	for edge in 3:
 		var a: Vector3 = geometry.positions[face*3+edge]
@@ -396,8 +426,8 @@ func snap_lasso(point: Vector2) -> Vector2:
 		var t := clampf((point-p0).dot(direction)/maxf(direction.length_squared(),0.000001),0.0,1.0)
 		var candidate := p0+direction*t
 		var separation := point.distance_to(candidate)
-		if separation < distance:
-			distance = separation
+		if separation < snap_distance:
+			snap_distance = separation
 			closest = candidate
 	return closest
 

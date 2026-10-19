@@ -89,6 +89,11 @@ func _apply(doc: PaintDocument, action: Dictionary, forward: bool) -> Array[Vect
 	elif action.kind == "property":
 		action.target.set(action.property, action.after if forward else action.before)
 		keys = doc.all_keys()
+	elif action.kind == "effect_visibility":
+		var states: Dictionary = action.after if forward else action.before
+		for layer in doc.layers:
+			if states.has(layer.id): layer.visible = bool(states[layer.id])
+		keys = doc.all_keys()
 	elif action.kind == "stamp":
 		var state: Dictionary = action.after if forward else action.before
 		doc.stamp_image = state.image

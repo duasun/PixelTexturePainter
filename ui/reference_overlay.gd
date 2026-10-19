@@ -19,19 +19,19 @@ func _ready() -> void:
 		_opacity_dragging = false
 		_emit_state())
 
-func set_source(image: Image, title: String, state: Dictionary) -> void:
+func set_source(image: Image, title: String, settings: Dictionary) -> void:
 	_restoring = true
 	_image = image
 	$Panel/Body/Image.texture = ImageTexture.create_from_image(image) if image != null else null
 	$Panel/Body/Header/Title.text = title if not title.is_empty() else "REFERENCE"
 	$Panel/Body/Header/Title.tooltip_text = title
-	position = Vector2(float(state.get("x",12.0)),float(state.get("y",90.0)))
+	position = Vector2(float(settings.get("x",12.0)),float(settings.get("y",90.0)))
 	var initial_height := 260.0 if image == null else clampf(300.0*image.get_height()/maxf(1.0,image.get_width()),150.0,500.0)
-	size = Vector2(float(state.get("width",300.0)),float(state.get("height",initial_height+65.0)))
-	$Panel/Body/Header/Lock.set_pressed_no_signal(bool(state.get("locked",false)))
-	$Panel/Body/OpacityRow/Opacity.set_value_no_signal(clampf(float(state.get("opacity",1.0))*100.0,10.0,100.0))
+	size = Vector2(float(settings.get("width",300.0)),float(settings.get("height",initial_height+65.0)))
+	$Panel/Body/Header/Lock.set_pressed_no_signal(bool(settings.get("locked",false)))
+	$Panel/Body/OpacityRow/Opacity.set_value_no_signal(clampf(float(settings.get("opacity",1.0))*100.0,10.0,100.0))
 	$Panel/Body/Image.modulate.a = $Panel/Body/OpacityRow/Opacity.value/100.0
-	visible = image != null and bool(state.get("visible",true))
+	visible = image != null and bool(settings.get("visible",true))
 	_restoring = false
 
 func state() -> Dictionary:

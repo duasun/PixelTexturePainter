@@ -103,6 +103,7 @@ func _ready() -> void:
 	%PalettePanel.load_requested.connect(func(): _file_dialog("palette"))
 	%Layers.action_requested.connect(_layer_action)
 	%Effects.effect_changed.connect(_effect_changed)
+	%Effects.layer_effect_toggled.connect(_layer_effect_toggled)
 	%Effects.section_changed.connect(_queue_preferences_save)
 	%UV.action_requested.connect(_uv_action)
 	%Pattern.load_requested.connect(func(): _file_dialog("pattern"))
@@ -126,9 +127,11 @@ func _ready() -> void:
 	model_view.reference_state_changed.connect(_reference_state_changed)
 	uv_canvas.surface_event.connect(_surface_input.bind(false))
 	model_view.gesture_motion.connect(_gesture_motion)
+	model_view.ruler_started.connect(func(): painter.break_path())
 	model_view.stamp_rotation_event.connect(_stamp_rotation_drag)
 	uv_canvas.brush_rotation_event.connect(_brush_rotation_drag)
 	uv_canvas.gesture_motion.connect(_gesture_motion)
+	uv_canvas.ruler_started.connect(func(): painter.break_path())
 	model_view.hovered.connect(_hover.bind(true))
 	uv_canvas.hovered.connect(_hover.bind(false))
 	model_view.lasso_event.connect(_lasso_input.bind(true))
@@ -345,6 +348,7 @@ func _refresh_metadata() -> void:
 	%MapSelector.select(PaintChannels.IDS.find(document.current_channel()))
 	%MapHint.text = "Editing " + PaintChannels.label(document.current_channel()) + (" · grayscale data" if PaintChannels.scalar(document.current_channel()) else " · RGB, OpenGL +Y" if document.current_channel() == "normal" else "")
 	%Effects.set_channel(document.current_channel())
+	%Effects.refresh_layer_toggles(document)
 	var can_undo := history.cursor > 0 and not jobs.busy() and not painter.active
 	var can_redo := history.cursor < history.actions.size() and not jobs.busy() and not painter.active
 	model_view.set_history_available(can_undo, can_redo)
@@ -365,6 +369,8 @@ func _select_tool(tool: String) -> void:
 	uv_canvas.brush_rotation_mode = tool == "brush"
 	model_view.lasso_mode = tool == "lasso"
 	uv_canvas.lasso_mode = tool == "lasso"
+	model_view.ruler_mode = tool in ["brush","spray","eraser","clone","stencil","smudge","blur"]
+	uv_canvas.ruler_mode = model_view.ruler_mode
 	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "lasso", "wand", "fill", "picker"]
 	_gradient_start.clear()
 	_gradient_end.clear()
@@ -959,6 +965,43 @@ func _effect_changed(key: String, value: Variant) -> void:
 	_apply_materials()
 	%EffectCommit.start()
 
+func _layer_effect_toggled(kind: String, enabled: bool) -> void:
+	if document == null or jobs.busy() or painter.active:
+		if document != null: %Effects.refresh_layer_toggles(document)
+		return
+	_cancel_blur_preview()
+	_cancel_geometry_preview()
+	var affected: Array[PaintLayer] = []
+	for layer in document.layers:
+		if layer.effect_kind == kind: affected.append(layer)
+	if affected.is_empty():
+		if enabled:
+			match kind:
+				"edges": _edges()
+				"ao": _ambient_occlusion()
+				"normal": _generate_normal_map()
+				"blur", "directional":
+					_blur_apply_when_ready = true
+					_preview_layer_blur(kind)
+		%Effects.refresh_layer_toggles(document)
+		return
+	var before := {}
+	var after := {}
+	for layer in affected:
+		before[layer.id] = layer.visible
+		after[layer.id] = enabled
+		if not layer.effect_source_id.is_empty():
+			var source := _find_layer(layer.effect_source_id)
+			if source != null:
+				before[source.id] = source.visible
+				after[source.id] = not enabled
+	if before == after: return
+	for layer in document.layers:
+		if after.has(layer.id): layer.visible = bool(after[layer.id])
+	history.push(document,{"kind":"effect_visibility","label":("Enable " if enabled else "Disable ") + kind,"before":before,"after":after})
+	tiles.mark(document.all_keys(),false)
+	_refresh_metadata()
+
 func _commit_effects() -> void:
 	if not _effect_before.is_empty() and document != null:
 		if _effect_before != document.effects:
@@ -1017,8 +1060,8 @@ func _brush_rotation_drag(phase: String, horizontal_delta: float) -> void:
 		_brush_angle_changed(%BrushOptions.get_node("Angle").value)
 		_status("Brush rotation: %d°" % roundi(painter.brush_angle))
 
-func _save_custom_brush(name: String, image: Image) -> void:
-	var result := BrushLibrary.save_tip(name,image)
+func _save_custom_brush(brush_name: String, image: Image) -> void:
+	var result := BrushLibrary.save_tip(brush_name,image)
 	if result.has("error"):
 		_message(str(result.error))
 		return
@@ -1157,6 +1200,7 @@ func _cancel_geometry_preview(clear_request := true) -> void:
 	_geometry_preview_layer = null
 	_geometry_preview_kind = ""
 	_geometry_preview_signature.clear()
+	if is_node_ready(): %Effects.refresh_layer_toggles(document)
 
 func _preview_geometry_effect(kind: String) -> void:
 	if document == null or document.geometry == null or not document.geometry.has_uv or painter.active: return
@@ -1271,13 +1315,29 @@ func _apply_layer_blur() -> void:
 		_cancel_blur_preview()
 		_status("Blur did not change this layer.")
 		return
-	var before := {}
-	var after := {}
-	for key in _blur_changed:
-		before[key] = _blur_original_tiles[key] if _blur_original_tiles.has(key) else null
-		after[key] = layer.tiles[key] if layer.tiles.has(key) else null
 	var label := "Directional blur %d px" % int(_blur_preview_signature[2]) if _blur_preview_signature[0] == "directional" else "Blur layer %d px" % int(_blur_preview_signature[2])
-	history.push(document,{"kind":"tiles","label":label,"layer":layer,"mask":false,"before":before,"after":after,"bytes":_blur_changed.size()*64*64*4*2})
+	if document.layers.size() >= 32:
+		_cancel_blur_preview()
+		_message("This project supports up to 32 layers across all maps.")
+		return
+	var kind := str(_blur_preview_signature[0])
+	var effect_layer := layer.copy_layer()
+	effect_layer.id = str(Time.get_ticks_usec()) + "-" + kind
+	effect_layer.title = label
+	effect_layer.effect_kind = kind
+	effect_layer.effect_source_id = layer.id
+	layer.tiles = _blur_original_tiles
+	layer._prepared.clear()
+	var before := document.layers.duplicate()
+	var previous := document.active_layer
+	var hidden_source := layer.copy_layer()
+	hidden_source.visible = false
+	var source_index := document.layers.find(layer)
+	document.layers[source_index] = hidden_source
+	document.layers.insert(source_index + 1,effect_layer)
+	document.active_layer = source_index + 1
+	history.push(document,{"kind":"layers","label":label,"before":before,"after":document.layers.duplicate(),"active_before":previous,"active_after":document.active_layer})
+	tiles.mark(document.all_keys(),false)
 	_blur_preview_layer_id = ""
 	_blur_original_tiles = {}
 	_blur_changed.clear()
@@ -1821,6 +1881,7 @@ func _job_completed(kind: String, value: Variant) -> void:
 			var affected_keys: Array[Vector2i] = []
 			affected_keys.assign(result.layer.tiles.keys())
 			tiles.mark(affected_keys,false)
+			%Effects.refresh_layer_toggles(document)
 			_status("%s preview · change settings or click Bake/Generate to apply" % ("AO" if effect_kind == "ao" else "Edge"))
 
 func _autosave() -> void:

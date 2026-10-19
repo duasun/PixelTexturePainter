@@ -8,9 +8,24 @@ var layers: Array[PaintLayer] = []
 var active_layer := 0
 var editing_mask := false
 var geometry: ModelGeometry
-var effects: Dictionary = {"steps": 0, "dither": 0.0, "brightness": 0.0,
+var effects: Dictionary = {"adjustments_enabled": false, "noise_enabled": false,
+	"steps": 0, "dither": 0.0, "brightness": 0.0,
 	"contrast": 1.0, "saturation": 1.0, "noise": 0.0, "noise_density": 1.0,
 	"noise_grain": 1, "noise_mode": 0, "noise_seed": 0, "palette": false}
+
+func effective_effects() -> Dictionary:
+	var active := effects.duplicate()
+	if not bool(active.get("adjustments_enabled",false)):
+		active["brightness"] = 0.0
+		active["contrast"] = 1.0
+		active["saturation"] = 1.0
+		active["steps"] = 0
+		active["dither"] = 0.0
+	if not bool(active.get("noise_enabled",false)): active["noise"] = 0.0
+	return active
+
+func has_live_effects() -> bool:
+	return bool(effects.get("adjustments_enabled",false)) or bool(effects.get("noise_enabled",false)) or bool(effects.palette)
 var palette := PackedColorArray([
 	Color("17202e"), Color("303d50"), Color("566a7f"), Color("9bafbd"),
 	Color("e4e9df"), Color("ffffff"), Color("8b434d"), Color("de6c64"),

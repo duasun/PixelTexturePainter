@@ -12,7 +12,7 @@ var _first := Color.WHITE
 var _second := Color.BLACK
 
 func _ready() -> void:
-	for mode in PatternLibrary.MODES: $Mode.add_item(mode)
+	for pattern_mode in PatternLibrary.MODES: $Mode.add_item(pattern_mode)
 	$Mode.item_selected.connect(func(index: int):
 		_refresh_source()
 		mode_changed.emit(index))

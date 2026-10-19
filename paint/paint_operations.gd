@@ -287,6 +287,7 @@ static func _unfold(model: ModelGeometry, faces: PackedInt32Array, root: int, si
 static func edge_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, width: int, color: Color, scatter_reach := 0, noise_amount := 0.0, side_falloff := 0.7) -> Dictionary:
 	var layer := PaintLayer.new()
 	layer.title = "Edge highlights"
+	layer.effect_kind = "edges"
 	layer.mask_enabled = true
 	var model := doc.geometry
 	var faces := PackedInt32Array()
@@ -388,6 +389,7 @@ static func _edge_scatter(tiles: Dictionary, model: ModelGeometry, island: int, 
 static func cavity_ao(progress: BackgroundJob.JobProgress, doc: PaintDocument, strength: float, radius: int, depth_focus: float, falloff: int) -> Dictionary:
 	var layer := PaintLayer.new()
 	layer.title = "Cavity AO"
+	layer.effect_kind = "ao"
 	layer.channel = "albedo"
 	if strength <= 0.0 or doc.geometry == null or not doc.geometry.has_uv:
 		return {"layer": layer, "samples": 0}
@@ -487,10 +489,10 @@ static func _ao_upscale(layer: PaintLayer, work_size: Vector2i, output_size: Vec
 			tile.blit_rect(atlas,Rect2i(Vector2i(x,y),part),Vector2i.ZERO)
 			if tile.get_used_rect().has_area(): layer.tiles[key] = tile
 
-static func _ao_sample(model: ModelGeometry, face: int, point: Vector3, normal: Vector3, tangent: Vector3, bitangent: Vector3, reach: float, focus: float, falloff: int, seed: int) -> float:
+static func _ao_sample(model: ModelGeometry, face: int, point: Vector3, normal: Vector3, tangent: Vector3, bitangent: Vector3, reach: float, focus: float, falloff: int, sample_seed: int) -> float:
 	const RAYS := 16
 	var origin := point + normal * maxf(reach * 0.005, model.bounds.size.length() * 0.000001)
-	var rotation := fposmod(float((seed * 73 + face * 193) % 997) / 997.0, 1.0)
+	var rotation := fposmod(float((sample_seed * 73 + face * 193) % 997) / 997.0, 1.0)
 	var blocked := 0.0
 	for k in RAYS:
 		var r := sqrt((float(k) + 0.5) / float(RAYS))
@@ -524,6 +526,7 @@ static func _ao_interpolate(values: PackedFloat32Array, divisions: int, u: float
 static func normal_from_height(progress: BackgroundJob.JobProgress, doc: PaintDocument, strength: float) -> Dictionary:
 	var layer := PaintLayer.new()
 	layer.title = "From Height"
+	layer.effect_kind = "normal"
 	layer.channel = "normal"
 	var candidates: Dictionary = {}
 	var extent := doc.tile_extent()

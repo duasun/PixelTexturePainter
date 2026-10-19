@@ -1,5 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 [ext_resource type="Script" path="res://ui/uv_canvas.gd" id="script"]
+[ext_resource type="PackedScene" path="res://scenes/ruler_guide.tscn" id="ruler_guide"]
 [node name="UVCanvas" type="Control"]
 custom_minimum_size = Vector2(240, 200)
 clip_contents = true
@@ -20,3 +21,4 @@ layout_mode = 0
 mouse_filter = 2
 expand_mode = 1
 texture_filter = 1
+[node name="RulerGuide" parent="." instance=ExtResource("ruler_guide")]

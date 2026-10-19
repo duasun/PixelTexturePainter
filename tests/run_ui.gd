@@ -27,6 +27,7 @@ func run() -> void:
 	root.size = Vector2i(1440,900)
 	scene.get_node("%Autosave").stop()
 	await ready_document(scene)
+	check(not scene.document.effects.adjustments_enabled and not scene.document.effects.noise_enabled,"New project starts with adjustment and noise toggles off")
 	var inspector: TabContainer = scene.get_node("%Inspector")
 	var tab_names: Array[String] = []
 	for index in inspector.get_tab_count(): tab_names.append(str(inspector.get_child(index).name))
@@ -61,6 +62,59 @@ func run() -> void:
 		model_view._input_display(model_wheel)
 		check(model_view.distance > closest_distance, "Wheel down moves away from the surface")
 		model_view.frame_model()
+	var uv_ruler: UVCanvas = scene.uv_canvas
+	var guide_start: Vector2 = uv_ruler._origin() + Vector2(20,20)
+	var guide_end: Vector2 = guide_start + Vector2(60,24)
+	var ruler_samples: Array[Vector2] = []
+	uv_ruler.surface_event.connect(func(phase: String, hit: Dictionary, _modifiers: int):
+		if phase != "end" and not hit.is_empty(): ruler_samples.append(hit.uv))
+	var ruler_press := InputEventMouseButton.new()
+	ruler_press.button_index = MOUSE_BUTTON_LEFT
+	ruler_press.pressed = true
+	ruler_press.shift_pressed = true
+	ruler_press.position = guide_start
+	uv_ruler._gui_input(ruler_press)
+	var ruler_motion := InputEventMouseMotion.new()
+	ruler_motion.shift_pressed = true
+	ruler_motion.position = guide_end
+	ruler_motion.relative = guide_end - guide_start
+	uv_ruler._gui_input(ruler_motion)
+	check(uv_ruler.get_node("RulerGuide").active and ruler_samples.is_empty(),"Shift drag previews a straight line before painting")
+	ruler_press.pressed = false
+	ruler_press.position = guide_end
+	uv_ruler._gui_input(ruler_press)
+	var line_start: Vector2 = uv_ruler._hit(guide_start).uv
+	var line_end: Vector2 = uv_ruler._hit(guide_end).uv
+	var line_error := 0.0
+	for sample in ruler_samples:
+		line_error = maxf(line_error,absf((sample-line_start).cross(line_end-line_start))/maxf((line_end-line_start).length(),0.0001))
+	check(not uv_ruler.get_node("RulerGuide").active and ruler_samples.size() > 3 and line_error < 0.0001,"Shift release paints only the straight UV path")
+	while scene.painter.active: await process_frame
+	scene._action("Undo")
+	scene.history.clear()
+	scene._refresh_metadata()
+	scene._select_tool("spray")
+	var model_ruler_start: Vector2 = model_view.display.size*0.5-Vector2(8,0)
+	var model_ruler_end: Vector2 = model_ruler_start+Vector2(16,0)
+	var model_ruler_hits: Array[Dictionary] = []
+	model_view.surface_event.connect(func(phase: String, hit: Dictionary, _modifiers: int):
+		if phase != "end" and not hit.is_empty(): model_ruler_hits.append(hit))
+	ruler_press.pressed = true
+	ruler_press.position = model_ruler_start
+	model_view._input_display(ruler_press)
+	ruler_motion.position = model_ruler_end
+	ruler_motion.relative = model_ruler_end-model_ruler_start
+	model_view._input_display(ruler_motion)
+	check(model_view.get_node("Display/RulerGuide").active and model_ruler_hits.is_empty(),"Shift Spray drag previews on the model without early paint")
+	ruler_press.pressed = false
+	ruler_press.position = model_ruler_end
+	model_view._input_display(ruler_press)
+	check(not model_view.get_node("Display/RulerGuide").active and model_ruler_hits.size() > 1,"Shift Spray paints a straight model-space screen path")
+	while scene.painter.active: await process_frame
+	scene._action("Undo")
+	scene.history.clear()
+	scene._refresh_metadata()
+	scene._select_tool("brush")
 	var tool_before_navigation: String = scene.painter.tool
 	var orbit_press := InputEventMouseButton.new()
 	orbit_press.button_index = MOUSE_BUTTON_RIGHT
@@ -600,6 +654,11 @@ func run() -> void:
 	scene.get_node("%Effects/AOGenerate").pressed.emit()
 	await ready_document(scene)
 	check(scene.document.layers.size() == ao_layer_count + 1 and scene.document.selected_layer().title == "Cavity AO" and scene.document.selected_layer().channel == "albedo", "Effects button adds baked AO as editable Albedo layer")
+	check(scene.get_node("%Effects/AOEnabled").button_pressed,"AO toggle follows the baked layer")
+	scene._layer_effect_toggled("ao",false)
+	check(not scene.document.selected_layer().visible and not scene.get_node("%Effects/AOEnabled").button_pressed,"AO toggle hides its baked layer")
+	scene._action("Undo")
+	check(scene.document.selected_layer().visible and scene.get_node("%Effects/AOEnabled").button_pressed,"Undo restores AO visibility and toggle")
 	check(scene.document.compose_tile(Vector2i.ZERO).get_pixel(8,15).r < scene.document.compose_tile(Vector2i.ZERO).get_pixel(16,15).r, "Baked AO visibly darkens the inner corner")
 	scene._action("Undo")
 	check(scene.document.layers.size() == ao_layer_count, "AO bake undoes as one layer action")
@@ -681,7 +740,11 @@ func run() -> void:
 	await ready_document(scene)
 	check(scene._blur_preview_layer_id == scene.document.selected_layer().id and scene.document.revision == preview_revision and scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(29,30).a > 0.0,"Blur slider release previews the whole layer without history")
 	effects.get_node("BlurApply").pressed.emit()
-	check(scene._blur_preview_layer_id.is_empty() and scene.document.revision > preview_revision,"Apply commits blur as one action")
+	check(scene._blur_preview_layer_id.is_empty() and scene.document.revision > preview_revision and scene.document.selected_layer().effect_kind == "blur" and not scene.document.layers[1].visible,"Apply creates a visible Blur layer and preserves a hidden source")
+	scene._layer_effect_toggled("blur",false)
+	check(not scene.document.selected_layer().visible and scene.document.layers[1].visible and not effects.get_node("BlurEnabled").button_pressed,"Blur toggle restores the sharp source")
+	scene._action("Undo")
+	check(scene.document.selected_layer().visible and not scene.document.layers[1].visible and effects.get_node("BlurEnabled").button_pressed,"Undo restores the blurred layer")
 	scene._action("Undo")
 	check(scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(29,30).a == 0.0 and scene.document.selected_layer().tiles[Vector2i.ZERO].get_pixel(30,30).a == 1.0,"Undo restores sharp layer paint")
 	effects.get_node("DirectionalLength").set_value(16)

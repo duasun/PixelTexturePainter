@@ -397,9 +397,9 @@ func _process(_delta: float) -> void:
 		var p := Vector2i(queued.x, queued.y)
 		_read += 1
 		if _stroke_tool == "spray": _make_spray_stamp()
-		_dab(p, changed, queued.z, false, queued.w)
+		_dab(p, changed, queued.z, queued.w)
 		if _stroke_mirror:
-			_dab(Vector2i(document.width - p.x - 1, p.y), changed, -1, true, -1)
+			_dab(Vector2i(document.width - p.x - 1, p.y), changed, -1, -1)
 	if not changed.is_empty():
 		var keys: Array[Vector2i] = []
 		keys.assign(changed.keys())
@@ -470,7 +470,7 @@ func _make_stamp() -> void:
 				if (x + y) % 2:
 					_stamp.set_pixel(x, y, Color.TRANSPARENT)
 
-func _dab(p: Vector2i, changed: Dictionary, island := -1, mirrored := false, path_id := 0) -> void:
+func _dab(p: Vector2i, changed: Dictionary, island := -1, path_id := 0) -> void:
 	if _stroke_opacity <= 0: return
 	var origin := p - Vector2i(_stroke_brush_size >> 1, _stroke_brush_size >> 1)
 	if _stroke_tool == "clone":
@@ -634,7 +634,8 @@ static func spray_pattern(seed_value: int, diameter: int, count: int, tint: Colo
 		if ordered and (pixel.x + pixel.y) % 2:
 			continue
 		var side := clampi(dot_size,1,diameter)
-		var corner := pixel - Vector2i(side / 2,side / 2)
+		var half_side := floori(float(side) / 2.0)
+		var corner := pixel - Vector2i(half_side,half_side)
 		for dy in side:
 			for dx in side:
 				var dot := corner + Vector2i(dx,dy)

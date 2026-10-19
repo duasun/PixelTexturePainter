@@ -111,7 +111,11 @@ static func load_project(progress: BackgroundJob.JobProgress, path: String) -> D
 	doc.width = int(data.width)
 	doc.height = int(data.height)
 	doc.path = path
-	doc.effects.merge(data.get("effects", {}), true)
+	var saved_effects: Dictionary = data.get("effects", {})
+	doc.effects.merge(saved_effects, true)
+	if not saved_effects.has("adjustments_enabled"):
+		doc.effects.adjustments_enabled = float(doc.effects.brightness) != 0.0 or float(doc.effects.contrast) != 1.0 or float(doc.effects.saturation) != 1.0 or int(doc.effects.steps) > 1 or float(doc.effects.dither) > 0.0
+	if not saved_effects.has("noise_enabled"): doc.effects.noise_enabled = float(doc.effects.noise) > 0.0
 	doc.pattern_settings.merge(data.get("pattern_settings", {}), true)
 	doc.uv_export_padding = clampi(int(data.get("uv_export_padding",2)),0,16)
 	var stamp_bounds: Variant = data.get("stamp_region", [0, 0, 0, 0])
@@ -213,7 +217,7 @@ static func export_png(progress: BackgroundJob.JobProgress, doc: PaintDocument, 
 static func render_image(progress: BackgroundJob.JobProgress, doc: PaintDocument, channel := "") -> Dictionary:
 	if channel.is_empty(): channel = doc.current_channel()
 	doc = doc.read_copy()
-	var albedo_effects := channel == "albedo" and doc.effects != PaintDocument.new().effects
+	var albedo_effects := channel == "albedo" and doc.has_live_effects()
 	var image := Image.create(doc.width, doc.height, false, Image.FORMAT_RGBA8)
 	var keys := doc.all_keys()
 	for i in keys.size():
@@ -227,7 +231,7 @@ static func render_image(progress: BackgroundJob.JobProgress, doc: PaintDocument
 
 static func apply_effects(image: Image, origin: Vector2i, doc: PaintDocument) -> Image:
 	var data := image.get_data()
-	var fx := doc.effects
+	var fx := doc.effective_effects()
 	var lookup := doc.get_palette_lookup() if fx.palette else null
 	var bayer := [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5]
 	var dither_amount := float(fx.dither)
@@ -284,8 +288,8 @@ static func apply_effects(image: Image, origin: Vector2i, doc: PaintDocument) ->
 				data[i + axis] = roundi(clampf(c[axis], 0.0, 1.0) * 255)
 	return Image.create_from_data(image.get_width(), image.get_height(), false, Image.FORMAT_RGBA8, data)
 
-static func _noise_hash(x: int, y: int, seed: int, salt: int) -> int:
-	var n := (x * 11939 + y * 19937 + seed * 7919 + salt * 104729) % 65521
+static func _noise_hash(x: int, y: int, noise_seed_value: int, salt: int) -> int:
+	var n := (x * 11939 + y * 19937 + noise_seed_value * 7919 + salt * 104729) % 65521
 	n = (n * (n % 127 + 37) + 31337) % 65521
 	return (n * 2971 + 101) % 65521
 

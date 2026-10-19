@@ -112,6 +112,7 @@ func run() -> void:
 		check(mismatches == 0, "GPU %d-color palette matches CPU; mismatched pixels: %d" % [count,mismatches])
 	doc.effects.palette = false
 	doc.effects.noise = 0.65
+	doc.effects.noise_enabled = true
 	doc.effects.noise_density = 0.35
 	doc.effects.noise_grain = 3
 	doc.effects.noise_mode = 3

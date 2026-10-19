@@ -15,6 +15,10 @@ layout_mode = 2
 text = "▶ COLOR ADJUSTMENTS"
 toggle_mode = true
 alignment = 0
+[node name="AdjustmentsEnabled" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Color adjustments"
+tooltip_text = "Turn brightness, contrast, saturation and color steps on or off"
 [node name="BrightnessLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Brightness"
@@ -52,6 +56,10 @@ layout_mode = 2
 text = "▶ PIXEL NOISE"
 toggle_mode = true
 alignment = 0
+[node name="NoiseEnabled" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Pixel noise"
+tooltip_text = "Turn pixel noise on or off without losing its settings"
 [node name="NoiseLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Amount"
@@ -125,7 +133,7 @@ text = "Limit to palette"
 tooltip_text = "Nearest-palette colors can hide subtle noise; increase Amount to make it visible"
 [node name="Reset" type="Button" parent="."]
 layout_mode = 2
-text = "Reset effects"
+text = "Reset color and noise"
 
 [node name="Sep" type="HSeparator" parent="."]
 layout_mode = 2
@@ -134,6 +142,10 @@ layout_mode = 2
 text = "▶ GEOMETRY EDGES"
 toggle_mode = true
 alignment = 0
+[node name="EdgesEnabled" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Edge highlights"
+tooltip_text = "Show or hide generated Edge highlights layers; turn on to generate the first one"
 [node name="EdgeLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Geometry edges → new paint layer"
@@ -188,6 +200,10 @@ layout_mode = 2
 text = "▶ GEOMETRY AMBIENT OCCLUSION"
 toggle_mode = true
 alignment = 0
+[node name="AOEnabled" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Ambient occlusion"
+tooltip_text = "Show or hide generated AO layers; turn on to bake the first one"
 [node name="AOInfo" type="Label" parent="."]
 layout_mode = 2
 text = "Bake nearby geometry shadows on a new Albedo layer"
@@ -244,6 +260,10 @@ layout_mode = 2
 text = "▶ NORMAL FROM HEIGHT"
 toggle_mode = true
 alignment = 0
+[node name="NormalEnabled" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Normal from Height"
+tooltip_text = "Show or hide generated Normal layers; turn on to generate the first one"
 [node name="NormalInfo" type="Label" parent="."]
 layout_mode = 2
 text = "Uses the painted Height map; adds an editable Normal layer."
@@ -268,9 +288,13 @@ layout_mode = 2
 text = "▶ BLUR SELECTED LAYER"
 toggle_mode = true
 alignment = 0
+[node name="BlurEnabled" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Layer blur"
+tooltip_text = "Show or hide the generated Blur layer and restore its source layer"
 [node name="BlurInfo" type="Label" parent="."]
 layout_mode = 2
-text = "Preview appears after adjusting radius. Apply writes one Undo step."
+text = "Preview after adjusting radius. Apply creates a switchable layer."
 autowrap_mode = 3
 [node name="BlurRadiusLabel" type="Label" parent="."]
 layout_mode = 2
@@ -287,7 +311,7 @@ text = "Preview blur"
 [node name="BlurApply" type="Button" parent="."]
 theme_type_variation = &"AccentButton"
 layout_mode = 2
-text = "Apply blur to layer"
+text = "Create blur layer"
 [node name="BlurCancel" type="Button" parent="."]
 layout_mode = 2
 text = "Cancel preview"
@@ -299,6 +323,10 @@ layout_mode = 2
 text = "▶ DIRECTIONAL BLUR"
 toggle_mode = true
 alignment = 0
+[node name="DirectionalEnabled" type="CheckButton" parent="."]
+layout_mode = 2
+text = "Directional blur"
+tooltip_text = "Show or hide the generated Directional Blur layer and restore its source layer"
 [node name="DirectionalInfo" type="Label" parent="."]
 layout_mode = 2
 text = "Blur the selected layer along an angle. The face selection limits the effect."
@@ -337,7 +365,7 @@ text = "Preview directional blur"
 [node name="DirectionalApply" type="Button" parent="."]
 theme_type_variation = &"AccentButton"
 layout_mode = 2
-text = "Apply directional blur"
+text = "Create directional blur layer"
 [node name="DirectionalCancel" type="Button" parent="."]
 layout_mode = 2
 text = "Cancel preview"
