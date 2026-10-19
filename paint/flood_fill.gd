@@ -43,7 +43,7 @@ static func run(progress: BackgroundJob.JobProgress, doc: PaintDocument, start_p
 	return PaintOperations._command(doc.selected_layer(), doc.editing_mask, job.before, job.after, "Flood fill")
 
 static func similar(a: int, b: int, threshold: int) -> bool:
-	if threshold <= 0: return a == b
+	if threshold <= 0: return (a & 0xffffffff) == (b & 0xffffffff)
 	for shift in [0,8,16,24]:
 		if absi(((a >> shift) & 255) - ((b >> shift) & 255)) > threshold: return false
 	return true

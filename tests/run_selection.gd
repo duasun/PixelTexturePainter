@@ -31,6 +31,20 @@ func run() -> void:
 	var round_pattern := PaintEngine.spray_pattern(17,16,1,Color.WHITE,false,5,true)
 	var square_pattern := PaintEngine.spray_pattern(17,16,1,Color.WHITE,false,5,false)
 	check(square_pattern.points.size() > round_pattern.points.size() and round_pattern.points.size() > 1,"Spray supports larger round and square dots")
+	var wand_doc := PaintDocument.new()
+	wand_doc.initialize(16,16,Color.BLACK)
+	var wand_tile := wand_doc.selected_layer().tile_at(Vector2i.ZERO)
+	wand_tile.fill_rect(Rect2i(2,2,2,2),Color.WHITE)
+	wand_tile.fill_rect(Rect2i(10,10,2,2),Color.WHITE)
+	var wand_progress := BackgroundJob.JobProgress.new()
+	var connected := MagicWandSelection.select(wand_progress,wand_doc,Vector2i(2,2),-1,0,0.0,{},0)
+	check(connected.selection[Vector2i.ZERO].get_pixel(2,2).a > 0.9 and connected.selection[Vector2i.ZERO].get_pixel(10,10).a == 0.0,"Magic Wand selects only the connected color patch")
+	var matching := MagicWandSelection.select(wand_progress,wand_doc,Vector2i(2,2),-1,1,0.0,{},0)
+	check(matching.selection[Vector2i.ZERO].get_pixel(2,2).a > 0.9 and matching.selection[Vector2i.ZERO].get_pixel(10,10).a > 0.9,"Magic Wand selects matching color across separate patches")
+	var added := MagicWandSelection.select(wand_progress,wand_doc,Vector2i(10,10),-1,0,0.0,connected.selection,1)
+	check(added.selection[Vector2i.ZERO].get_pixel(2,2).a > 0.9 and added.selection[Vector2i.ZERO].get_pixel(10,10).a > 0.9,"Ctrl add keeps both Wand regions")
+	var removed := MagicWandSelection.select(wand_progress,wand_doc,Vector2i(2,2),-1,0,0.0,added.selection,2)
+	check(removed.selection[Vector2i.ZERO].get_pixel(2,2).a == 0.0 and removed.selection[Vector2i.ZERO].get_pixel(10,10).a > 0.9,"Alt subtract removes just the clicked Wand region")
 	var scene: Control = load("res://scenes/main_window.tscn").instantiate()
 	scene.settings_enabled = false
 	root.add_child(scene)
@@ -64,6 +78,22 @@ func run() -> void:
 		scene._surface_input("begin",face_hit,2,true)
 		while scene.jobs.busy(): await process_frame
 		check(scene.selected_faces.is_empty(),"Ctrl+click subtracts a selected face")
+		scene.get_node("%ToolBar").select("wand")
+		check(scene.get_node("%WandOptions").visible and scene.get_node("%ToolBar/Tools/Wand").button_pressed,"Wand has its own visible toolbar options")
+		scene.get_node("%WandOptions").set_options(2,0.0)
+		scene.wand_mode = 2
+		scene._surface_input("begin",face_hit,0,true)
+		while scene.jobs.busy(): await process_frame
+		check(scene.painter.selection_active and scene.get_node("%CloseSelection").visible,"Wand click selects the UV island and shows Close selection")
+		scene._surface_input("begin",face_hit,4,true)
+		while scene.jobs.busy(): await process_frame
+		check(not scene.painter.selection_active and not scene.get_node("%CloseSelection").visible,"Alt+click subtracts the Wand selection without changing opacity")
+		scene._surface_input("begin",face_hit,2,true)
+		while scene.jobs.busy(): await process_frame
+		check(scene.painter.selection_active,"Ctrl+click adds the Wand selection without changing brush size")
+		scene.get_node("%CloseSelection").pressed.emit()
+		check(scene.painter.tool == "brush" and scene.painter.selection_active,"Close selection returns to Brush and keeps the Wand mask")
+		scene._clear_selection()
 	scene.get_node("%ToolBar").select("lasso")
 	check(scene.model_view.lasso_mode and scene.uv_canvas.lasso_mode,"Lasso is active in both model and UV views")
 	scene._lasso_points = PackedVector2Array([Vector2(4,4),Vector2(12,4),Vector2(12,12),Vector2(4,12)])

@@ -52,7 +52,7 @@ func set_tool(tool: String) -> void:
 	$Shape.visible = has_shape
 	$Dither.visible = has_dither
 	$Mirror.visible = has_mirror
-	$EdgeWrap.visible = has_size and tool != "spray"
+	$EdgeWrap.visible = has_size
 	$SymmetryLabel.visible = has_symmetry
 	$Shape.set_pressed_no_signal(true if tool == "spray" else false if tool == "stencil" else _brush_shape == 1)
 	for axis in ["SymX","SymY","SymZ"]: get_node(axis).visible = has_symmetry

@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 [ext_resource type="Texture2D" path="res://assets/tools/smudge.svg" id="smudge"]
 [ext_resource type="Texture2D" path="res://assets/tools/blur.svg" id="blur"]
 [ext_resource type="Texture2D" path="res://assets/tools/compact.svg" id="compact"]
@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" path="res://assets/tools/clone.svg" id="clone"]
 [ext_resource type="Texture2D" path="res://assets/tools/spray.svg" id="spray"]
 [ext_resource type="Texture2D" path="res://assets/tools/lasso.svg" id="lasso"]
+[ext_resource type="Texture2D" path="res://assets/tools/wand.svg" id="wand"]
 [node name="ToolBar" type="VBoxContainer"]
 custom_minimum_size = Vector2(82, 0)
 script = ExtResource("script")
@@ -129,6 +130,16 @@ layout_mode = 2
 text = "Magic lasso"
 icon = ExtResource("lasso")
 tooltip_text = "Magic lasso: draw in 3D or UV; snaps to mesh or color edges. Click Close selection"
+theme_override_constants/icon_max_width = 20
+toggle_mode = true
+alignment = 0
+custom_minimum_size = Vector2(0, 34)
+focus_mode = 0
+[node name="Wand" type="Button" parent="Tools"]
+layout_mode = 2
+text = "Magic wand"
+icon = ExtResource("wand")
+tooltip_text = "Magic wand [M] · click to select color or UV island · Ctrl adds · Alt subtracts"
 theme_override_constants/icon_max_width = 20
 toggle_mode = true
 alignment = 0

@@ -136,7 +136,7 @@ func begin(uv: Vector2, island := -1, face := -1) -> void:
 	_stroke_dither = dither and tool != "spray"
 	_stroke_mirror = mirror and tool != "spray"
 	_stroke_stencil_rotation = stencil_rotation
-	_stroke_edge_wrap = edge_wrap and tool != "spray"
+	_stroke_edge_wrap = edge_wrap
 	_stroke_brush_tip = brush_tip if tool == "brush" else null
 	_stroke_brush_angle = brush_angle
 	if tool == "stencil": _stroke_brush_size = _stencil_extent(brush_size, _stroke_stencil_rotation)
@@ -386,7 +386,9 @@ func _process(_delta: float) -> void:
 		var interval := 1.0 / _stroke_spray_rate
 		while _spray_elapsed >= interval:
 			_enqueue(_last, _last_island)
-			for state in _symmetry_paths.values(): _enqueue(state.pixel,state.island)
+			for path_id in _symmetry_paths:
+				var state: Dictionary = _symmetry_paths[path_id]
+				_enqueue(state.pixel,state.island,int(path_id))
 			_spray_elapsed -= interval
 	var started := Time.get_ticks_usec()
 	var changed: Dictionary = {}

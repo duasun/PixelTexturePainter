@@ -9,6 +9,8 @@ var _selection_before := PackedInt32Array()
 var _steps_before: Array[PackedInt32Array] = []
 var gradient_length := 7
 var fill_tolerance := 0.0
+var wand_mode := 0
+var wand_tolerance := 0.0
 var symmetry_axes := 0
 var color_b := Color.BLACK
 var selection_mode := 0
@@ -64,7 +66,7 @@ var _brush_tip_path := ""
 var _lasso_points := PackedVector2Array()
 var _lasso_from_model := false
 var _lasso_dragging := false
-var _lasso_selected := false
+var _pixel_selected := false
 var _lasso_tile_cache: Dictionary = {}
 var settings_enabled := true
 var settings_path := "user://painter.cfg"
@@ -94,6 +96,7 @@ func _ready() -> void:
 	%StampOptions.crop_requested.connect(func(): %StampPopup.popup_centered())
 	%StampOptions.rotation_changed.connect(func(angle: float): _stamp_rotation_input(angle,false))
 	%StampOptions.rotation_committed.connect(func(angle: float): _stamp_rotation_input(angle,true))
+	%WandOptions.options_changed.connect(func(): wand_mode = %WandOptions.mode(); wand_tolerance = %WandOptions.tolerance(); _queue_preferences_save())
 	%MenuBar.action_requested.connect(_action)
 	%PalettePanel.color_selected.connect(func(c: Color, slot: int): _setting("color" if slot == 1 else "color_b", c))
 	%PalettePanel.palette_change_requested.connect(_palette_change)
@@ -130,7 +133,7 @@ func _ready() -> void:
 	uv_canvas.hovered.connect(_hover.bind(false))
 	model_view.lasso_event.connect(_lasso_input.bind(true))
 	uv_canvas.lasso_event.connect(_lasso_input.bind(false))
-	%CloseSelection.pressed.connect(_close_lasso)
+	%CloseSelection.pressed.connect(_finish_selection)
 	painter.tiles_changed.connect(tiles.mark)
 	painter.stroke_committed.connect(_refresh_metadata)
 	painter.stroke_committed.connect(_refresh_cursor)
@@ -362,7 +365,7 @@ func _select_tool(tool: String) -> void:
 	uv_canvas.brush_rotation_mode = tool == "brush"
 	model_view.lasso_mode = tool == "lasso"
 	uv_canvas.lasso_mode = tool == "lasso"
-	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "lasso", "fill", "picker"]
+	model_view.interpolate_strokes = tool not in ["line", "rect", "ellipse", "gradient", "select", "lasso", "wand", "fill", "picker"]
 	_gradient_start.clear()
 	_gradient_end.clear()
 	_clear_shape_preview()
@@ -371,12 +374,15 @@ func _select_tool(tool: String) -> void:
 	%BrushOptions.visible = tool == "brush"
 	%Pattern.visible = tool == "fill"
 	%StampOptions.visible = tool == "stencil"
+	%WandOptions.visible = tool == "wand"
+	%CloseSelection.visible = tool == "wand" and painter.selection_active or tool == "lasso" and _lasso_points.size() >= 3
 	if tool == "select": model_view.get_node("Header/Wires").button_pressed = true
 	_refresh_cursor()
 	_queue_preferences_save()
 	_status({"gradient": "Gradient: click and drag the direction. Length stays exactly %d px. UV seams use unfolded surface distance." % gradient_length,
 		"select": "Click a surface. Shift adds; Ctrl subtracts. Ctrl+. grows; Ctrl+, shrinks. Esc clears.",
 		"lasso": "Draw around an area in 3D or UV. Nearby mesh or color edges snap automatically; Close selection applies it.",
+		"wand": "Magic Wand: click a color or UV island. Ctrl adds, Alt subtracts; Close selection keeps the mask and returns to Brush.",
 		"fill": "Choose color, texture, or pattern above. Color fills a connected region; patterns fill selected faces or the clicked UV island.",
 		"clone": "Ctrl+click sets the source on the active layer. Paint to copy it; the source stays frozen during the stroke.",
 		"smudge": "Smudge: drag existing paint · Opacity sets strength · up to 64 px · reads current map",
@@ -420,7 +426,7 @@ func _sync_colors() -> void:
 func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: bool) -> void:
 	if document == null or (jobs.busy() and jobs.kind != "pbr_preview"):
 		return
-	if phase == "begin" and painter.tool not in ["select","lasso"] and not _replaying_gesture_click and (modifiers & 6) != 0:
+	if phase == "begin" and painter.tool not in ["select","lasso","wand"] and not _replaying_gesture_click and (modifiers & 6) != 0:
 		_commit_effects()
 		_gesture_mode = "opacity" if (modifiers & 4) != 0 else "size"
 		_gesture_hit = hit.duplicate()
@@ -468,6 +474,9 @@ func _surface_input(phase: String, hit: Dictionary, modifiers: int, from_model: 
 	if painter.tool == "select":
 		if phase == "begin":
 			_select_surface(hit, modifiers)
+		return
+	if painter.tool == "wand":
+		if phase == "begin": _wand_click(hit, modifiers, from_model)
 		return
 	if painter.tool == "picker":
 		if phase == "begin" or phase == "move":
@@ -641,8 +650,29 @@ func _select_surface(hit: Dictionary, modifiers: int) -> void:
 	selected_faces = PackedInt32Array(selected.keys())
 	selected_faces.sort()
 	_selection_steps.clear()
-	_lasso_selected = false
+	_pixel_selected = false
 	_rebuild_selection()
+
+func _wand_click(hit: Dictionary, modifiers: int, from_model: bool) -> void:
+	if document == null or document.geometry == null or jobs.busy(): return
+	var size := Vector2i(document.width,document.height)
+	var pixel := Vector2i((hit.uv * Vector2(size)).floor()).clamp(Vector2i.ZERO,size-Vector2i.ONE)
+	var face := int(hit.get("face",-1))
+	if face < 0 and not from_model:
+		var visited_islands := {}
+		for island_id in document.geometry.islands:
+			if visited_islands.has(island_id): continue
+			visited_islands[island_id] = true
+			var found := document.geometry.surface_at_uv(hit.uv,island_id)
+			if not found.is_empty():
+				face = int(found.face)
+				break
+	var island := document.geometry.islands[face] if face >= 0 else -1
+	if wand_mode == 2 and island < 0:
+		_status("Click inside a UV island to select it.")
+		return
+	var operation := 2 if (modifiers & 4) != 0 else 1 if (modifiers & 2) != 0 else 0
+	jobs.start("selection_wand",MagicWandSelection.select.bind(document.read_copy(),pixel,island,wand_mode,wand_tolerance,painter.selection.duplicate(),operation))
 
 func _lasso_input(phase: String, point: Vector2, from_model: bool) -> void:
 	if document == null or jobs.busy() or painter.tool != "lasso": return
@@ -691,11 +721,15 @@ func _close_lasso() -> void:
 			var mask := LassoSelection.uv_mask(points,dimensions)
 			return {"selection":mask,"boundary":LassoSelection.boundary(mask,dimensions)})
 
+func _finish_selection() -> void:
+	if painter.tool == "lasso": _close_lasso()
+	elif painter.tool == "wand" and painter.selection_active: %ToolBar.select("brush")
+
 func _reset_lasso() -> void:
 	_lasso_points.clear()
 	_lasso_tile_cache.clear()
 	_lasso_dragging = false
-	_lasso_selected = false
+	_pixel_selected = false
 	if not is_node_ready(): return
 	%CloseSelection.visible = false
 	model_view.set_lasso_preview(PackedVector2Array())
@@ -739,7 +773,8 @@ func _show_selection() -> void:
 	model_view.show_selection(selected_faces)
 	uv_canvas.selected_faces = selected_faces
 	uv_canvas.queue_redraw()
-	_status("Lasso selected · painting stays inside the marching ants" if _lasso_selected else "%d selected triangles · painting stays inside the selection" % selected_faces.size() if not selected_faces.is_empty() else "Selection cleared")
+	_status("Pixel selection active · painting stays inside the marching ants" if _pixel_selected else "%d selected triangles · painting stays inside the selection" % selected_faces.size() if not selected_faces.is_empty() else "Selection cleared")
+	%CloseSelection.visible = painter.tool == "wand" and painter.selection_active or painter.tool == "lasso" and _lasso_points.size() >= 3
 
 func _clear_selection() -> void:
 	if jobs.busy() or painter.active:
@@ -752,7 +787,7 @@ func _clear_selection() -> void:
 
 func _run_gradient() -> void:
 	var faces := selected_faces.duplicate()
-	if _lasso_selected and painter.selection_active and document.geometry != null:
+	if _pixel_selected and painter.selection_active and document.geometry != null:
 		for face in document.geometry.face_count(): faces.append(face)
 	var start_face := int(_gradient_start.get("face", -1))
 	# A planar side normally contains two triangles; include the connected coplanar side by default.
@@ -1465,7 +1500,7 @@ func _texture_fill(faces: PackedInt32Array) -> void:
 	if faces.is_empty() and not painter.selection_active:
 		_status("Select faces, or click a model surface with Fill pattern mode.")
 		return
-	if _lasso_selected and painter.selection_active:
+	if _pixel_selected and painter.selection_active:
 		jobs.start("operation", PaintOperations.texture_fill.bind(document,faces,%Pattern.source,%Pattern.settings(),painter.selection))
 		return
 	if document.layers.size() >= 32:
@@ -1475,7 +1510,7 @@ func _texture_fill(faces: PackedInt32Array) -> void:
 
 func _apply_pattern(faces: PackedInt32Array) -> void:
 	if document == null or jobs.busy() or painter.active or %Pattern.source == null: return
-	if _lasso_selected and painter.selection_active:
+	if _pixel_selected and painter.selection_active:
 		_texture_fill(faces)
 		return
 	var layer := document.selected_layer()
@@ -1688,11 +1723,11 @@ func _job_completed(kind: String, value: Variant) -> void:
 			model_view.set_selection_boundary(outline_texture)
 			uv_canvas.set_selection_boundary(outline_texture)
 			_show_selection()
-		"selection_lasso":
+		"selection_lasso", "selection_wand":
 			selected_faces.clear()
 			_selection_steps.clear()
 			painter.set_selection(result.selection)
-			_lasso_selected = painter.selection_active
+			_pixel_selected = painter.selection_active
 			if painter.selection_active:
 				var outline_texture := ImageTexture.create_from_image(result.boundary)
 				model_view.set_selection_boundary(outline_texture)
@@ -1925,7 +1960,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			KEY_PERIOD: _resize_selection(true)
 			KEY_COMMA: _resize_selection(false)
 	else:
-		var keys := {KEY_B: "brush", KEY_A: "spray", KEY_U:"smudge", KEY_V:"blur", KEY_E: "eraser", KEY_I: "picker", KEY_F: "fill", KEY_S: "select", KEY_L: "line", KEY_R: "rect", KEY_O: "ellipse", KEY_G: "gradient", KEY_T: "stencil", KEY_C: "clone"}
+		var keys := {KEY_B: "brush", KEY_A: "spray", KEY_U:"smudge", KEY_V:"blur", KEY_E: "eraser", KEY_I: "picker", KEY_F: "fill", KEY_S: "select", KEY_M: "wand", KEY_L: "line", KEY_R: "rect", KEY_O: "ellipse", KEY_G: "gradient", KEY_T: "stencil", KEY_C: "clone"}
 		if keys.has(event.keycode):
 			%ToolBar.select(keys[event.keycode])
 		elif event.keycode == KEY_P:
@@ -2019,6 +2054,9 @@ func _restore_preferences() -> void:
 	%ToolOptions.set_symmetry_axes(symmetry_axes)
 	fill_tolerance = clampf(float(_preferences.get_setting("fill","tolerance",0.0)),0.0,1.0)
 	%ToolOptions.get_node("Tolerance").set_value(fill_tolerance*100.0,false)
+	%WandOptions.set_options(int(_preferences.get_setting("selection","wand_mode",0)),float(_preferences.get_setting("selection","wand_tolerance",0.0)))
+	wand_mode = %WandOptions.mode()
+	wand_tolerance = %WandOptions.tolerance()
 	%Pattern.set_mode(int(_preferences.get_setting("fill","mode",0)))
 	%ToolOptions.get_node("Length").set_value(float(_preferences.get_setting("brush","gradient_length",7)),false)
 	gradient_length = int(%ToolOptions.get_node("Length").value)
@@ -2102,6 +2140,8 @@ func _save_preferences() -> void:
 	_preferences.set_setting("brush","symmetry_axes",symmetry_axes)
 	_preferences.set_setting("fill","tolerance",fill_tolerance)
 	_preferences.set_setting("fill","mode",%Pattern.mode())
+	_preferences.set_setting("selection","wand_mode",wand_mode)
+	_preferences.set_setting("selection","wand_tolerance",wand_tolerance)
 	_preferences.set_setting("brush","gradient_length",gradient_length)
 	_preferences.set_setting("spray","strength",%SprayOptions.get_node("Strength").value)
 	_preferences.set_setting("spray","dot_size",painter.spray_dot_size)

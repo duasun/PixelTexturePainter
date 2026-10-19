@@ -52,7 +52,7 @@ func run() -> void:
 	scene.painter.end()
 	while scene.painter.active: await process_frame
 	scene.get_node("%ToolBar").select("spray")
-	check(scene.get_node("%ToolOptions/Size").visible and scene.get_node("%SprayOptions/DotSize").visible and scene.get_node("%SprayOptions/DotShape").visible and not scene.get_node("%ToolOptions/Dither").visible and not scene.get_node("%ToolOptions/Mirror").visible and not scene.get_node("%ToolOptions/EdgeWrap").visible and not scene.get_node("%ToolOptions/SymX").visible,"Spray keeps dot controls visible and hides unrelated brush options")
+	check(scene.get_node("%ToolOptions/Size").visible and scene.get_node("%SprayOptions/DotSize").visible and scene.get_node("%SprayOptions/DotShape").visible and not scene.get_node("%ToolOptions/Dither").visible and not scene.get_node("%ToolOptions/Mirror").visible and scene.get_node("%ToolOptions/EdgeWrap").visible and not scene.get_node("%ToolOptions/SymX").visible,"Spray shows Wrap alongside its dot controls")
 	scene.get_node("%SprayOptions/Strength").set_value(60)
 	check(is_equal_approx(scene.painter.spray_flow,0.6) and scene.painter.spray_particles == 21,"Strength combines spray density and buildup")
 	scene.get_node("%ToolBar").select("fill")

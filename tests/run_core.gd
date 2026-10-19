@@ -147,6 +147,29 @@ func run() -> void:
 	painter.end()
 	while painter.active: painter._process(0.0)
 	check(shape_doc.selected_layer().tile_at(Vector2i.ZERO,false,false).get_pixel(44,9).a > 0.0,"Line tool also wraps its drawn edge across the UV seam")
+	var spray_wrap_doc := PaintDocument.new()
+	spray_wrap_doc.initialize(64,64,Color.WHITE)
+	spray_wrap_doc.geometry = corner_model
+	painter.setup(spray_wrap_doc,PaintHistory.new())
+	painter.tool = "spray"
+	painter.brush_size = 12
+	painter.spray_particles = 60
+	painter.spray_flow = 1.0
+	painter.opacity = 1.0
+	painter.color = Color.RED
+	painter.edge_wrap = true
+	painter.edge_wrap_camera_position = Vector3(2,2,2)
+	painter.edge_wrap_visible_only = true
+	painter.begin(Vector2(0.115,0.19),corner_model.islands[0],0)
+	check(painter._symmetry_paths.size() > 0,"Spray Wrap queues the touched neighboring face")
+	painter.end()
+	while painter.active: painter._process(0.0)
+	var spray_wrap_tile := spray_wrap_doc.selected_layer().tile_at(Vector2i.ZERO,false,false)
+	var spray_wrapped_pixels := 0
+	for spray_y in range(5,18):
+		for spray_x in range(38,56):
+			if spray_wrap_tile.get_pixel(spray_x,spray_y).a > 0.0: spray_wrapped_pixels += 1
+	check(spray_wrapped_pixels > 0,"Spray paints the visible adjacent face across the UV seam")
 	var noise_doc := PaintDocument.new()
 	noise_doc.initialize(64,64,Color.GRAY)
 	var flat := Image.create(16,16,false,Image.FORMAT_RGBA8)
