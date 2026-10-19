@@ -431,7 +431,10 @@ func run() -> void:
 	scene.jobs.progress.cancel()
 	await ready_document(scene)
 	check(scene.selected_faces == original and scene.uv_canvas.selected_faces == original, "Cancelling selection growth restores original selection and visible mask")
-	scene._clear_selection()
+	var viewport_clear: Button = model_view.get_node("Display/ClearSelection")
+	check(viewport_clear.visible,"Selected faces show a clear-selection button in the model viewport")
+	viewport_clear.pressed.emit()
+	check(scene.selected_faces.is_empty() and not viewport_clear.visible,"Viewport button clears the selection")
 	# Bucket input uses flood fill without selection, including UV clicks.
 	scene.document.layers[0].tile_at(Vector2i.ZERO).fill_rect(Rect2i(8,0,1,16),Color.BLACK)
 	scene.get_node("%ToolBar").select("fill")
@@ -705,8 +708,11 @@ func run() -> void:
 				for corner in 3: focus_bounds = focus_bounds.expand(scene.document.geometry.positions[face*3+corner])
 		check(model_view.target.distance_to(focus_bounds.get_center()) < 0.0001,"Z focuses the object under the cursor")
 	var focus_before_axis: Vector3 = model_view.target
+	var gizmo = model_view.get_node("Display/AxisGizmo")
+	var gizmo_before: Basis = gizmo.camera_basis
 	model_view.get_node("Display/Axes/Grid/PosX").pressed.emit()
 	check(model_view.camera.projection == Camera3D.PROJECTION_ORTHOGONAL and model_view.camera.position.x > model_view.target.x and model_view.target == focus_before_axis,"+X axis gives an orthographic side view around the current focus")
+	check(gizmo.camera_basis != gizmo_before and model_view.get_node("Display/Axes").position.y > gizmo.position.y,"Camera-relative axis gizmo updates above the fixed-view buttons")
 	model_view.get_node("Display/Axes/Grid/NegY").pressed.emit()
 	check(model_view.camera.position.y < model_view.target.y and model_view.get_node("Display/Axes/Grid/NegY").button_pressed,"-Y axis looks up at the model")
 	model_view.frame_model()
@@ -748,6 +754,35 @@ func run() -> void:
 		background_press.position = paint_point
 		model_view._input_display(background_press)
 		while scene.painter.active: scene.painter._process(0.0)
+	# The layer context menu acts on the clicked row; Flatten All waits for confirmation.
+	scene._start_new(64,64,"Flatten menu")
+	await ready_document(scene)
+	scene._layer_action("add",null)
+	var menu_layers = scene.get_node("%Layers")
+	var menu_row = menu_layers.rows[scene.document.selected_layer().id]
+	var right_click := InputEventMouseButton.new()
+	right_click.button_index = MOUSE_BUTTON_RIGHT
+	right_click.pressed = true
+	menu_row._context_input(right_click)
+	check(menu_layers.get_node("LayerMenu").visible and not menu_layers.get_node("LayerMenu").is_item_disabled(0),"Right-click layer menu offers Flatten down")
+	menu_layers.get_node("LayerMenu").id_pressed.emit(0)
+	await ready_document(scene)
+	check(scene.document.layers.size() == 2,"Flatten down merges only the clicked pair")
+	scene._action("Undo")
+	check(scene.document.layers.size() == 3,"Undo restores layers after Flatten down")
+	menu_layers._open_context(scene.document.selected_layer().id,Vector2i(10,10))
+	menu_layers.get_node("LayerMenu").id_pressed.emit(1)
+	check(menu_layers.get_node("FlattenAllConfirm").visible and scene.document.layers.size() == 3,"Flatten All shows confirmation before changing layers")
+	menu_layers.get_node("FlattenAllConfirm").confirmed.emit()
+	await ready_document(scene)
+	check(scene.document.layers.size() == 1,"Confirmed Flatten All merges visible layers")
+	scene._action("Undo")
+	check(scene.document.layers.size() == 3,"Undo restores layers after Flatten All")
+	model_view.get_node("Header/Light").button_pressed = true
+	await process_frame
+	await ready_document(scene)
+	check(model_view.display_material.get_shader_parameter("shaded") and not model_view.display_material.get_shader_parameter("pbr_enabled"),"Albedo-only project uses lightweight lighting")
+	model_view.get_node("Header/Light").button_pressed = false
 	var report := {"checks": checks,"failures": failures}
 	var output := FileAccess.open("res://test_output/ui_results.json",FileAccess.WRITE)
 	output.store_string(JSON.stringify(report,"\t"))

@@ -147,7 +147,7 @@ func run() -> void:
 	check(shared_import.geometry.uvs == shared_uv.uvs and int(shared_import.material_overlap) > 0,"Overlapping material UVs are reported without changing the model layout")
 	check(shared_import.imported_layers[0].tiles[Vector2i.ZERO].get_pixel(2,2).r > 0.9,"First material keeps shared texels instead of a later overwrite")
 	var preview_maps := PBRPreview.build(progress,doc)
-	check(preview_maps.has("maps") and preview_maps.maps.size() == 6,"Lit preview builds all six material maps")
+	check(preview_maps.has("maps") and preview_maps.maps.size() == (5 if doc.current_channel() == "albedo" else 6) and preview_maps.maps.has("albedo") == (doc.current_channel() != "albedo"),"Lit preview uses live Albedo only while Albedo is being edited")
 	var pattern_doc := PaintDocument.new()
 	pattern_doc.initialize(128,128,Color.BLACK)
 	pattern_doc.geometry = UVUnwrapper.unwrap(ModelGeometry.demo(),128,128,45,1).geometry

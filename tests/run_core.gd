@@ -301,7 +301,7 @@ func run() -> void:
 	var pbr_started := Time.get_ticks_usec()
 	var pbr_preview := PBRPreview.build(progress,large)
 	print("4K lit preview: %.2f ms; %d maps" % [(Time.get_ticks_usec()-pbr_started)/1000.0,pbr_preview.maps.size()])
-	check(pbr_preview.maps.albedo.get_width() == 1024,"4K lit preview caps GPU image dimensions")
+	check(pbr_preview.maps.size() == 5 and pbr_preview.simple and not pbr_preview.maps.has("albedo") and pbr_preview.maps.roughness.get_size() == Vector2i.ONE,"Lit preview reuses live Albedo and chooses lightweight lighting for empty material maps")
 	additional_checks(painter, progress)
 	var report := {"checks": checks, "failures": failures, "stroke_4k_ms": elapsed, "peak_slice_ms": peak, "undo_bytes": large_history.memory_bytes, "godot": Engine.get_version_info().string}
 	var report_file := FileAccess.open("res://test_output/core_results.json", FileAccess.WRITE)

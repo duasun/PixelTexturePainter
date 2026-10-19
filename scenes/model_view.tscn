@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 [ext_resource type="Script" path="res://ui/model_view.gd" id="script"]
 [ext_resource type="Script" path="res://ui/cursor_marker.gd" id="cursor"]
 [ext_resource type="Script" path="res://ui/symmetry_preview.gd" id="symmetry_preview"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" path="res://assets/tools/undo.svg" id="undo_icon"]
 [ext_resource type="Texture2D" path="res://assets/tools/redo.svg" id="redo_icon"]
 [ext_resource type="PackedScene" path="res://scenes/reference_overlay.tscn" id="reference"]
+[ext_resource type="PackedScene" path="res://scenes/axis_gizmo.tscn" id="axis_gizmo"]
 [sub_resource type="Environment" id="env"]
 background_mode = 1
 background_color = Color(0.15,0.15,0.15,1)
@@ -148,12 +149,34 @@ tooltip_text = "Change model preview background"
 color = Color(0.15, 0.15, 0.15, 1)
 edit_alpha = false
 
-[node name="Axes" type="PanelContainer" parent="Display"]
+[node name="ClearSelection" type="Button" parent="Display"]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -205.0
+offset_top = 10.0
+offset_right = -50.0
+offset_bottom = 40.0
+grow_horizontal = 0
+text = "Clear selection  Esc"
+tooltip_text = "Remove the current face or lasso selection"
+focus_mode = 0
+
+[node name="AxisGizmo" parent="Display" instance=ExtResource("axis_gizmo")]
 layout_mode = 1
 offset_left = 10.0
 offset_top = 10.0
 offset_right = 118.0
-offset_bottom = 79.0
+offset_bottom = 110.0
+
+[node name="Axes" type="PanelContainer" parent="Display"]
+layout_mode = 1
+offset_left = 10.0
+offset_top = 118.0
+offset_right = 118.0
+offset_bottom = 187.0
 mouse_filter = 1
 tooltip_text = "Click an axis for an orthographic view"
 

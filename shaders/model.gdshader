@@ -5,6 +5,7 @@ render_mode unshaded, cull_back;
 #include "res://shaders/selection_ants.gdshaderinc"
 uniform bool shaded = false;
 uniform bool pbr_enabled = false;
+uniform bool pbr_albedo_live = true;
 uniform sampler2D pbr_albedo : filter_nearest, repeat_disable;
 uniform sampler2D pbr_roughness : filter_nearest, repeat_disable;
 uniform sampler2D pbr_metallic : filter_nearest, repeat_disable;
@@ -60,7 +61,7 @@ vec4 stamp_texel(vec2 local) {
 }
 void fragment() {
 	vec4 col = painted(UV);
-	if (pbr_enabled) { col = texture(pbr_albedo,UV); }
+	if (pbr_enabled && !pbr_albedo_live) { col = texture(pbr_albedo,UV); }
 	float checker = mod(floor(UV.x * texture_size.x / 8.0) + floor(UV.y * texture_size.y / 8.0), 2.0);
 	vec3 c = mix(vec3(0.16 + checker * 0.04), col.rgb, col.a);
 	if (pbr_enabled) {

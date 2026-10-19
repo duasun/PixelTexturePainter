@@ -52,7 +52,7 @@ func _process(_delta: float) -> void:
 	if thread != null and not thread.is_alive():
 		var result: Variant = thread.wait_to_finish()
 		thread = null
-		if progress.is_cancelled() and kind in ["new", "open", "recover", "import", "unwrap", "selection", "selection_lasso", "geometry_edit", "edges", "operation", "palette", "normal", "layer_blur_preview", "resize", "replace_color", "pattern_render", "pbr_preview", "geometry_mask"]:
+		if progress.is_cancelled() and kind in ["new", "open", "recover", "import", "unwrap", "selection", "selection_lasso", "geometry_edit", "edges", "operation", "palette", "normal", "layer_blur_preview", "resize", "replace_color", "pattern_render", "pbr_preview", "geometry_mask", "flatten_layers"]:
 			result = {"cancelled": true}
 		completed.emit(kind, result)
 

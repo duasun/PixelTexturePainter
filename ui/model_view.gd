@@ -11,6 +11,7 @@ signal lasso_event(phase: String, point: Vector2)
 signal history_requested(action: String)
 signal background_color_changed(color: Color)
 signal reference_state_changed(state: Dictionary)
+signal clear_selection_requested
 var geometry: ModelGeometry
 var display_material: ShaderMaterial
 var yaw := 0.55
@@ -52,10 +53,11 @@ func _ready() -> void:
 	$Header/Undo.pressed.connect(func(): history_requested.emit("Undo"))
 	$Header/Redo.pressed.connect(func(): history_requested.emit("Redo"))
 	$Header/Frame.pressed.connect(frame_model)
+	$Display/ClearSelection.pressed.connect(func(): clear_selection_requested.emit())
 	$Header/Wires.toggled.connect(func(on: bool): $Display/Viewport/World/Wires.visible = on)
 	$Header/Light.toggled.connect(func(on: bool): display_material.set_shader_parameter("shaded", on))
 	$Header/Light.toggled.connect(func(on: bool):
-		display_material.set_shader_parameter("pbr_enabled",on and _pbr_ready))
+		display_material.set_shader_parameter("pbr_enabled",on and _pbr_ready and not _pbr_simple))
 	$Header/Ortho.toggled.connect(func(on: bool):
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL if on else Camera3D.PROJECTION_PERSPECTIVE
 		_update_camera())
@@ -143,6 +145,9 @@ func set_history_available(can_undo: bool, can_redo: bool) -> void:
 	$Header/Undo.disabled = not can_undo
 	$Header/Redo.disabled = not can_redo
 
+func set_selection_clear_visible(active: bool) -> void:
+	$Display/ClearSelection.visible = active
+
 func set_geometry(data: ModelGeometry) -> void:
 	geometry = data
 	model.mesh = data.to_mesh()
@@ -158,14 +163,17 @@ func set_geometry(data: ModelGeometry) -> void:
 	display_material.set_shader_parameter("pbr_enabled",false)
 
 var _pbr_ready := false
+var _pbr_simple := false
 func pbr_requested() -> bool:
 	return $Header/Light.button_pressed
 
-func set_pbr_maps(maps: Dictionary) -> void:
+func set_pbr_maps(maps: Dictionary, simple := false) -> void:
 	for channel in maps:
 		display_material.set_shader_parameter("pbr_"+channel,ImageTexture.create_from_image(maps[channel]))
 	_pbr_ready = true
-	display_material.set_shader_parameter("pbr_enabled",pbr_requested())
+	_pbr_simple = simple
+	display_material.set_shader_parameter("pbr_albedo_live",not maps.has("albedo"))
+	display_material.set_shader_parameter("pbr_enabled",pbr_requested() and not _pbr_simple)
 
 func frame_model() -> void:
 	if geometry != null:
@@ -208,13 +216,14 @@ func restore_view(wires: bool, orthographic: bool, light: bool) -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL if orthographic else Camera3D.PROJECTION_PERSPECTIVE
 	$Header/Light.set_pressed_no_signal(light)
 	display_material.set_shader_parameter("shaded", light)
-	display_material.set_shader_parameter("pbr_enabled",light and _pbr_ready)
+	display_material.set_shader_parameter("pbr_enabled",light and _pbr_ready and not _pbr_simple)
 	_update_camera()
 
 func _update_camera() -> void:
 	var direction := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch))
 	camera.position = target + direction * distance
 	camera.look_at(target, Vector3.FORWARD if direction.y > 0.9999 else Vector3.BACK if direction.y < -0.9999 else Vector3.UP)
+	$Display/AxisGizmo.set_camera_basis(camera.basis)
 	camera.size = distance * 0.8
 	for axis in AXIS_DIRECTIONS:
 		$Display/Axes/Grid.get_node(axis).set_pressed_no_signal(camera.projection == Camera3D.PROJECTION_ORTHOGONAL and direction.dot(AXIS_DIRECTIONS[axis]) > 0.9999)

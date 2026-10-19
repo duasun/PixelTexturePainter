@@ -106,3 +106,15 @@ text = "Clear selection   Esc"
 layout_mode = 2
 text = "Reset current map"
 tooltip_text = "Erase all paint on the selected map; Undo restores it"
+
+[node name="LayerMenu" type="PopupMenu" parent="."]
+item_count = 2
+item_0/text = "Flatten down"
+item_0/id = 0
+item_1/text = "Flatten all visible layers…"
+item_1/id = 1
+
+[node name="FlattenAllConfirm" type="ConfirmationDialog" parent="."]
+title = "Flatten all layers?"
+dialog_text = "Merge visible layers into one layer per map? Hidden layers remain separate. You can Undo this action."
+ok_button_text = "Flatten all"

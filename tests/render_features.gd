@@ -42,7 +42,7 @@ func run() -> void:
 	await capture("features_compact.png")
 	scene.model_view.get_node("Header/Light").button_pressed = true
 	await settle(scene)
-	check(scene.model_view.display_material.get_shader_parameter("pbr_enabled"),"Lit PBR preview activates after its maps finish")
+	check(scene.model_view.display_material.get_shader_parameter("shaded") and not scene.model_view.display_material.get_shader_parameter("pbr_enabled"),"Albedo-only projects use lightweight lighting")
 	await capture("features_pbr.png")
 	scene.model_view.get_node("Header/Light").button_pressed = false
 	var palette_panel: Node = scene.get_node("%PalettePanel")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://ui/axis_gizmo.gd" id="script"]
+[node name="AxisGizmo" type="Control"]
+custom_minimum_size = Vector2(108, 100)
+mouse_filter = 2
+script = ExtResource("script")

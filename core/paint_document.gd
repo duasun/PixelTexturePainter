@@ -84,6 +84,8 @@ func compose_tile(key: Vector2i, channel := "") -> Image:
 	for layer in layers:
 		if layer.channel != channel or not layer.visible or layer.opacity <= 0.0:
 			continue
+		if layer.base_color.a <= 0.0 and not layer.tiles.has(key) and not layer.pattern_tiles.has(key):
+			continue
 		var source := layer.prepared_tile(key)
 		if layer.blend_mode == 0:
 			result.blend_rect(source, Rect2i(0, 0, 64, 64), Vector2i.ZERO)

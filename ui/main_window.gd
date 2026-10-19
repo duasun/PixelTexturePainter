@@ -118,6 +118,7 @@ func _ready() -> void:
 	%Inspector.tab_changed.connect(func(_tab: int): _queue_preferences_save())
 	model_view.surface_event.connect(_surface_input.bind(true))
 	model_view.history_requested.connect(_action)
+	model_view.clear_selection_requested.connect(_clear_selection)
 	model_view.background_color_changed.connect(func(_color: Color): _queue_preferences_save())
 	model_view.reference_state_changed.connect(_reference_state_changed)
 	uv_canvas.surface_event.connect(_surface_input.bind(false))
@@ -701,6 +702,7 @@ func _reset_lasso() -> void:
 	uv_canvas.lasso_preview.clear()
 	uv_canvas.queue_redraw()
 	model_view.set_selection_boundary(null)
+	model_view.set_selection_clear_visible(false)
 	uv_canvas.set_selection_boundary(null)
 
 func _resize_selection(grow: bool) -> void:
@@ -731,6 +733,7 @@ func _rebuild_selection() -> void:
 		return {"selection": UVRaster.selection(document.geometry, selected_faces, Vector2i(document.width, document.height))})
 
 func _show_selection() -> void:
+	model_view.set_selection_clear_visible(not selected_faces.is_empty() or painter.selection_active)
 	painter.edge_wrap_faces.clear()
 	for face in selected_faces: painter.edge_wrap_faces[face] = true
 	model_view.show_selection(selected_faces)
@@ -775,6 +778,11 @@ func _layer_action(action: String, value: Variant) -> void:
 	_cancel_geometry_preview()
 	_commit_effects()
 	var channel_before := document.current_channel()
+	if action in ["flatten_down","flatten_all"]:
+		var copy := document.read_copy()
+		if action == "flatten_down": jobs.start("flatten_layers",LayerFlatten.down.bind(copy,str(value)))
+		else: jobs.start("flatten_layers",LayerFlatten.all_visible.bind(copy))
+		return
 	if action == "clear_map":
 		_clear_current_map()
 		return
@@ -1537,8 +1545,22 @@ func _job_completed(kind: String, value: Variant) -> void:
 		_status("Operation cancelled · document unchanged")
 		return
 	match kind:
+		"flatten_layers":
+			var before := document.layers.duplicate()
+			var active_before := document.active_layer
+			document.layers.assign(result.layers)
+			for i in document.layers.size():
+				if document.layers[i].id == result.active_id:
+					document.active_layer = i
+					break
+			history.push(document,{"kind":"layers","label":"Flatten layers","before":before,"after":document.layers.duplicate(),"active_before":active_before,"active_after":document.active_layer})
+			if document.current_channel() in result.channels: tiles.mark(document.all_keys(),false)
+			_apply_materials()
+			_sync_pattern_inspector()
+			_refresh_metadata()
+			_status("Layers flattened · Undo restores the originals")
 		"pbr_preview":
-			model_view.set_pbr_maps(result.maps)
+			model_view.set_pbr_maps(result.maps,result.simple)
 		"palette":
 			_commit_effects()
 			history.push(document, {"kind":"palette", "label":"Load palette", "before":{"colors":document.palette.duplicate(),"name":document.palette_name}, "after":{"colors":result.palette.duplicate(),"name":result.name}})
