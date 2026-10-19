@@ -140,19 +140,20 @@ text = "Geometry edges → new paint layer"
 
 [node name="EdgeWidthLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Solid radius from edge"
+text = "Line thickness"
 [node name="EdgeWidth" parent="." instance=ExtResource("num")]
 layout_mode = 2
 value = 2.0
 minimum = 1.0
 maximum = 32.0
 suffix = " px"
+tooltip_text = "Exact width into each face; use 1 or 2 px for a thin edge"
 [node name="EdgeScatterLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Extra scatter reach"
 [node name="EdgeScatter" parent="." instance=ExtResource("num")]
 layout_mode = 2
-value = 4.0
+value = 0.0
 minimum = 0.0
 maximum = 32.0
 suffix = " px"
@@ -161,7 +162,7 @@ layout_mode = 2
 text = "Noise amount"
 [node name="EdgeNoise" parent="." instance=ExtResource("num")]
 layout_mode = 2
-value = 35.0
+value = 0.0
 minimum = 0.0
 maximum = 100.0
 suffix = "%"

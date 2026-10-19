@@ -306,11 +306,17 @@ static func edge_layer(progress: BackgroundJob.JobProgress, doc: PaintDocument, 
 			var c: int = item.y
 			var a := model.uvs[face * 3 + c] * Vector2(doc.width, doc.height)
 			var b := model.uvs[face * 3 + (c + 1) % 3] * Vector2(doc.width, doc.height)
+			var inside := model.uvs[face * 3 + (c + 2) % 3] * Vector2(doc.width, doc.height)
+			var along := (b - a).normalized()
+			var inward := Vector2(-along.y, along.x)
+			if inward.dot(inside - a) < 0.0: inward = -inward
 			var steps := maxi(1, ceili(a.distance_to(b)))
 			for s in steps + 1:
-				var p := Vector2i(a.lerp(b, s / float(steps)))
-				for y in range(maxi(0, p.y - width), mini(doc.height, p.y + width + 1)):
-					UVRaster.span(layer.tiles, y, maxi(0, p.x - width), mini(doc.width - 1, p.x + width), color)
+				var point := a.lerp(b, s / float(steps))
+				for depth in maxi(1,width):
+					var p := Vector2i((point + inward * (depth + 0.5)).floor())
+					if p.x >= 0 and p.y >= 0 and p.x < doc.width and p.y < doc.height:
+						UVRaster.span(layer.tiles, p.y, p.x, p.x, color)
 			if scatter_reach > 0 and noise_amount > 0.0:
 				_edge_scatter(layer.tiles,model,model.islands[face],island_masks,a,b,Vector2i(doc.width,doc.height),width,scatter_reach,noise_amount,side_falloff,color)
 	return {"layer": layer}

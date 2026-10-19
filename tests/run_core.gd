@@ -225,6 +225,11 @@ func run() -> void:
 	edge_doc.initialize(64,64,Color.TRANSPARENT)
 	edge_doc.geometry = edge_geometry
 	var crisp_edges := PaintOperations.edge_layer(progress,edge_doc,1,Color.WHITE)
+	var two_pixel_edges := PaintOperations.edge_layer(progress,edge_doc,2,Color.WHITE)
+	var one_pixel_tile: Image = crisp_edges.layer.tiles[Vector2i.ZERO]
+	var two_pixel_tile: Image = two_pixel_edges.layer.tiles[Vector2i.ZERO]
+	check(one_pixel_tile.get_pixel(30,13).a > 0.0 and one_pixel_tile.get_pixel(30,14).a == 0.0,"Edge thickness 1 px paints exactly one row on a flat face")
+	check(two_pixel_tile.get_pixel(30,13).a > 0.0 and two_pixel_tile.get_pixel(30,14).a > 0.0 and two_pixel_tile.get_pixel(30,15).a == 0.0,"Edge thickness 2 px paints exactly two rows on a flat face")
 	var zero_noise := PaintOperations.edge_layer(progress,edge_doc,1,Color.WHITE,6,0.0,1.0)
 	var scattered_edges := PaintOperations.edge_layer(progress,edge_doc,1,Color.WHITE,6,1.0,1.0)
 	var flat_scatter := PaintOperations.edge_layer(progress,edge_doc,1,Color.WHITE,6,1.0,0.0)
