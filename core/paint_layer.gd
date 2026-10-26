@@ -6,6 +6,7 @@ var id: String = str(Time.get_ticks_usec())
 var title := "Paint layer"
 var effect_kind := ""
 var effect_source_id := ""
+var effect_settings: Dictionary = {}
 var channel := "albedo"
 var visible := true
 var locked := false
@@ -65,6 +66,7 @@ func metadata() -> Dictionary:
 	for face in pattern_faces: faces.append(face)
 	return {"id": id, "title": title, "channel": channel, "visible": visible, "locked": locked,
 		"effect_kind": effect_kind, "effect_source_id": effect_source_id,
+		"effect_settings": effect_settings.duplicate(true),
 		"opacity": opacity, "blend_mode": blend_mode,
 		"base": base_color.to_html(true), "mask_enabled": mask_enabled,
 		"pattern_faces":faces, "pattern_settings":pattern_settings.duplicate(true)}
@@ -80,6 +82,7 @@ static func from_metadata(data: Dictionary) -> PaintLayer:
 			"Cavity AO": layer.effect_kind = "ao"
 			"From Height": layer.effect_kind = "normal"
 	layer.effect_source_id = str(data.get("effect_source_id",""))
+	layer.effect_settings = data.get("effect_settings",{}).duplicate(true)
 	layer.channel = str(data.get("channel", "albedo"))
 	if not layer.channel in PaintChannels.IDS: layer.channel = "albedo"
 	layer.visible = data.get("visible", true)

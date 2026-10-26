@@ -54,10 +54,10 @@ func _open_context(id: String, at: Vector2i) -> void:
 	var doc := _current_document
 	if doc == null: return
 	$LayerMenu.set_item_disabled(0,not LayerFlatten.can_down(doc,id))
-	$LayerMenu.set_item_tooltip(0,"Both layers must use Normal blend and have the same visibility.")
+	$LayerMenu.set_item_tooltip(0,"Paint layers need Normal blend and matching visibility; FX layers stay separate.")
 	var visible_by_channel: Dictionary = {}
 	for layer in doc.layers:
-		if layer.visible: visible_by_channel[layer.channel] = int(visible_by_channel.get(layer.channel,0)) + 1
+		if layer.visible and layer.effect_kind.is_empty(): visible_by_channel[layer.channel] = int(visible_by_channel.get(layer.channel,0)) + 1
 	var can_all := false
 	for count in visible_by_channel.values():
 		if count >= 2: can_all = true

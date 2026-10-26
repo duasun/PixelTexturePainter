@@ -3,7 +3,7 @@ signal effect_changed(key: String, value: Variant)
 signal layer_effect_toggled(kind: String, enabled: bool)
 signal section_changed
 var refreshing := false
-const LAYER_TOGGLES := {"EdgesEnabled":"edges","AOEnabled":"ao","NormalEnabled":"normal","BlurEnabled":"blur","DirectionalEnabled":"directional"}
+const LAYER_TOGGLES := {"AdjustmentsEnabled":"adjustments","NoiseEnabled":"noise","Palette":"palette","EdgesEnabled":"edges","AOEnabled":"ao","NormalEnabled":"normal","BlurEnabled":"blur","DirectionalEnabled":"directional"}
 const PERCENT_SETTINGS := {"Brightness": "brightness", "Contrast": "contrast", "Saturation": "saturation", "Noise": "noise", "NoiseDensity": "noise_density"}
 const INTEGER_SETTINGS := {"NoiseGrain": "noise_grain", "NoiseSeedRow/NoiseSeed": "noise_seed"}
 const SECTIONS := {
@@ -14,11 +14,9 @@ const SECTIONS := {
 	"AOSection": ["AOEnabled","AOInfo","AOStrengthLabel","AOStrength","AORadiusLabel","AORadius","AODepthLabel","AODepth","AOFalloffLabel","AOFalloff","AOGenerate"],
 	"NormalSection": ["NormalEnabled","NormalInfo","NormalStrengthLabel","NormalStrength","NormalGenerate"],
 	"BlurSection": ["BlurEnabled","BlurInfo","BlurRadiusLabel","BlurRadius","BlurPreview","BlurApply","BlurCancel"],
-	"DirectionalSection": ["DirectionalEnabled","DirectionalInfo","DirectionalLengthLabel","DirectionalLength","DirectionalAngleLabel","DirectionalAngle","DirectionalStrengthLabel","DirectionalPreview","DirectionalApply","DirectionalCancel"]}
+	"DirectionalSection": ["DirectionalEnabled","DirectionalInfo","DirectionalLengthLabel","DirectionalLength","DirectionalAngleLabel","DirectionalAngle","DirectionalStrengthLabel","DirectionalStrength","DirectionalPreview","DirectionalApply","DirectionalCancel"]}
 
 func _ready() -> void:
-	$AdjustmentsEnabled.toggled.connect(func(on: bool): effect_changed.emit("adjustments_enabled",on))
-	$NoiseEnabled.toggled.connect(func(on: bool): effect_changed.emit("noise_enabled",on))
 	for node_name in LAYER_TOGGLES:
 		get_node(node_name).toggled.connect(func(on: bool):
 			if not refreshing: layer_effect_toggled.emit(LAYER_TOGGLES[node_name],on))
@@ -34,8 +32,6 @@ func _ready() -> void:
 	$NoiseSeedRow/NoiseReseed.pressed.connect(func():
 		var current := int($NoiseSeedRow/NoiseSeed.value)
 		$NoiseSeedRow/NoiseSeed.set_value((current + randi_range(1, 9999)) % 10000))
-	$Palette.toggled.connect(func(v: bool):
-		if not refreshing: effect_changed.emit("palette", v))
 	$Reset.pressed.connect(func(): effect_changed.emit("reset", null))
 	for heading in SECTIONS:
 		get_node(heading).toggled.connect(func(_on: bool): _show_section(heading); section_changed.emit())
@@ -57,7 +53,7 @@ func restore_sections(state: Dictionary) -> void:
 		_show_section(heading)
 
 func set_channel(channel: String) -> void:
-	$Hint.text = "Live Albedo preview · included in PNG export" if channel == "albedo" else "Albedo adjustments unavailable on this map · map generators below"
+	$Hint.text = "Named FX layers stay on top · visible FX export to PNG" if channel == "albedo" else "Albedo FX unavailable on this map · generators below"
 	for control_name in PERCENT_SETTINGS.keys() + INTEGER_SETTINGS.keys():
 		get_node(control_name).set_deferred("mouse_filter", Control.MOUSE_FILTER_STOP)
 		get_node(control_name).modulate.a = 1.0 if channel == "albedo" else 0.45
@@ -73,14 +69,29 @@ func set_channel(channel: String) -> void:
 func refresh(doc: PaintDocument) -> void:
 	refreshing = true
 	for node_name in PERCENT_SETTINGS:
-		var v: float = doc.effects[PERCENT_SETTINGS[node_name]]
+		var key: String = PERCENT_SETTINGS[node_name]
+		var kind := "noise" if key.begins_with("noise") else "adjustments"
+		var layer := doc.effect_layer(kind)
+		var v: float = float(layer.effect_settings.get(key,doc.effects[key])) if layer != null else float(doc.effects[key])
 		get_node(node_name).set_value(v * 100, false)
 	for node_name in INTEGER_SETTINGS:
-		get_node(node_name).set_value(float(doc.effects[INTEGER_SETTINGS[node_name]]), false)
-	$NoiseMode.select(clampi(int(doc.effects.noise_mode), 0, 3))
-	$Palette.button_pressed = doc.effects.palette
-	$AdjustmentsEnabled.set_pressed_no_signal(bool(doc.effects.get("adjustments_enabled",false)))
-	$NoiseEnabled.set_pressed_no_signal(bool(doc.effects.get("noise_enabled",false)))
+		var key: String = INTEGER_SETTINGS[node_name]
+		var layer := doc.effect_layer("noise")
+		get_node(node_name).set_value(float(layer.effect_settings.get(key,doc.effects[key])) if layer != null else float(doc.effects[key]), false)
+	var noise_layer := doc.effect_layer("noise")
+	$NoiseMode.select(clampi(int(noise_layer.effect_settings.get("noise_mode",doc.effects.noise_mode)) if noise_layer != null else int(doc.effects.noise_mode), 0, 3))
+	var controls := {"edges":{"EdgeWidth":"width","EdgeScatter":"scatter","EdgeNoise":"noise","EdgeFalloff":"falloff"},
+		"ao":{"AOStrength":"strength","AORadius":"radius","AODepth":"depth"},
+		"normal":{"NormalStrength":"strength"},"blur":{"BlurRadius":"radius"},
+		"directional":{"DirectionalLength":"length","DirectionalAngle":"angle","DirectionalStrength":"strength"}}
+	for kind in controls:
+		var fx_layer := doc.effect_layer(kind)
+		if fx_layer == null: continue
+		for control_name in controls[kind]:
+			var setting: String = controls[kind][control_name]
+			if fx_layer.effect_settings.has(setting): get_node(control_name).set_value(float(fx_layer.effect_settings[setting]),false)
+	var ao_layer := doc.effect_layer("ao")
+	if ao_layer != null and ao_layer.effect_settings.has("falloff"): $AOFalloff.select(clampi(int(ao_layer.effect_settings.falloff),0,$AOFalloff.item_count-1))
 	refresh_layer_toggles(doc)
 	refreshing = false
 
@@ -88,8 +99,8 @@ func refresh_layer_toggles(doc: PaintDocument) -> void:
 	for node_name in LAYER_TOGGLES:
 		var kind: String = LAYER_TOGGLES[node_name]
 		var active := false
-		for layer in doc.layers:
-			if layer.effect_kind == kind and layer.visible:
-				active = true
-				break
+		var layer := doc.effect_layer(kind)
+		if layer != null: active = layer.visible
+		elif kind in ["adjustments","noise","palette"]:
+			active = bool(doc.effects.get("palette" if kind == "palette" else kind + "_enabled",false))
 		get_node(node_name).set_pressed_no_signal(active)

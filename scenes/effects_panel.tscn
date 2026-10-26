@@ -6,7 +6,8 @@ script = ExtResource("script")
 theme_override_constants/separation = 7
 [node name="Hint" type="Label" parent="."]
 layout_mode = 2
-text = "Live preview · included in PNG export"
+text = "Named FX layers stay on top · visible FX export to PNG"
+autowrap_mode = 3
 theme_override_font_sizes/font_size = 11
 [node name="SepBrightnessLabel" type="HSeparator" parent="."]
 layout_mode = 2
@@ -17,8 +18,8 @@ toggle_mode = true
 alignment = 0
 [node name="AdjustmentsEnabled" type="CheckButton" parent="."]
 layout_mode = 2
-text = "Color adjustments"
-tooltip_text = "Turn brightness, contrast, saturation and color steps on or off"
+text = "FX · Color adjustments"
+tooltip_text = "Show or hide the Color adjustments layer; the settings below belong only to it"
 [node name="BrightnessLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Brightness"
@@ -58,8 +59,8 @@ toggle_mode = true
 alignment = 0
 [node name="NoiseEnabled" type="CheckButton" parent="."]
 layout_mode = 2
-text = "Pixel noise"
-tooltip_text = "Turn pixel noise on or off without losing its settings"
+text = "FX · Pixel noise"
+tooltip_text = "Show or hide the Pixel noise layer without losing its settings"
 [node name="NoiseLabel" type="Label" parent="."]
 layout_mode = 2
 text = "Amount"
@@ -129,11 +130,11 @@ toggle_mode = true
 alignment = 0
 [node name="Palette" type="CheckButton" parent="."]
 layout_mode = 2
-text = "Limit to palette"
+text = "FX · Palette limit"
 tooltip_text = "Nearest-palette colors can hide subtle noise; increase Amount to make it visible"
 [node name="Reset" type="Button" parent="."]
 layout_mode = 2
-text = "Reset color and noise"
+text = "Reset color and noise layers"
 
 [node name="Sep" type="HSeparator" parent="."]
 layout_mode = 2
@@ -148,7 +149,7 @@ text = "Edge highlights"
 tooltip_text = "Show or hide generated Edge highlights layers; turn on to generate the first one"
 [node name="EdgeLabel" type="Label" parent="."]
 layout_mode = 2
-text = "Geometry edges → new paint layer"
+text = "Geometry edges → FX · Edge highlights"
 
 [node name="EdgeWidthLabel" type="Label" parent="."]
 layout_mode = 2
@@ -206,7 +207,7 @@ text = "Ambient occlusion"
 tooltip_text = "Show or hide generated AO layers; turn on to bake the first one"
 [node name="AOInfo" type="Label" parent="."]
 layout_mode = 2
-text = "Bake nearby geometry shadows on a new Albedo layer"
+text = "Bake nearby geometry shadows to FX · Ambient occlusion"
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 11
 [node name="AOStrengthLabel" type="Label" parent="."]
@@ -266,7 +267,7 @@ text = "Normal from Height"
 tooltip_text = "Show or hide generated Normal layers; turn on to generate the first one"
 [node name="NormalInfo" type="Label" parent="."]
 layout_mode = 2
-text = "Uses the painted Height map; adds an editable Normal layer."
+text = "Uses the painted Height map; generates FX · Normal from height."
 autowrap_mode = 3
 [node name="NormalStrengthLabel" type="Label" parent="."]
 layout_mode = 2
@@ -294,7 +295,7 @@ text = "Layer blur"
 tooltip_text = "Show or hide the generated Blur layer and restore its source layer"
 [node name="BlurInfo" type="Label" parent="."]
 layout_mode = 2
-text = "Preview after adjusting radius. Apply creates a switchable layer."
+text = "Preview after adjusting radius. Apply updates FX · Blur."
 autowrap_mode = 3
 [node name="BlurRadiusLabel" type="Label" parent="."]
 layout_mode = 2
@@ -311,7 +312,7 @@ text = "Preview blur"
 [node name="BlurApply" type="Button" parent="."]
 theme_type_variation = &"AccentButton"
 layout_mode = 2
-text = "Create blur layer"
+text = "Apply blur to FX layer"
 [node name="BlurCancel" type="Button" parent="."]
 layout_mode = 2
 text = "Cancel preview"
@@ -329,7 +330,7 @@ text = "Directional blur"
 tooltip_text = "Show or hide the generated Directional Blur layer and restore its source layer"
 [node name="DirectionalInfo" type="Label" parent="."]
 layout_mode = 2
-text = "Blur the selected layer along an angle. The face selection limits the effect."
+text = "Blur the source layer along an angle. The face selection limits the effect."
 autowrap_mode = 3
 theme_override_font_sizes/font_size = 11
 [node name="DirectionalLengthLabel" type="Label" parent="."]
@@ -365,7 +366,7 @@ text = "Preview directional blur"
 [node name="DirectionalApply" type="Button" parent="."]
 theme_type_variation = &"AccentButton"
 layout_mode = 2
-text = "Create directional blur layer"
+text = "Apply directional blur to FX layer"
 [node name="DirectionalCancel" type="Button" parent="."]
 layout_mode = 2
 text = "Cancel preview"

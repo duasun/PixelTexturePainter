@@ -13,8 +13,44 @@ var effects: Dictionary = {"adjustments_enabled": false, "noise_enabled": false,
 	"contrast": 1.0, "saturation": 1.0, "noise": 0.0, "noise_density": 1.0,
 	"noise_grain": 1, "noise_mode": 0, "noise_seed": 0, "palette": false}
 
+const LIVE_EFFECT_NAMES := {"adjustments":"FX · Color adjustments", "noise":"FX · Pixel noise", "palette":"FX · Palette limit"}
+const LIVE_EFFECT_KEYS := {
+	"adjustments": ["steps", "dither", "brightness", "contrast", "saturation"],
+	"noise": ["noise", "noise_density", "noise_grain", "noise_mode", "noise_seed"],
+	"palette": ["palette"]}
+
+func effect_layer(kind: String) -> PaintLayer:
+	for i in range(layers.size()-1,-1,-1):
+		if layers[i].effect_kind == kind: return layers[i]
+	return null
+
+func ensure_live_effect_layer(kind: String) -> PaintLayer:
+	var existing := effect_layer(kind)
+	if existing != null: return existing
+	var layer := PaintLayer.new()
+	layer.title = LIVE_EFFECT_NAMES[kind]
+	layer.effect_kind = kind
+	layer.visible = false
+	layer.locked = true
+	for key in LIVE_EFFECT_KEYS[kind]: layer.effect_settings[key] = effects[key]
+	layers.append(layer)
+	return layer
+
+func first_effect_index() -> int:
+	for i in layers.size():
+		if not layers[i].effect_kind.is_empty(): return i
+	return layers.size()
+
 func effective_effects() -> Dictionary:
-	var active := effects.duplicate()
+	var active := effects.duplicate(true)
+	for kind in LIVE_EFFECT_KEYS:
+		var layer := effect_layer(kind)
+		if layer == null: continue # Older project files still use document effects.
+		for key in LIVE_EFFECT_KEYS[kind]: active[key] = layer.effect_settings.get(key,effects[key])
+		match kind:
+			"adjustments": active.adjustments_enabled = layer.visible
+			"noise": active.noise_enabled = layer.visible
+			"palette": active.palette = layer.visible
 	if not bool(active.get("adjustments_enabled",false)):
 		active["brightness"] = 0.0
 		active["contrast"] = 1.0
@@ -25,7 +61,8 @@ func effective_effects() -> Dictionary:
 	return active
 
 func has_live_effects() -> bool:
-	return bool(effects.get("adjustments_enabled",false)) or bool(effects.get("noise_enabled",false)) or bool(effects.palette)
+	var active := effective_effects()
+	return bool(active.adjustments_enabled) or bool(active.noise_enabled) or bool(active.palette)
 var palette := PackedColorArray([
 	Color("17202e"), Color("303d50"), Color("566a7f"), Color("9bafbd"),
 	Color("e4e9df"), Color("ffffff"), Color("8b434d"), Color("de6c64"),

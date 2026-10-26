@@ -28,7 +28,7 @@ Palete do 1024 boje koriste balansirano RGB stablo za prikaz i CPU izvoz, sa ist
 ## Granice komponenti
 
 - `core/PaintDocument`: podaci projekta; `PaintLayer`: blokovi i cache kompozicije; `PaintHistory`: reverzibilne komande.
-- `core/PaintChannels`: identitet i podrazumevane vrednosti mapa; aktivna mapa određena je aktivnim slojem. Kompozicija filtrira slojeve po kanalu. Color efekti važe samo za Albedo. Projektni format 2 čuva kanale i čita prethodni format 1.
+- `core/PaintChannels`: identitet i podrazumevane vrednosti mapa; aktivna mapa određena je aktivnim slojem. Kompozicija filtrira slojeve po kanalu. Color efekti važe samo za Albedo. Svaki efekat ima imenovani gornji sloj sa sopstvenim `effect_settings`; stariji globalni efekti se pri otvaranju prebacuju u te slojeve. Projektni format 2 čuva kanale i čita prethodni format 1.
 - `paint/PaintEngine`: jedan potez, zamrznuta podešavanja, interpolacija, lokalni mask cache i raspoređivanje rada kroz frejmove.
 - `paint/TileDisplay`: CPU kompozicija izmenjenih blokova i parcijalno osvežavanje GPU texture-array stranica.
 - `paint/PaintOperations`: veće operacije vraćaju komandu; ne menjaju aktivni dokument tokom rada.

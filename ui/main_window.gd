@@ -25,6 +25,9 @@ var _pattern_before: Dictionary = {}
 var _saved_stamp_view: Dictionary = {}
 var _saved_stamp_view_path := ""
 var _blur_preview_layer_id := ""
+var _blur_preview_source_visible := true
+var _blur_preview_effect_id := ""
+var _blur_preview_effect_visible := false
 var _blur_original_tiles: Dictionary = {}
 var _blur_changed: Array[Vector2i] = []
 var _blur_job_layer_id := ""
@@ -33,6 +36,7 @@ var _blur_job_signature: Array = []
 var _blur_preview_signature: Array = []
 var _blur_apply_when_ready := false
 var _geometry_preview_layer: PaintLayer
+var _geometry_original_layer: PaintLayer
 var _geometry_preview_kind := ""
 var _geometry_preview_signature: Array = []
 var _geometry_requested_kind := ""
@@ -211,14 +215,23 @@ func _ready() -> void:
 		_start_new(128, 128, "Field crate", true)
 
 func _start_new(width: int, height: int, title: String, sample := false) -> void:
-	jobs.start("new", _create_document.bind(width, height, title, sample))
+	var colors := document.palette.duplicate() if document != null else PaintDocument.new().palette
+	var palette_name := document.palette_name if document != null else "Retro 16"
+	var primary := painter.color if document != null else Color("eea765")
+	var secondary := color_b
+	jobs.start("new", _create_document.bind(width, height, title, sample, colors, palette_name, primary, secondary))
 	_status("Preparing project…")
 
-static func _create_document(progress: BackgroundJob.JobProgress, width: int, height: int, title: String, sample: bool) -> Dictionary:
+static func _create_document(progress: BackgroundJob.JobProgress, width: int, height: int, title: String, sample: bool,
+		current_palette: PackedColorArray, palette_name: String, primary: Color, secondary: Color) -> Dictionary:
 	progress.report(0.1, "Preparing sample geometry…")
 	var doc := PaintDocument.new()
 	doc.initialize(width, height, Color("303d50"))
 	doc.title = title
+	doc.palette = current_palette.duplicate()
+	doc.palette_name = palette_name
+	doc.primary_color = primary
+	doc.secondary_color = secondary
 	var model := ModelGeometry.demo() if sample else ModelGeometry.new()
 	if not sample:
 		model.label = "Cube"
@@ -830,6 +843,9 @@ func _layer_action(action: String, value: Variant) -> void:
 	if action in ["visibility_at","rename_at","lock_at"]:
 		for layer in document.layers:
 			if layer.id != value.id: continue
+			if action == "visibility_at" and not layer.effect_kind.is_empty():
+				_layer_effect_toggled(layer.effect_kind,bool(value.visible))
+				return
 			var property := "visible" if action == "visibility_at" else "locked" if action == "lock_at" else "title"
 			var next: Variant = value.visible if action == "visibility_at" else value.locked if action == "lock_at" else str(value.title).strip_edges().left(128)
 			if property == "title" and str(next).is_empty(): return
@@ -845,6 +861,9 @@ func _layer_action(action: String, value: Variant) -> void:
 	elif action == "select":
 		document.active_layer = document.layers.size() - 1 - int(value)
 	elif action in ["add", "duplicate", "delete", "up", "down"]:
+		if action == "duplicate" and not document.selected_layer().effect_kind.is_empty():
+			_status("FX layers have one instance each; change their settings in Effects.")
+			return
 		if action in ["add", "duplicate"] and document.layers.size() >= 32:
 			_message("This project supports up to 32 layers across all maps.")
 			return
@@ -854,8 +873,8 @@ func _layer_action(action: String, value: Variant) -> void:
 			var layer := PaintLayer.new()
 			layer.channel = document.current_channel()
 			layer.title = "Paint %02d" % document.layers.size()
-			document.layers.insert(index + 1, layer)
-			document.active_layer += 1
+			document.active_layer = mini(index + 1,document.first_effect_index())
+			document.layers.insert(document.active_layer, layer)
 		elif action == "duplicate":
 			var layer := document.selected_layer().copy_layer()
 			layer.id = str(Time.get_ticks_usec())
@@ -863,10 +882,25 @@ func _layer_action(action: String, value: Variant) -> void:
 			document.layers.insert(index + 1, layer)
 			document.active_layer += 1
 		elif action == "delete" and document.layers.size() > 1:
+			var removed := document.layers[index]
+			if removed.effect_kind.is_empty():
+				for candidate in document.layers:
+					if candidate.effect_source_id == removed.id:
+						_status("Delete the dependent FX layer first.")
+						return
+			elif not removed.effect_source_id.is_empty():
+				var source := _find_layer(removed.effect_source_id)
+				if source != null:
+					var restored := source.copy_layer()
+					restored.visible = true
+					document.layers[document.layers.find(source)] = restored
 			document.layers.remove_at(index)
 			document.active_layer = mini(index, document.layers.size() - 1)
 		elif action in ["up", "down"]:
 			var next := clampi(index + (1 if action == "up" else -1), 0, document.layers.size() - 1)
+			if (document.layers[index].effect_kind.is_empty()) != (document.layers[next].effect_kind.is_empty()):
+				_status("FX layers stay above paint layers.")
+				return
 			var layer := document.layers[index]
 			document.layers.remove_at(index)
 			document.layers.insert(next, layer)
@@ -928,7 +962,7 @@ func _select_channel(channel: String) -> void:
 	_cancel_geometry_preview()
 	_commit_effects()
 	for i in range(document.layers.size()-1,-1,-1):
-		if document.layers[i].channel == channel:
+		if document.layers[i].channel == channel and document.layers[i].effect_kind.is_empty():
 			document.active_layer = i
 			tiles.mark(document.all_keys(),false)
 			_apply_materials()
@@ -944,8 +978,8 @@ func _select_channel(channel: String) -> void:
 	var layer := PaintLayer.new()
 	layer.channel = channel
 	layer.title = PaintChannels.label(channel) + " 01"
-	document.layers.append(layer)
-	document.active_layer = document.layers.size()-1
+	document.active_layer = document.first_effect_index()
+	document.layers.insert(document.active_layer,layer)
 	history.push(document,{"kind":"layers","label":"Add "+channel+" map","before":before,"after":document.layers.duplicate(),"active_before":previous,"active_after":document.active_layer})
 	tiles.mark(document.all_keys(),false)
 	_apply_materials()
@@ -955,15 +989,36 @@ func _select_channel(channel: String) -> void:
 func _effect_changed(key: String, value: Variant) -> void:
 	if document == null or jobs.busy() or document.current_channel() != "albedo":
 		return
-	if _effect_before.is_empty():
-		_effect_before = document.effects.duplicate(true)
 	if key == "reset":
-		document.effects = PaintDocument.new().effects
+		_commit_effects()
+		var defaults := PaintDocument.new().effects
+		for kind in ["adjustments","noise"]:
+			var layer := document.effect_layer(kind)
+			if layer == null: continue
+			var before := layer.effect_settings.duplicate(true)
+			var after := before.duplicate(true)
+			for setting in PaintDocument.LIVE_EFFECT_KEYS[kind]: after[setting] = defaults[setting]
+			if after != before:
+				layer.effect_settings = after
+				history.push(document,{"kind":"property","label":"Reset " + layer.title,"target":layer,"property":"effect_settings","before":before,"after":after.duplicate(true)})
 		%Effects.refresh(document)
 	else:
-		document.effects[key] = value
+		var kind := "noise" if key.begins_with("noise") else "palette" if key == "palette" else "adjustments"
+		if not _effect_before.is_empty() and _effect_before.kind != kind: _commit_effects()
+		var layer := document.effect_layer(kind)
+		if layer == null:
+			if document.layers.size() >= 32: _message("This project supports up to 32 layers across all maps."); return
+			var before_layers := document.layers.duplicate()
+			layer = document.ensure_live_effect_layer(kind)
+			history.push(document,{"kind":"layers","label":"Add " + layer.title,"before":before_layers,"after":document.layers.duplicate(),"active_before":document.active_layer,"active_after":document.active_layer})
+		if layer.effect_settings.get(key) == value: return
+		if _effect_before.is_empty(): _effect_before = {"kind":kind,"layer_id":layer.id,"settings":layer.effect_settings.duplicate(true)}
+		var settings := layer.effect_settings.duplicate(true)
+		settings[key] = value
+		layer.effect_settings = settings
 	_apply_materials()
 	%EffectCommit.start()
+	_refresh_metadata()
 
 func _layer_effect_toggled(kind: String, enabled: bool) -> void:
 	if document == null or jobs.busy() or painter.active:
@@ -971,6 +1026,24 @@ func _layer_effect_toggled(kind: String, enabled: bool) -> void:
 		return
 	_cancel_blur_preview()
 	_cancel_geometry_preview()
+	_commit_effects()
+	if kind in PaintDocument.LIVE_EFFECT_NAMES:
+		var target := document.effect_layer(kind)
+		if target == null:
+			if not enabled: return
+			if document.layers.size() >= 32: _message("This project supports up to 32 layers across all maps."); return
+			var before_layers := document.layers.duplicate()
+			target = document.ensure_live_effect_layer(kind)
+			target.visible = true
+			history.push(document,{"kind":"layers","label":"Enable " + target.title,"before":before_layers,"after":document.layers.duplicate(),"active_before":document.active_layer,"active_after":document.active_layer})
+		else:
+			if target.visible == enabled: return
+			var before := target.visible
+			target.visible = enabled
+			history.push(document,{"kind":"property","label":("Enable " if enabled else "Disable ") + target.title,"target":target,"property":"visible","before":before,"after":enabled})
+		_apply_materials()
+		_refresh_metadata()
+		return
 	var affected: Array[PaintLayer] = []
 	for layer in document.layers:
 		if layer.effect_kind == kind: affected.append(layer)
@@ -1004,8 +1077,9 @@ func _layer_effect_toggled(kind: String, enabled: bool) -> void:
 
 func _commit_effects() -> void:
 	if not _effect_before.is_empty() and document != null:
-		if _effect_before != document.effects:
-			history.push(document, {"kind": "effects", "label": "Adjust effects", "before": _effect_before.duplicate(true), "after": document.effects.duplicate(true)})
+		var layer := _find_layer(str(_effect_before.layer_id))
+		if layer != null and _effect_before.settings != layer.effect_settings:
+			history.push(document, {"kind":"property","label":"Adjust " + layer.title,"target":layer,"property":"effect_settings","before":_effect_before.settings.duplicate(true),"after":layer.effect_settings.duplicate(true)})
 		_effect_before.clear()
 		_refresh_metadata()
 	_commit_pattern_settings()
@@ -1159,7 +1233,7 @@ func _edges() -> void:
 		_cancel_blur_preview()
 		if _commit_geometry_preview("edges"): return
 		_cancel_geometry_preview()
-		if document.layers.size() >= 32:
+		if document.layers.size() >= 32 and document.effect_layer("edges") == null:
 			_message("This project supports up to 32 layers across all maps.")
 			return
 		jobs.start("edges", PaintOperations.edge_layer.bind(document, int(%Effects.get_node("EdgeWidth").value), painter.color,
@@ -1174,7 +1248,7 @@ func _ambient_occlusion() -> void:
 		return
 	if _commit_geometry_preview("ao"): return
 	_cancel_geometry_preview()
-	if document.layers.size() >= 32:
+	if document.layers.size() >= 32 and document.effect_layer("ao") == null:
 		_message("This project supports up to 32 layers across all maps.")
 		return
 	_commit_effects()
@@ -1188,16 +1262,61 @@ func _geometry_signature(kind: String) -> Array:
 	if kind == "edges": return [int(%Effects.get_node("EdgeWidth").value),int(%Effects.get_node("EdgeScatter").value),float(%Effects.get_node("EdgeNoise").value),float(%Effects.get_node("EdgeFalloff").value),painter.color.to_rgba32()]
 	return [float(%Effects.get_node("AOStrength").value),int(%Effects.get_node("AORadius").value),float(%Effects.get_node("AODepth").value),int(%Effects.get_node("AOFalloff").selected)]
 
+func _generated_effect_settings(kind: String) -> Dictionary:
+	match kind:
+		"edges": return {"width":int(%Effects.get_node("EdgeWidth").value),"scatter":int(%Effects.get_node("EdgeScatter").value),"noise":float(%Effects.get_node("EdgeNoise").value),"falloff":float(%Effects.get_node("EdgeFalloff").value)}
+		"ao": return {"strength":float(%Effects.get_node("AOStrength").value),"radius":int(%Effects.get_node("AORadius").value),"depth":float(%Effects.get_node("AODepth").value),"falloff":int(%Effects.get_node("AOFalloff").selected)}
+		"normal": return {"strength":float(%Effects.get_node("NormalStrength").value)}
+		"blur": return {"radius":int(%Effects.get_node("BlurRadius").value)}
+		"directional": return {"length":int(%Effects.get_node("DirectionalLength").value),"angle":float(%Effects.get_node("DirectionalAngle").value),"strength":float(%Effects.get_node("DirectionalStrength").value)}
+	return {}
+
+func _prepare_generated_effect(kind: String, layer: PaintLayer) -> void:
+	var previous := document.effect_layer(kind)
+	if previous != null and previous != _geometry_preview_layer:
+		layer.id = previous.id
+		layer.title = previous.title
+		layer.effect_source_id = previous.effect_source_id
+	else:
+		layer.title = {"edges":"FX · Edge highlights","ao":"FX · Ambient occlusion","normal":"FX · Normal from height","blur":"FX · Blur","directional":"FX · Directional blur"}.get(kind,layer.title)
+	layer.effect_kind = kind
+	layer.effect_settings = _generated_effect_settings(kind)
+	layer.locked = true
+	layer.visible = true
+
+func _install_generated_effect(kind: String, layer: PaintLayer, label: String) -> void:
+	var before := document.layers.duplicate()
+	var previous_active := document.active_layer
+	_prepare_generated_effect(kind,layer)
+	var old := document.effect_layer(kind)
+	if old != null:
+		var index := document.layers.find(old)
+		document.layers[index] = layer
+		if previous_active == index: document.active_layer = index
+	else:
+		document.layers.append(layer)
+		if kind == "normal": document.active_layer = document.layers.size()-1
+	history.push(document,{"kind":"layers","label":label,"before":before,"after":document.layers.duplicate(),"active_before":previous_active,"active_after":document.active_layer})
+	tiles.mark(document.all_keys(),false)
+	_apply_materials()
+	%Effects.refresh(document)
+	_refresh_metadata()
+
 func _cancel_geometry_preview(clear_request := true) -> void:
 	if clear_request: _geometry_requested_kind = ""
 	if _geometry_preview_layer == null or document == null: return
 	var index := document.layers.find(_geometry_preview_layer)
 	if index >= 0:
-		document.layers.remove_at(index)
+		if _geometry_original_layer != null: document.layers[index] = _geometry_original_layer
+		else: document.layers.remove_at(index)
+		var touched: Dictionary = _geometry_preview_layer.tiles.duplicate()
+		if _geometry_original_layer != null:
+			for key in _geometry_original_layer.tiles: touched[key] = true
 		var keys: Array[Vector2i] = []
-		keys.assign(_geometry_preview_layer.tiles.keys())
+		keys.assign(touched.keys())
 		tiles.mark(keys,false)
 	_geometry_preview_layer = null
+	_geometry_original_layer = null
 	_geometry_preview_kind = ""
 	_geometry_preview_signature.clear()
 	if is_node_ready(): %Effects.refresh_layer_toggles(document)
@@ -1207,7 +1326,7 @@ func _preview_geometry_effect(kind: String) -> void:
 	if document.current_channel() != "albedo":
 		_status("Select Albedo to preview geometry effects.")
 		return
-	if document.layers.size() >= 32 and _geometry_preview_layer == null: return
+	if document.layers.size() >= 32 and _geometry_preview_layer == null and document.effect_layer(kind) == null: return
 	_geometry_requested_kind = kind
 	_geometry_requested_signature = _geometry_signature(kind)
 	if jobs.busy(): return
@@ -1224,11 +1343,13 @@ func _preview_geometry_effect(kind: String) -> void:
 func _commit_geometry_preview(kind: String) -> bool:
 	if _geometry_preview_layer == null or _geometry_preview_kind != kind or _geometry_preview_signature != _geometry_signature(kind): return false
 	var before := document.layers.duplicate()
-	before.erase(_geometry_preview_layer)
+	var index := before.find(_geometry_preview_layer)
+	if _geometry_original_layer != null: before[index] = _geometry_original_layer
+	else: before.remove_at(index)
 	var previous := document.active_layer
-	document.active_layer = document.layers.find(_geometry_preview_layer)
 	history.push(document,{"kind":"layers","label":"Edge highlights" if kind == "edges" else "Cavity AO","before":before,"after":document.layers.duplicate(),"active_before":previous,"active_after":document.active_layer})
 	_geometry_preview_layer = null
+	_geometry_original_layer = null
 	_geometry_preview_kind = ""
 	_geometry_requested_kind = ""
 	_refresh_metadata()
@@ -1242,7 +1363,7 @@ func _generate_normal_map() -> void:
 	if not document.has_channel("height"):
 		_status("Paint a Height map first, then generate its Normal map.")
 		return
-	if document.layers.size() >= 32:
+	if document.layers.size() >= 32 and document.effect_layer("normal") == null:
 		_message("This project supports up to 32 layers across all maps.")
 		return
 	_commit_effects()
@@ -1273,8 +1394,12 @@ func _cancel_blur_preview() -> void:
 	if layer != null:
 		layer.tiles = _blur_original_tiles
 		layer._prepared.clear()
+		layer.visible = _blur_preview_source_visible
 		tiles.mark(_blur_changed,false)
+	var effect := _find_layer(_blur_preview_effect_id)
+	if effect != null: effect.visible = _blur_preview_effect_visible
 	_blur_preview_layer_id = ""
+	_blur_preview_effect_id = ""
 	_blur_original_tiles = {}
 	_blur_changed.clear()
 
@@ -1287,7 +1412,10 @@ func _blur_signature(kind: String, layer: PaintLayer) -> Array:
 func _preview_layer_blur(kind := "blur") -> void:
 	if document == null or painter.active: return
 	var layer := document.selected_layer()
-	if layer.locked:
+	var existing := document.effect_layer(kind)
+	if existing != null and not existing.effect_source_id.is_empty(): layer = _find_layer(existing.effect_source_id)
+	elif not layer.effect_source_id.is_empty(): layer = _find_layer(layer.effect_source_id)
+	if layer == null or (layer.locked and existing == null):
 		_status("Unlock this layer before applying Blur.")
 		_blur_apply_when_ready = false
 		return
@@ -1316,29 +1444,37 @@ func _apply_layer_blur() -> void:
 		_status("Blur did not change this layer.")
 		return
 	var label := "Directional blur %d px" % int(_blur_preview_signature[2]) if _blur_preview_signature[0] == "directional" else "Blur layer %d px" % int(_blur_preview_signature[2])
-	if document.layers.size() >= 32:
+	var kind := str(_blur_preview_signature[0])
+	var existing := document.effect_layer(kind)
+	if document.layers.size() >= 32 and existing == null:
 		_cancel_blur_preview()
 		_message("This project supports up to 32 layers across all maps.")
 		return
-	var kind := str(_blur_preview_signature[0])
 	var effect_layer := layer.copy_layer()
 	effect_layer.id = str(Time.get_ticks_usec()) + "-" + kind
-	effect_layer.title = label
-	effect_layer.effect_kind = kind
 	effect_layer.effect_source_id = layer.id
 	layer.tiles = _blur_original_tiles
 	layer._prepared.clear()
+	layer.visible = _blur_preview_source_visible
+	if existing != null: existing.visible = _blur_preview_effect_visible
 	var before := document.layers.duplicate()
 	var previous := document.active_layer
+	_prepare_generated_effect(kind,effect_layer)
 	var hidden_source := layer.copy_layer()
 	hidden_source.visible = false
 	var source_index := document.layers.find(layer)
 	document.layers[source_index] = hidden_source
-	document.layers.insert(source_index + 1,effect_layer)
-	document.active_layer = source_index + 1
+	if existing != null:
+		var index := document.layers.find(existing)
+		document.layers[index] = effect_layer
+		document.active_layer = index
+	else:
+		document.layers.append(effect_layer)
+		document.active_layer = document.layers.size()-1
 	history.push(document,{"kind":"layers","label":label,"before":before,"after":document.layers.duplicate(),"active_before":previous,"active_after":document.active_layer})
 	tiles.mark(document.all_keys(),false)
 	_blur_preview_layer_id = ""
+	_blur_preview_effect_id = ""
 	_blur_original_tiles = {}
 	_blur_changed.clear()
 	_blur_apply_when_ready = false
@@ -1812,45 +1948,25 @@ func _job_completed(kind: String, value: Variant) -> void:
 			_refresh_metadata()
 			_status(command.label + " complete")
 		"edges":
-			var before := document.layers.duplicate()
-			var previous := document.active_layer
-			document.layers.append(result.layer)
-			document.active_layer = document.layers.size() - 1
-			history.push(document, {"kind": "layers", "label": "Edge highlights", "before": before, "after": document.layers.duplicate(), "active_before": previous, "active_after": document.active_layer})
-			tiles.mark(document.all_keys(), false)
-			_refresh_metadata()
-			_status("Edge highlights added as an editable layer")
+			_install_generated_effect("edges",result.layer,"Edge highlights")
+			_status("Edge highlights updated on their FX layer")
 		"ao":
 			if result.layer.tiles.is_empty():
 				_status("No nearby geometry occludes the sampled surfaces at this reach.")
 				return
-			var before := document.layers.duplicate()
-			var previous := document.active_layer
-			document.layers.append(result.layer)
-			document.active_layer = document.layers.size() - 1
-			history.push(document, {"kind": "layers", "label": "Cavity AO", "before": before, "after": document.layers.duplicate(), "active_before": previous, "active_after": document.active_layer})
-			tiles.mark(document.all_keys(), false)
-			_apply_materials()
-			_refresh_metadata()
-			_status("Ambient occlusion baked on an editable Albedo layer · %d shaded samples" % int(result.samples))
+			_install_generated_effect("ao",result.layer,"Ambient occlusion")
+			_status("Ambient occlusion updated on its FX layer · %d shaded samples" % int(result.samples))
 		"normal":
 			if result.layer.tiles.is_empty():
 				_status("Height map is flat; no Normal pixels were generated.")
 				return
-			var before := document.layers.duplicate()
-			var previous := document.active_layer
-			document.layers.append(result.layer)
-			document.active_layer = document.layers.size() - 1
-			history.push(document,{"kind":"layers","label":"Normal from Height","before":before,"after":document.layers.duplicate(),"active_before":previous,"active_after":document.active_layer})
-			tiles.mark(document.all_keys(),false)
-			_apply_materials()
-			_refresh_metadata()
+			_install_generated_effect("normal",result.layer,"Normal from height")
 			_status("Normal map generated from Height · %d affected texels" % int(result.pixels))
 		"layer_blur_preview":
 			if _blur_requested_signature != _blur_job_signature:
 				if not _blur_requested_signature.is_empty(): _preview_layer_blur(str(_blur_requested_signature[0]))
 				return
-			if _blur_job_layer_id != document.selected_layer().id: return
+			if _find_layer(_blur_job_layer_id) == null: return
 			if result.changed.is_empty():
 				_blur_apply_when_ready = false
 				_status("Blur did not change this layer.")
@@ -1861,8 +1977,14 @@ func _job_completed(kind: String, value: Variant) -> void:
 			_blur_changed = result.changed
 			_blur_preview_layer_id = target.id
 			_blur_preview_signature = _blur_job_signature.duplicate(true)
+			_blur_preview_source_visible = target.visible
+			var existing_blur := document.effect_layer(str(_blur_job_signature[0]))
+			_blur_preview_effect_id = existing_blur.id if existing_blur != null else ""
+			_blur_preview_effect_visible = existing_blur.visible if existing_blur != null else false
 			target.tiles = result.tiles
 			target._prepared.clear()
+			target.visible = true
+			if existing_blur != null: existing_blur.visible = false
 			tiles.mark(_blur_changed,false)
 			_status("Directional blur preview · adjust controls, Apply, or Cancel" if _blur_preview_signature[0] == "directional" else "Blur preview · adjust Radius, Apply, or Cancel")
 			if _blur_apply_when_ready: _apply_layer_blur()
@@ -1874,12 +1996,19 @@ func _job_completed(kind: String, value: Variant) -> void:
 			if result.layer.tiles.is_empty():
 				_status("No geometry pixels were found for this effect.")
 				return
+			_prepare_generated_effect(effect_kind,result.layer)
+			_geometry_original_layer = document.effect_layer(effect_kind)
 			_geometry_preview_layer = result.layer
 			_geometry_preview_kind = effect_kind
 			_geometry_preview_signature = _geometry_job_signature.duplicate()
-			document.layers.append(result.layer)
+			if _geometry_original_layer != null:
+				document.layers[document.layers.find(_geometry_original_layer)] = result.layer
+			else: document.layers.append(result.layer)
 			var affected_keys: Array[Vector2i] = []
-			affected_keys.assign(result.layer.tiles.keys())
+			var touched: Dictionary = result.layer.tiles.duplicate()
+			if _geometry_original_layer != null:
+				for key in _geometry_original_layer.tiles: touched[key] = true
+			affected_keys.assign(touched.keys())
 			tiles.mark(affected_keys,false)
 			%Effects.refresh_layer_toggles(document)
 			_status("%s preview · change settings or click Bake/Generate to apply" % ("AO" if effect_kind == "ao" else "Edge"))

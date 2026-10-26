@@ -69,7 +69,9 @@ Linija, pravougaonik, elipsa i gradijent prikazuju svetli pregled dok držiš le
 
 **Load palette…** u dnu učitava PNG (po jedan piksel za boju, mrežu ili uvećane swatcheve), HEX, GIMP GPL, JASC PAL, Paint.NET TXT, RGB/grayscale ASE i Lospec JSON/CSV. Podržano je do 1024 boje. Providni PNG pikseli se preskaču; ponovljene boje PNG slike se objedinjuju. Tekstualni formati zadržavaju redosled iz fajla. Lospec preuzimanja su proverena na [Endesga 32](https://lospec.com/palette-list/endesga-32); [JSON/CSV API](https://lospec.com/palettes/api) koristi istu listu boja.
 
-Levi klik bira **1**, desni **2**. Okvir i broj obeležavaju izabrane swatcheve. Dva stalna uzorka sa HEX vrednostima pokazuju trenutne boje i kada su uzete eyedropperom van palete. Dugme **+** ispod palete otvara birač i dodaje novu boju. **Edit selected color…** ili dvoklik na swatch menja boju, a **Remove color** je briše. Sve tri radnje podržavaju Undo/Redo. Paleta i obe boje čuvaju se u projektu; efekat Palette koristi celu paletu.
+Levi klik bira **1**, desni **2**. Okvir i broj obeležavaju izabrane swatcheve. Dva stalna uzorka sa HEX vrednostima pokazuju trenutne boje i kada su uzete eyedropperom van palete. Dugme **+** ispod palete otvara birač i dodaje novu boju. **Edit selected color…** ili dvoklik na swatch menja boju, a **Remove color** je briše. Sve tri radnje podržavaju Undo/Redo. **New Project** zadržava trenutnu paletu i obe boje; **Open** vraća paletu sačuvanu u otvorenom projektu. Efekat Palette koristi celu paletu.
+
+Efekti u kartici **Effects** imaju imenovane **FX** slojeve na vrhu liste. Prekidač prikazuje ili skriva samo odgovarajući sloj, a podešavanja se čuvaju uz taj sloj u `.rtpaint` projektu. Ponovni bake AO, ivica, Normal i Blur ažurira postojeći sloj istog efekta; Undo vraća prethodnu verziju. Novi projekat počinje sa isključenim efektima. Obični slikarski slojevi ostaju ispod FX slojeva.
 
 **Edit → Replace color** menja odgovarajuće piksele u slojevima trenutno prikazane mape, sa podesivom tolerancijom i jednom Undo radnjom. Za lokalno bojenje koristi Fill sa Tolerance.
 

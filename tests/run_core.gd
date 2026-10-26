@@ -304,14 +304,20 @@ func run() -> void:
 		check(loaded.document.compose_tile(Vector2i.ZERO).get_data() == doc.compose_tile(Vector2i.ZERO).get_data(), "Save/load preserves composite pixels exactly")
 		check(loaded.document.geometry.uvs == doc.geometry.uvs, "Save/load preserves edited UV coordinates")
 		check(loaded.document.effects.steps == 8, "Save/load preserves effect settings")
-		check(loaded.document.effects.adjustments_enabled,"Save/load restores the active adjustment toggle")
-		check(loaded.document.layers[-1].effect_kind == "edges" and not loaded.document.layers[-1].visible,"Save/load restores generated effect identity and visibility")
+		check(loaded.document.effect_layer("adjustments") != null and loaded.document.effect_layer("adjustments").visible and loaded.document.effective_effects().steps == 8,"Legacy adjustment settings migrate into a visible named FX layer")
+		check(loaded.document.effect_layer("edges") != null and not loaded.document.effect_layer("edges").visible,"Save/load restores generated effect identity and visibility")
 	doc.effects.adjustments_enabled = false
 	doc.effects.noise = 0.7
 	doc.effects.noise_enabled = false
 	ProjectIO.save_project(progress,doc,path)
 	var loaded_disabled := ProjectIO.load_project(progress,path)
 	check(loaded_disabled.has("document") and not loaded_disabled.document.effects.adjustments_enabled and not loaded_disabled.document.effects.noise_enabled,"Save/load keeps changed effect values switched off")
+	var adjustment_layer := doc.ensure_live_effect_layer("adjustments")
+	adjustment_layer.visible = true
+	adjustment_layer.effect_settings.brightness = 0.23
+	ProjectIO.save_project(progress,doc,path)
+	var loaded_layers := ProjectIO.load_project(progress,path)
+	check(loaded_layers.has("document") and loaded_layers.document.effect_layer("adjustments") != null and loaded_layers.document.effect_layer("adjustments").visible and is_equal_approx(float(loaded_layers.document.effect_layer("adjustments").effect_settings.brightness),0.23),"Named FX layer and its own settings survive project save/load")
 	var obj_path := ProjectSettings.globalize_path("res://test_output/model.obj")
 	ProjectIO.export_obj(doc.geometry, obj_path)
 	var imported := ModelIO.load_model(progress, obj_path)

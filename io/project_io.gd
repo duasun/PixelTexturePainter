@@ -189,6 +189,35 @@ static func load_project(progress: BackgroundJob.JobProgress, path: String) -> D
 			layer.pattern_image = pattern
 		doc.layers.append(layer)
 		progress.report(float(i + 1) / (data.layers.size() + 1), "Restoring layers…")
+	# Older projects stored these adjustments globally. Move them into named top layers once.
+	var defaults := PaintDocument.new().effects
+	for kind in PaintDocument.LIVE_EFFECT_KEYS:
+		if doc.effect_layer(kind) != null: continue
+		var enabled_key: String = "palette" if kind == "palette" else kind + "_enabled"
+		var changed := bool(doc.effects.get(enabled_key,false))
+		for key in PaintDocument.LIVE_EFFECT_KEYS[kind]:
+			if doc.effects.get(key) != defaults.get(key): changed = true
+		if not changed or doc.layers.size() >= 32: continue
+		var fx_layer := doc.ensure_live_effect_layer(kind)
+		fx_layer.visible = bool(doc.effects.get(enabled_key,false))
+		doc.effects[enabled_key] = false
+	# Retain older repeated bakes as ordinary paint; only the newest layer owns each FX control.
+	var seen_effects := {}
+	for i in range(doc.layers.size()-1,-1,-1):
+		var fx_kind: String = doc.layers[i].effect_kind
+		if fx_kind.is_empty(): continue
+		if seen_effects.has(fx_kind):
+			doc.layers[i].effect_kind = ""
+			doc.layers[i].effect_source_id = ""
+			doc.layers[i].effect_settings.clear()
+		else: seen_effects[fx_kind] = true
+	var active_id: String = doc.layers[clampi(int(data.get("active_layer",0)),0,doc.layers.size()-1)].id
+	var paint_layers: Array[PaintLayer] = []
+	var fx_layers: Array[PaintLayer] = []
+	for layer in doc.layers:
+		if layer.effect_kind.is_empty(): paint_layers.append(layer)
+		else: fx_layers.append(layer)
+	doc.layers.assign(paint_layers + fx_layers)
 	if zip.file_exists("geometry.bin"):
 		var geometry_data: Variant = bytes_to_var(zip.read_file("geometry.bin"))
 		if not geometry_data is Dictionary:
@@ -200,7 +229,8 @@ static func load_project(progress: BackgroundJob.JobProgress, path: String) -> D
 			zip.close()
 			return {"error": "Incomplete model data."}
 		doc.geometry.build_cache()
-	doc.active_layer = clampi(int(data.get("active_layer", 0)), 0, doc.layers.size() - 1)
+	for i in doc.layers.size():
+		if doc.layers[i].id == active_id: doc.active_layer = i; break
 	zip.close()
 	return {"document": doc}
 

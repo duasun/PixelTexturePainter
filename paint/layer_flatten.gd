@@ -19,7 +19,7 @@ static func can_down(doc: PaintDocument, id: String) -> bool:
 	if lower < 0: return false
 	var upper := doc.layers[_index_of(doc,id)]
 	var bottom := doc.layers[lower]
-	return upper.visible == bottom.visible and upper.blend_mode == 0 and bottom.blend_mode == 0
+	return upper.effect_kind.is_empty() and bottom.effect_kind.is_empty() and upper.visible == bottom.visible and upper.blend_mode == 0 and bottom.blend_mode == 0
 
 static func down(progress: BackgroundJob.JobProgress, doc: PaintDocument, id: String) -> Dictionary:
 	var lower := lower_index(doc,id)
@@ -52,7 +52,7 @@ static func all_visible(progress: BackgroundJob.JobProgress, doc: PaintDocument)
 	for channel in PaintChannels.IDS:
 		var group: Array[PaintLayer] = []
 		for layer in doc.layers:
-			if layer.channel == channel and layer.visible: group.append(layer)
+			if layer.channel == channel and layer.visible and layer.effect_kind.is_empty(): group.append(layer)
 		if group.size() < 2: continue
 		var merged := PaintLayer.new()
 		merged.title = "Flattened " + PaintChannels.label(channel)
